@@ -1,9 +1,9 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 
-const otelRegex = /@opentelemetry\/instrumentation/;
+const otelRegex = /@opentelemetry\/instrumentation/u;
 
-export const config: NextConfig = {
+export const baseConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
     useTypeScriptCli: true,
@@ -28,6 +28,23 @@ export const config: NextConfig = {
     },
   },
 
+  transpilePackages: ["@repo/observability"],
+  typedRoutes: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
+  webpack(webpackConfig: { ignoreWarnings?: { module: RegExp }[] }) {
+    webpackConfig.ignoreWarnings = [{ module: otelRegex }];
+
+    return webpackConfig;
+  },
+};
+
+// The reference web application includes analytics; backend applications use
+// baseConfig and do not expose the analytics ingestion proxy.
+export const config: NextConfig = {
+  ...baseConfig,
   // oxlint-disable-next-line require-await -- Next requires rewrites to be async.
   async rewrites() {
     return [
@@ -45,20 +62,7 @@ export const config: NextConfig = {
       },
     ];
   },
-
-  // This is required to support PostHog trailing slash API requests
   skipTrailingSlashRedirect: true,
-  transpilePackages: ["@repo/observability"],
-  typedRoutes: true,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
-  webpack(webpackConfig) {
-    webpackConfig.ignoreWarnings = [{ module: otelRegex }];
-
-    return webpackConfig;
-  },
 };
 
 export const withAnalyzer = (sourceConfig: NextConfig): NextConfig =>

@@ -76,7 +76,7 @@ describe(ContentstackRecipe, () => {
           "applied_by",
           "version",
         ]);
-        expect(receipt.version).toBe("2");
+        expect(receipt.version).toBe("3");
       }).pipe(
         Effect.provide(
           contentstackRecipeLayer.pipe(Layer.provideMerge(NodeServices.layer))

@@ -30,8 +30,11 @@ import {
 import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { CurrentCart } from "@repo/commerce/services/current-cart";
+import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
+import { Orders } from "@repo/commerce/services/orders";
 import { StoreKey } from "@repo/commerce/store";
 import type { Locale } from "@repo/i18n/types";
+import { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer, Logger, ManagedRuntime, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -73,6 +76,7 @@ const makeTestCommerceApp = (options?: {
     addressBookLayer: AddressBook.layerMemory(),
     cartPoliciesLayer: CartPolicies.layer,
     cartsLayer: Carts.layerMemory(),
+    checkoutPaymentsLayer: CheckoutPayments.unavailableLayer,
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer: Layer.effect(
       CommerceAccounts,
@@ -94,6 +98,8 @@ const makeTestCommerceApp = (options?: {
       )
     ).pipe(Layer.provide(memoryAccountsLayer)),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };

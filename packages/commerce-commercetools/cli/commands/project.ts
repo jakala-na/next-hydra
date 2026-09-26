@@ -61,7 +61,7 @@ export const createProjectCommand = <E, R>(
   const provision = Command.make(
     "provision",
     {
-      clientName: Flag.string("client-name").pipe(
+      clientName: Flag.String("client-name").pipe(
         Flag.withDescription("Name for the application runtime API Client"),
         Flag.optional
       ),

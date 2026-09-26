@@ -17,7 +17,6 @@ const cart: CartSnapshot = {
       totalPrice: { centAmount: 2500, currencyCode: "USD" },
       unitPrice: { centAmount: 2500, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make("variant-1"),
         images: [],
         name: "Hydra Wrench",
@@ -54,7 +53,7 @@ describe(buildCheckoutState, () => {
         details: {},
         scope,
       });
-      expect(state.activeStep).toBe("contact");
+      expect(state.nextStep).toBe("contact");
       expect(state.violations).toStrictEqual([
         {
           code: "cart.quantity.maximum",
@@ -80,6 +79,7 @@ describe(buildCheckoutState, () => {
     ).pipe(
       Effect.map((error) => {
         expect(error.reason).toBe("emptyCart");
+        return error;
       })
     )
   );

@@ -3,6 +3,8 @@
 Type: wayfinder:map
 Status: resolved
 
+Historical decision record. The original switching and scaffolding workflow below has been superseded. See the [current Workspace Composition context](../../packages/create-next-hydra/CONTEXT.md), [ADR-0010](../../docs/adr/0010-compose-named-workspaces-for-development-and-deployment.md), and [CLI guide](../../packages/create-next-hydra/README.md) for supported behavior. Resolved tickets and research remain evidence of earlier decisions, not current implementation instructions.
+
 ## Destination
 
 Produce an implementation-ready specification for provider and add-on composition in Next Hydra. Maintainers must be able to select and switch CMS and Commerce providers in developer workspaces without manually juggling provider-specific application files, while `create-next-hydra` governs and provisions the selected workspace composition when scaffolding a project.
@@ -13,7 +15,7 @@ The specification is for build-time and development-time composition. Runtime pr
 
 ## Notes
 
-- This map records the resolved architecture and developer workflow. The canonical specification linked below is the implementation contract; the remaining tickets and research preserve the decision history.
+- This map records the original resolved architecture and developer workflow. The specification, tickets and research below preserve that decision history.
 - Developer workspaces are the primary switching use case. Scaffold-time selection is a related consumer of the same provider metadata, not evidence that generated projects need a persistent profile manager.
 - A developer-workspace switch may update tracked package manifests and the lockfile and may run `pnpm install`; a zero-diff or install-free switch is not required.
 - Materialized source files follow shadcn-style ownership transfer: after the CLI copies them into a project, they are customer-owned code. The CLI must not infer that it may overwrite or delete them, even if their original provider is no longer selected.
@@ -29,7 +31,7 @@ The specification is for build-time and development-time composition. Runtime pr
 
 ## Decisions so far
 
-- [Canonical Provider and Add-on Composition specification](spec.md) — consolidates the accepted v1 behavior, command boundaries, complete registry-graph preflight, customer ownership rules, acceptance criteria, and limitations. The tickets and research below retain the decision history.
+- [Historical Provider and Add-on Composition specification](spec.md) — consolidates the original v1 behavior, command boundaries, complete registry-graph preflight, customer ownership rules, acceptance criteria, and limitations. The tickets and research below retain the decision history.
 - [Generator recipes and provider contributions](issues/01-generator-recipes-and-provider-contributions.md) — `create-better-t-stack` is central and additive rather than reversible; prototype declarative package contributions, centralized validation, idempotent sync/check semantics, and Turbo only as the local runner.
 - [Next.js provider contribution constraints](issues/02-next-provider-contribution-constraints.md) — App Router requires application-owned route entries, alias mutation creates tracked churn, and viable local designs narrow to generated adapters or a dispatcher over already-installed provider packages.
 - [ShadCN root targets versus Install Units](research/06-shadcn-root-targets-vs-install-units.md) — records why complete workspace-root targets replaced the discarded per-root installation prototype and where package-specific metadata is still necessary.

@@ -1,12 +1,14 @@
 "use client";
 
 import { useTranslations } from "@repo/i18n";
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
+import type { ComponentProps } from "react";
 
 import type { AddressBookReference } from "../domain/address-book";
 import type { ShippingAddress } from "../domain/checkout";
 import type {
   SaveCheckoutDeliveryDetailsAction,
+  SaveCheckoutDeliveryDetailsActionInput,
   SaveCheckoutDeliveryDetailsActionResult,
 } from "./action-contract";
 import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
@@ -16,6 +18,30 @@ export interface CheckoutShippingAddressOption {
   readonly address: ShippingAddress;
   readonly defaultShipping: boolean;
 }
+
+type FormSubmitHandler = NonNullable<ComponentProps<"form">["onSubmit"]>;
+
+interface SubmittedShippingAddress {
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  region?: string;
+}
+
+const formInput = (form: HTMLFormElement, name: string) => {
+  const input = form.elements.namedItem(name);
+  return input instanceof HTMLInputElement ? input : undefined;
+};
+
+const formInputValue = (form: HTMLFormElement, name: string) =>
+  formInput(form, name)?.value ?? "";
+
+const optionalFormInputValue = (form: HTMLFormElement, name: string) => {
+  const value = formInputValue(form, name);
+  return value === "" ? undefined : value;
+};
 
 export type CheckoutDeliveryAddressSelection =
   | {
@@ -417,12 +443,18 @@ export function CheckoutDeliveryDetailsForm({
       )
   );
   const [saveToAddressBook, setSaveToAddressBook] = useState(false);
-
-  useEffect(() => {
-    setSelection((currentSelection) =>
-      deliveryAddressSelectionAfterAction(actionResult, currentSelection)
-    );
-  }, [actionResult]);
+  const [dismissedRetryResult, setDismissedRetryResult] =
+    useState<SaveCheckoutDeliveryDetailsActionResult | null>(null);
+  const activeSelection =
+    dismissedRetryResult === actionResult
+      ? selection
+      : deliveryAddressSelectionAfterAction(actionResult, selection);
+  const selectDeliveryAddress = (
+    nextSelection: Exclude<CheckoutDeliveryAddressSelection, undefined>
+  ) => {
+    setDismissedRetryResult(actionResult);
+    setSelection(nextSelection);
+  };
 
   const messages: CheckoutDeliveryDetailsMessages = {
     addressBook: {
@@ -450,17 +482,70 @@ export function CheckoutDeliveryDetailsForm({
       ? actionResult.failure.displayMessage
       : undefined;
 
+  const submit: FormSubmitHandler = (event) => {
+    event.preventDefault();
+    if (activeSelection === undefined) {
+      return;
+    }
+
+    let input: SaveCheckoutDeliveryDetailsActionInput;
+    if (activeSelection.type === "addressBook") {
+      input = {
+        cart: { id: cartId },
+        deliveryDetails: {
+          addressBookReference: activeSelection.reference,
+          type: "addressBook",
+        },
+      };
+    } else {
+      const form = event.currentTarget;
+      const addressLine2 = optionalFormInputValue(form, "addressLine2");
+      const region = optionalFormInputValue(form, "region");
+      const submittedShippingAddress: SubmittedShippingAddress = {
+        addressLine1: formInputValue(form, "addressLine1"),
+        city: formInputValue(form, "city"),
+        country: formInputValue(form, "country"),
+        postalCode: formInputValue(form, "postalCode"),
+      };
+      if (addressLine2 !== undefined) {
+        submittedShippingAddress.addressLine2 = addressLine2;
+      }
+      if (region !== undefined) {
+        submittedShippingAddress.region = region;
+      }
+      input = {
+        cart: { id: cartId },
+        deliveryDetails: saveToAddressBook
+          ? {
+              makeDefaultShipping:
+                formInput(form, "makeDefaultShipping")?.checked ?? false,
+              saveToAddressBook: true,
+              shippingAddress: submittedShippingAddress,
+              type: "manual",
+            }
+          : {
+              saveToAddressBook: false,
+              shippingAddress: submittedShippingAddress,
+              type: "manual",
+            },
+      };
+    }
+
+    startTransition(() => {
+      formAction(input);
+    });
+  };
+
   return (
-    <form action={formAction} className="grid gap-4">
-      <input name="cartId" type="hidden" value={cartId} />
+    <form className="grid gap-4" onSubmit={submit}>
       <CheckoutDeliveryDetailsFormContent
         errorMessage={errorMessage}
         isPending={isPending}
         messages={messages}
         onSaveToAddressBookChange={setSaveToAddressBook}
-        onSelectionChange={setSelection}
+        onSelectionChange={selectDeliveryAddress}
         saveToAddressBook={saveToAddressBook}
-        selection={selection}
+        selection={activeSelection}
         shippingAddress={shippingAddress}
         shippingAddressOptions={shippingAddressOptions}
       />

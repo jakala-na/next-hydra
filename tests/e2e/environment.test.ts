@@ -26,6 +26,10 @@ describe(loadE2EEnvironments, () => {
           );
           await mkdir(applicationDirectory, { recursive: true });
           await writeFile(
+            path.join(applicationDirectory, "package.json"),
+            "{}"
+          );
+          await writeFile(
             path.join(applicationDirectory, ".env"),
             `E2E_TEST_${application.toUpperCase()}_MARKER=${application}\n`
           );
@@ -60,12 +64,14 @@ describe(composeE2EEnvironments, () => {
           ADMIN_WORKOS_CLIENT_ID: "client_admin",
           COMMERCETOOLS_PROJECT_KEY: "e2e-project",
           REGISTRATION_CONTAINER: "registrations-e2e",
+          STRIPE_SECRET_KEY: "sk_stripe",
           WORKOS_API_KEY: "sk_customer",
           WORKOS_CLIENT_ID: "client_customer",
         },
         web: {
           NEXT_PUBLIC_WORKOS_REDIRECT_URI:
             "http://localhost:3001/api/auth/callback",
+          STRIPE_SECRET_KEY: "sk_stripe",
           WORKOS_API_KEY: "sk_customer",
           WORKOS_CLIENT_ID: "client_customer",
           WORKOS_COOKIE_PASSWORD: "customer-cookie-password",
@@ -81,6 +87,7 @@ describe(composeE2EEnvironments, () => {
       ADMIN_WORKOS_COOKIE_PASSWORD: "admin-cookie-password",
       COMMERCETOOLS_PROJECT_KEY: "e2e-project",
       REGISTRATION_CONTAINER: "registrations-e2e",
+      STRIPE_SECRET_KEY: "sk_stripe",
       WORKOS_API_KEY: "sk_customer",
       WORKOS_CLIENT_ID: "client_customer",
       WORKOS_COOKIE_PASSWORD: "customer-cookie-password",

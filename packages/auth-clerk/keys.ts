@@ -7,7 +7,8 @@ export const keys = () =>
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().startsWith("pk_"),
       NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: z
         .string()
-        .startsWith("/"),
+        .startsWith("/")
+        .default("/"),
       NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().startsWith("/"),
       NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: z
         .string()

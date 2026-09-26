@@ -598,8 +598,8 @@ export const makeWorkosInvitationCapabilities = (
 };
 
 const configuredWorkosUserManagement = Effect.gen(function* () {
-  const apiKey = yield* Config.redacted("WORKOS_API_KEY");
-  const clientId = yield* Config.option(Config.string("WORKOS_CLIENT_ID"));
+  const apiKey = yield* Config.Redacted("WORKOS_API_KEY");
+  const clientId = yield* Config.option(Config.String("WORKOS_CLIENT_ID"));
 
   return new WorkOS({
     apiKey: Redacted.value(apiKey),

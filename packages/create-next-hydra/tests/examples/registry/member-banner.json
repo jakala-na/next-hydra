@@ -1,0 +1,17 @@
+{
+  "name": "member-banner",
+  "type": "registry:item",
+  "registryDependencies": ["member-provider.json", "banner.json"],
+  "meta": {
+    "nextHydra": {
+      "id": "example/add-on/member-banner",
+      "kind": "add-on",
+      "compatibility": {
+        "requires": ["example/auth/member", "example/consent"]
+      },
+      "providerDependencies": [
+        { "cwd": ".", "slot": "auth", "section": "dependencies" }
+      ]
+    }
+  }
+}

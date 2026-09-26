@@ -75,25 +75,23 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
   const provision = Command.make(
     "provision",
     {
-      dryRun: Flag.boolean("dry-run").pipe(
+      dryRun: Flag.Boolean("dry-run").pipe(
         Flag.withDescription(
           "Print the complete Store and locale resource graph without changing Algolia"
-        ),
-        Flag.withDefault(false)
+        )
       ),
-      indexPrefix: Flag.string("index-prefix").pipe(
+      indexPrefix: Flag.String("index-prefix").pipe(
         Flag.withDescription(
           "Optional namespace prepended to every managed Algolia index"
         ),
         Flag.optional
       ),
-      installContentSearchApp: Flag.boolean("install-content-search-app").pipe(
+      installContentSearchApp: Flag.Boolean("install-content-search-app").pipe(
         Flag.withDescription(
           "Install and configure the composed CMS provider's content search app for the provisioned Content index (Contentstack only)"
-        ),
-        Flag.withDefault(false)
+        )
       ),
-      locales: Flag.string("locale").pipe(
+      locales: Flag.String("locale").pipe(
         Flag.withDescription(
           "Commerce locale to provision; repeat for every deployment locale"
         ),

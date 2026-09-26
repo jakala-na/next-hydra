@@ -1,6 +1,7 @@
 /* oxlint-disable typescript/promise-function-async -- Test doubles return already-settled promises to implement asynchronous browser and cleanup ports. */
 import { describe, expect, it } from "vitest";
 
+import { CartId } from "../domain/cart";
 import { CurrencyCode } from "../domain/money";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
@@ -25,11 +26,15 @@ const anonymousCartCookie = (cartId: string) => ({
 });
 
 describe(CheckoutScenario, () => {
-  it("cleans the current anonymous Cart during teardown", async () => {
-    const deletedCartIds: string[] = [];
+  it("cleans the current anonymous Cart and its Payments during teardown", async () => {
+    const cleanup: string[] = [];
     const scenario = new CheckoutScenario({
       deleteCart: (cartId) => {
-        deletedCartIds.push(cartId);
+        cleanup.push(`cart:${cartId}`);
+        return Promise.resolve();
+      },
+      deletePayments: (cartId) => {
+        cleanup.push(`payments:${cartId}`);
         return Promise.resolve();
       },
       page: {
@@ -42,7 +47,7 @@ describe(CheckoutScenario, () => {
     await scenario.dispose();
     await scenario.dispose();
 
-    expect(deletedCartIds).toStrictEqual(["cart-1"]);
+    expect(cleanup).toStrictEqual(["cart:cart-1", "payments:cart-1"]);
   });
 
   it("cleans a remembered Cart after its browser cookie disappears", async () => {
@@ -63,5 +68,73 @@ describe(CheckoutScenario, () => {
     await scenario.dispose();
 
     expect(deletedCartIds).toStrictEqual(["cart-1"]);
+  });
+
+  it("cleans Payments for a remembered authenticated Cart", async () => {
+    const deletedPaymentCartIds: string[] = [];
+    const scenario = new CheckoutScenario({
+      deleteCart: () => Promise.resolve(),
+      deletePayments: (cartId) => {
+        deletedPaymentCartIds.push(cartId);
+        return Promise.resolve();
+      },
+      page: {
+        context: () => ({ cookies: () => Promise.resolve([]) }),
+      },
+    });
+
+    scenario.rememberCart(CartId.make("business-unit-cart-1"));
+    await scenario.dispose();
+
+    expect(deletedPaymentCartIds).toStrictEqual(["business-unit-cart-1"]);
+  });
+
+  it("inspects a remembered Card Payment after its Cart cookie disappears", async () => {
+    const inspectedCartIds: string[] = [];
+    const scenario = new CheckoutScenario({
+      deleteCart: () => Promise.resolve(),
+      expectCardNotAuthorized: (cartId) => {
+        inspectedCartIds.push(cartId);
+        return Promise.resolve();
+      },
+      page: {
+        context: () => ({ cookies: () => Promise.resolve([]) }),
+      },
+    });
+
+    scenario.rememberCart(CartId.make("cart-from-payment-step"));
+    await scenario.expectCardNotAuthorized();
+
+    expect(inspectedCartIds).toStrictEqual(["cart-from-payment-step"]);
+  });
+
+  it("compares Net Terms seed fields after financial activity is recorded", async () => {
+    const scenario = new CheckoutScenario({
+      deleteCart: () => Promise.resolve(),
+      getNetTerms: () =>
+        Promise.resolve({
+          availableCredit: { centAmount: 300_000, currencyCode: "USD" },
+          ledger: [
+            {
+              amount: { centAmount: 1_700_000, currencyCode: "USD" },
+              direction: "debit",
+              reference: "credit-authorization-1",
+            },
+          ],
+          termsInDays: 30,
+        }),
+      page: {
+        context: () => ({ cookies: () => Promise.resolve([]) }),
+      },
+    });
+
+    await expect(
+      scenario.expectNetTerms({
+        amount: "3000.00",
+        businessUnitId: "business-unit-1",
+        currency: "USD",
+        termsInDays: 30,
+      })
+    ).resolves.toBeUndefined();
   });
 });

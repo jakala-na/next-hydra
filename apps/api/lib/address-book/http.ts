@@ -1,8 +1,4 @@
 import { AccessTokenVerifier } from "@repo/auth/access-token";
-import type {
-  AccessTokenInvalid,
-  AccessTokenVerificationFailure,
-} from "@repo/auth/access-token";
 import {
   AuthUserId,
   CustomerCommerceContextRequest,
@@ -17,12 +13,9 @@ import {
   makeAddressBookApiUnauthorized,
 } from "@repo/commerce/http/address-book-api";
 import { CommerceRequestHeaders } from "@repo/commerce/http/commerce-request";
-import type {
-  CommerceApplication,
-  CommerceRequestProvisionError,
-  CommerceStableServices,
-} from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
+import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
+import { CommerceContext } from "@repo/commerce/services/commerce-context";
 import { resolveStore } from "@repo/commerce/store";
 import {
   ErrorIssue,
@@ -41,19 +34,22 @@ import { HttpApiBuilder, HttpApiMiddleware } from "effect/unstable/httpapi";
 
 import { parseBearerAuthorization } from "../auth/bearer-token";
 
-type AddressBookCommerceApp = CommerceApplication<
-  Config.ConfigError,
-  Config.ConfigError | CommerceRequestProvisionError,
-  Config.ConfigError | CommerceRequestProvisionError
->;
 type CommerceAuthenticationLayer = Layer.Layer<
   AccessTokenVerifier,
   Config.ConfigError
 >;
 
 export interface AddressBookHttpDependencies {
+  readonly addressBookLayer: Layer.Layer<
+    AddressBook,
+    Config.ConfigError,
+    CommerceContext
+  >;
   readonly authenticationLayer: CommerceAuthenticationLayer;
-  readonly commerceApp: AddressBookCommerceApp;
+  readonly commerceAccountsLayer: Layer.Layer<
+    CommerceAccounts,
+    Config.ConfigError
+  >;
 }
 
 interface AddressBookDiagnosticFailure {
@@ -64,12 +60,14 @@ interface AddressBookDiagnosticFailure {
 
 const logAddressBookDiagnosticFailure = (error: AddressBookDiagnosticFailure) =>
   Effect.logError(error.message, error).pipe(
-    Effect.annotateLogs({
-      "addressBook.error.tag": error._tag,
-      ...(error.operation === undefined
-        ? {}
-        : { "addressBook.operation": error.operation }),
-    })
+    Effect.annotateLogs(
+      error.operation === undefined
+        ? { "addressBook.error.tag": error._tag }
+        : {
+            "addressBook.error.tag": error._tag,
+            "addressBook.operation": error.operation,
+          }
+    )
   );
 
 const addressBookBadRequestMessage = "The address book request is invalid.";
@@ -116,35 +114,42 @@ const getAddressBookRequestHeaders = Effect.gen(
       return yield* Effect.fail(toAddressBookBadRequest());
     }
 
-    return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
-      "x-context-locale": locale,
-      ...(businessUnitId === undefined
-        ? {}
-        : { "x-context-business-unit-id": businessUnitId }),
-    }).pipe(Effect.mapError(toAddressBookBadRequest));
+    const requestHeaders =
+      businessUnitId === undefined
+        ? { "x-context-locale": locale }
+        : {
+            "x-context-locale": locale,
+            "x-context-business-unit-id": businessUnitId,
+          };
+    return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)(
+      requestHeaders
+    ).pipe(Effect.mapError(toAddressBookBadRequest));
   }
 );
 
 const makeAddressBookContextRequest = (
   headers: CommerceRequestHeaders,
   authUserId: AuthUserId
-) =>
-  new CustomerCommerceContextRequest({
+) => {
+  const request = {
     authUserId,
     store: resolveStore({ locale: headers["x-context-locale"] }),
-    ...(headers["x-context-business-unit-id"] === undefined
-      ? {}
-      : { businessUnitId: headers["x-context-business-unit-id"] }),
-  });
+  };
+  const businessUnitId = headers["x-context-business-unit-id"];
+  return businessUnitId === undefined
+    ? new CustomerCommerceContextRequest(request)
+    : new CustomerCommerceContextRequest({ ...request, businessUnitId });
+};
 
 const addressBookAccessMiddlewareLayer = (
-  commerceApp: AddressBookCommerceApp
+  addressBookLayer: AddressBookHttpDependencies["addressBookLayer"]
 ) =>
   Layer.effect(
     AddressBookAccessMiddleware,
     Effect.gen(function* addressBookAccessMiddlewareLayer() {
       const verifier = yield* AccessTokenVerifier;
-      const commerceServices = yield* Effect.context<CommerceStableServices>();
+      const accounts = yield* CommerceAccounts;
+      const accountsLayer = Layer.succeed(CommerceAccounts, accounts);
       const verifierLayer = Layer.succeed(AccessTokenVerifier, verifier);
 
       return {
@@ -183,8 +188,12 @@ const addressBookAccessMiddlewareLayer = (
             );
 
             return yield* httpEffect.pipe(
-              commerceApp.provideAddressBook(contextRequest),
-              Effect.provide(commerceServices),
+              Effect.provide(
+                addressBookLayer.pipe(
+                  Layer.provideMerge(CommerceContext.layer(contextRequest)),
+                  Layer.provide(accountsLayer)
+                )
+              ),
               Effect.catchTags({
                 CommerceAccountUnavailable: (error) =>
                   logAddressBookDiagnosticFailure(error).pipe(
@@ -254,10 +263,12 @@ const makeAddressBookHttpApiLayer = (
   HttpApiBuilder.layer(AddressBookHttpApi).pipe(
     Layer.provide(addressBookHandlers),
     Layer.provide(addressBookSchemaErrorMiddlewareLayer),
-    Layer.provide(addressBookAccessMiddlewareLayer(dependencies.commerceApp)),
+    Layer.provide(
+      addressBookAccessMiddlewareLayer(dependencies.addressBookLayer)
+    ),
     Layer.provide(unexpectedHttpErrorsLayer),
     Layer.provideMerge(dependencies.authenticationLayer),
-    Layer.provideMerge(dependencies.commerceApp.layer),
+    Layer.provideMerge(dependencies.commerceAccountsLayer),
     Layer.provide(HttpServer.layerServices)
   );
 

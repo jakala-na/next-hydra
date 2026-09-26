@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { once } from "node:events";
 import path from "node:path";
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
-const repoRoot = path.resolve(__dirname, "..");
-const packageDir = path.join(repoRoot, "packages", "create-next-hydra");
-const packageJsonPath = path.join(packageDir, "package.json");
+import { text } from "node:stream/consumers";
 
+import packageInfo from "../packages/create-next-hydra/package.json" with { type: "json" };
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const packageDir = path.join(repoRoot, "packages", "create-next-hydra");
+
+/** @param {string} name - The command-line flag to inspect. */
 function hasFlag(name) {
   return process.argv.includes(name);
 }
@@ -23,67 +25,38 @@ Options:
 `);
 }
 
+/**
+ * @param {string} command - Executable to run without a shell.
+ * @param {string[]} args - Arguments passed to the executable.
+ * @param {{ cwd?: string }} options - Optional working-directory override.
+ */
 async function run(command, args, options = {}) {
   const cwd = options.cwd ?? repoRoot;
-
-  return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: process.env,
-      stdio: "inherit",
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(
-        new Error(`Command failed (${code}): ${command} ${args.join(" ")}`)
-      );
-    });
+  const child = spawn(command, args, {
+    cwd,
+    env: process.env,
+    stdio: "inherit",
   });
-}
-
-async function getPackageInfo() {
-  const raw = await readFile(packageJsonPath, "utf-8");
-  const parsed = JSON.parse(raw);
-  return {
-    name: parsed.name,
-    version: parsed.version,
-  };
+  await once(child, "close");
+  if (child.exitCode !== 0) {
+    throw new Error(
+      `Command failed (${child.exitCode ?? child.signalCode}): ${command} ${args.join(" ")}`
+    );
+  }
 }
 
 async function ensureCleanWorktree() {
-  let output = "";
-
-  await new Promise((resolve, reject) => {
-    const child = spawn("git", ["status", "--porcelain"], {
-      cwd: repoRoot,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    child.stdout.on("data", (chunk) => {
-      output += String(chunk);
-    });
-
-    child.stderr.on("data", () => {
-      // ignore; command failure is handled on close/error
-    });
-
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(new Error("Failed to inspect git status."));
-    });
+  const child = spawn("git", ["status", "--porcelain"], {
+    cwd: repoRoot,
+    stdio: ["ignore", "pipe", "inherit"],
   });
+  const [output] = await Promise.all([
+    text(child.stdout),
+    once(child, "close"),
+  ]);
+  if (child.exitCode !== 0) {
+    throw new Error("Failed to inspect git status.");
+  }
 
   if (output.trim()) {
     throw new Error(
@@ -109,7 +82,7 @@ async function main() {
     await ensureCleanWorktree();
   }
 
-  const before = await getPackageInfo();
+  const before = packageInfo;
   console.log(
     `Releasing ${before.name}@${before.version}${dryRun ? " (dry-run)" : ""}`
   );
@@ -120,24 +93,29 @@ async function main() {
   });
 
   console.log(`\n==> Packing ${before.name}@${before.version}`);
-  await run("npm", ["pack"], { cwd: packageDir });
+  const tarball = path.join(packageDir, `${before.name}-${before.version}.tgz`);
+  await run("pnpm", ["pack", "--out", tarball], { cwd: packageDir });
 
   if (dryRun) {
     console.log(
       `\n==> npm publish --dry-run (${before.name}@${before.version})`
     );
-    await run("npm", ["publish", "--access", "public", "--dry-run"], {
+    await run("npm", ["publish", tarball, "--access", "public", "--dry-run"], {
       cwd: packageDir,
     });
     return;
   }
 
   console.log(`\n==> Publishing ${before.name}@${before.version}`);
-  await run("npm", ["publish", "--access", "public"], { cwd: packageDir });
+  await run("npm", ["publish", tarball, "--access", "public"], {
+    cwd: packageDir,
+  });
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   const message = error instanceof Error ? error.message : "Unknown error";
   console.error(`\nRelease failed: ${message}`);
   process.exitCode = 1;
-});
+}

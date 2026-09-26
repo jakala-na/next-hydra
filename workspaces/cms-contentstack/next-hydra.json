@@ -1,0 +1,6 @@
+{
+  "providers": {
+    "cms": "contentstack"
+  },
+  "addOns": ["app-web-navigation-search"]
+}

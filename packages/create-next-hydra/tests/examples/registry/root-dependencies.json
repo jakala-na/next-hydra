@@ -1,0 +1,5 @@
+{
+  "name": "root-metrics",
+  "type": "registry:item",
+  "dependencies": ["site-metrics@^2"]
+}

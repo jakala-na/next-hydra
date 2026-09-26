@@ -1,0 +1,30 @@
+_meta:
+  version: "1.0"
+  entity_type: canvas_page
+  uuid: b2201727-fbfe-44d0-83a1-c7d54ac003dc
+  default_langcode: en
+default:
+  revision_user:
+    - target_id: 1
+  status:
+    - value: true
+  owner:
+    - target_id: 1
+  title:
+    - value: Product collection (Canvas)
+  components:
+    - uuid: 7320d713-df4a-4106-b4c5-1a90430dd7f5
+      component_id: js.product-collection
+      inputs:
+        title: Featured products
+        description: Products supplied by the active commerce provider.
+        limit: 3
+  path:
+    - alias: /canvas-catalog-example
+      langcode: en
+  content_translation_source:
+    - value: und
+  content_translation_outdated:
+    - value: false
+  content_translation_uid:
+    - target_id: 1

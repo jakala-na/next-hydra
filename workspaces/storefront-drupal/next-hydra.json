@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "cms": "drupal",
+    "auth": "workos",
+    "commerce": "commercetools",
+    "search": "algolia"
+  },
+  "addOns": []
+}

@@ -11,9 +11,7 @@
         "tadaTurboLocation": "./gql/graphql-cache.d.ts"
       }
     ],
-    "paths": {
-      "@repo/*": ["../*"]
-    }
+    "paths": { "@repo/*": ["../*"] }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "registry"]

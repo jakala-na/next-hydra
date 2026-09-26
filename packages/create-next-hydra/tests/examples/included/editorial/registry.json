@@ -1,0 +1,17 @@
+{
+  "name": "editorial",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "article",
+      "type": "registry:item",
+      "files": [
+        {
+          "path": "article.ts",
+          "target": "~/apps/web/article.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

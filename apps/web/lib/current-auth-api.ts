@@ -3,7 +3,7 @@ import type {
   AuthPermissionAdapter,
   AuthSession,
   AuthSessionReadFailure,
-} from "@repo/auth/server";
+} from "@repo/auth-contract/session";
 import { Context, Effect, Layer, Redacted } from "effect";
 
 export interface CurrentAuthSnapshot {

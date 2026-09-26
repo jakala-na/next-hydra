@@ -19,7 +19,15 @@ const PRODUCTS_ROUTE = "/products" as Route;
 // SAFETY: Locale routing resolves this Checkout destination at runtime while the generated Route union requires a locale-prefixed path.
 const CHECKOUT_ROUTE = "/checkout" as Route;
 
-export function CartFlyout() {
+export type CartFlyoutLinks = {
+  readonly checkoutHref?: Route | null;
+  readonly productsHref?: Route | null;
+};
+
+export function CartFlyout({
+  checkoutHref = CHECKOUT_ROUTE,
+  productsHref = PRODUCTS_ROUTE,
+}: CartFlyoutLinks = {}) {
   const {
     items,
     totalItems,
@@ -56,18 +64,20 @@ export function CartFlyout() {
             <p className="mb-6 text-muted-foreground">
               {t("empty.description")}
             </p>
-            <Button onClick={closeCart} asChild>
-              {/* @todo: implement products page */}
-              <Link href={PRODUCTS_ROUTE}>
-                {t("empty.actions.browseProducts")}
-              </Link>
-            </Button>
+            {productsHref && (
+              <Button onClick={closeCart} asChild>
+                <Link href={productsHref}>
+                  {t("empty.actions.browseProducts")}
+                </Link>
+              </Button>
+            )}
           </div>
         ) : (
           <>
             <div className="flex-1 space-y-4 overflow-y-auto">
               {items.map((item) => (
                 <div
+                  data-cart-line-item=""
                   key={item.id}
                   className="flex gap-4 rounded-lg border bg-card p-4"
                 >
@@ -86,9 +96,12 @@ export function CartFlyout() {
                         <h4 className="font-semibold leading-tight">
                           {item.name}
                         </h4>
-                        <p className="text-muted-foreground text-sm">
-                          {item.variant}
-                        </p>
+                        {item.summaryAttribute === undefined ? null : (
+                          <p className="text-muted-foreground text-sm">
+                            {item.summaryAttribute.label}:{" "}
+                            {item.summaryAttribute.value}
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -167,11 +180,13 @@ export function CartFlyout() {
               </div>
 
               <div className="space-y-2">
-                <Button className="h-12 w-full" size="lg" asChild>
-                  <Link href={CHECKOUT_ROUTE} onClick={closeCart}>
-                    {t("actions.checkout")}
-                  </Link>
-                </Button>
+                {checkoutHref && (
+                  <Button className="h-12 w-full" size="lg" asChild>
+                    <Link href={checkoutHref} onClick={closeCart}>
+                      {t("actions.checkout")}
+                    </Link>
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="w-full bg-transparent"

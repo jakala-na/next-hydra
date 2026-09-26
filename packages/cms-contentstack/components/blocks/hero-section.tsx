@@ -63,12 +63,12 @@ export function HeroSection(
     title: "title",
   });
 
-  const image = getNodesFromConnection(data.imageConnection).map((node) => ({
-    altText: data.image_alt || "",
+  const [image] = getNodesFromConnection(data.imageConnection).map((node) => ({
+    altText: data.image_alt ?? "",
     height: node?.dimension?.height ?? undefined,
-    url: node?.url || "",
+    url: node?.url ?? "",
     width: node?.dimension?.width ?? undefined,
-  }))[0];
+  }));
 
   return (
     <HeroSectionComponent
@@ -83,3 +83,17 @@ export function HeroSection(
 }
 
 HeroSection.fragment = HeroSectionFragment;
+
+export const HeroSectionBlock = graphql(
+  `
+    fragment HeroSectionBlock on LandingPageComponents @_unmask {
+      ... on LandingPageComponentsHeroSection {
+        hero_section {
+          __typename
+          ...HeroSection
+        }
+      }
+    }
+  `,
+  [HeroSectionFragment]
+);

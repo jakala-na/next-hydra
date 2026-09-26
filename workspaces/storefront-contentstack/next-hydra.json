@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "cms": "contentstack",
+    "auth": "workos",
+    "commerce": "commercetools",
+    "search": "algolia"
+  },
+  "addOns": []
+}

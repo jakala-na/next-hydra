@@ -9,24 +9,31 @@ import {
   CheckoutCartMismatch,
   CheckoutCustomerProfileIncomplete,
   CheckoutMutationAddressBookEntryUnavailable,
-  CheckoutMutationIssue,
   CheckoutMutationOutcomeUnknown,
   CheckoutMutationProviderFailure,
-  CheckoutMutationSchemaFailure,
   CheckoutMutationSourceUnavailable,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutShippingSelectionUnavailable,
   CheckoutUnavailable,
   CheckoutVersionConflict,
 } from "../domain/checkout";
 import { CommerceRequestContextNotFound } from "../domain/commerce-request-context";
+import {
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "../domain/delivery-plan";
 import { retainRecoverableCheckoutProviderFailure } from "../lib/checkout/failure-policy";
 import { CommerceAccountUnavailable } from "../services/commerce-accounts";
 import {
   SaveCheckoutContactActionResult,
   SaveCheckoutDeliveryDetailsActionResult,
+  SaveCheckoutShippingOptionsActionResult,
 } from "./action-contract";
 import {
   projectSaveCheckoutContactFailure,
   projectSaveCheckoutDeliveryDetailsFailure,
+  projectSaveCheckoutShippingOptionsFailure,
 } from "./public-errors";
 
 const inputInvalid = makeInputInvalid({
@@ -39,15 +46,6 @@ const inputInvalid = makeInputInvalid({
   message: "Invalid input.",
 });
 
-const schemaFailure = new CheckoutMutationSchemaFailure({
-  issues: [
-    new CheckoutMutationIssue({
-      message: "Email is invalid",
-      path: "email",
-    }),
-  ],
-  message: "Checkout input is invalid",
-});
 const sourceUnavailable = new CheckoutMutationSourceUnavailable({
   message: "The selected source is unavailable",
   source: "customerProfile",
@@ -80,6 +78,11 @@ const checkoutUnavailable = new CheckoutUnavailable({
   message: "Checkout is unavailable",
   reason: "noCart",
 });
+const shippingOutcomeUnknown = new CheckoutMutationOutcomeUnknown({
+  cartId: CartId.make("cart-1"),
+  message: "Shipping Options write outcome is unknown",
+  operation: "saveShippingOptions",
+});
 const contextNotFound = new CommerceRequestContextNotFound({
   message: "No Commerce Principal is available",
   reason: "noPrincipal",
@@ -91,7 +94,6 @@ const accountFailure = new CommerceAccountUnavailable({
 
 const contactFailures = [
   inputInvalid,
-  projectSaveCheckoutContactFailure(schemaFailure, "en-US"),
   projectSaveCheckoutContactFailure(sourceUnavailable, "en-US"),
   projectSaveCheckoutContactFailure(customerProfileIncomplete, "en-US"),
   projectSaveCheckoutContactFailure(cartMismatch, "en-US"),
@@ -113,7 +115,6 @@ const contactFailures = [
 
 const deliveryFailures = [
   inputInvalid,
-  projectSaveCheckoutDeliveryDetailsFailure(schemaFailure, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(sourceUnavailable, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(
     new CheckoutMutationAddressBookEntryUnavailable({
@@ -138,6 +139,41 @@ const deliveryFailures = [
   projectSaveCheckoutDeliveryDetailsFailure(checkoutUnavailable, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(contextNotFound, "en-US"),
   projectSaveCheckoutDeliveryDetailsFailure(accountFailure, "en-US"),
+] as const;
+
+const shippingFailures = [
+  inputInvalid,
+  projectSaveCheckoutShippingOptionsFailure(
+    new CheckoutShippingSelectionUnavailable({
+      message: "Shipping selection is stale",
+      planReference: DeliveryPlanReference.make("plan-1"),
+      quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+      shippingOptionReference: ShippingOptionReference.make("standard"),
+    }),
+    "en-US"
+  ),
+  projectSaveCheckoutShippingOptionsFailure(cartMismatch, "en-US"),
+  projectSaveCheckoutShippingOptionsFailure(versionConflict, "en-US"),
+  projectSaveCheckoutShippingOptionsFailure(shippingOutcomeUnknown, "en-US"),
+  projectSaveCheckoutShippingOptionsFailure(
+    new CheckoutShippingOptionsRefreshRequired({
+      cartId: CartId.make("cart-1"),
+      message: "Saved but refresh failed",
+    }),
+    "en-US"
+  ),
+  projectSaveCheckoutShippingOptionsFailure(
+    new CheckoutMutationProviderFailure({
+      cause: { provider: "private" },
+      message: "Provider diagnostic",
+      operation: "checkout.shippingOptions.save",
+      reason: "unavailable",
+    }),
+    "en-US"
+  ),
+  projectSaveCheckoutShippingOptionsFailure(checkoutUnavailable, "en-US"),
+  projectSaveCheckoutShippingOptionsFailure(contextNotFound, "en-US"),
+  projectSaveCheckoutShippingOptionsFailure(accountFailure, "en-US"),
 ] as const;
 
 const expectFailureRoundTrips = (
@@ -252,6 +288,31 @@ describe("checkout action contracts", () => {
       SaveCheckoutDeliveryDetailsActionResult,
       deliveryFailures
     );
+  });
+
+  it("round-trips every declared Shipping Options failure", () => {
+    expect.assertions(shippingFailures.length);
+    expectFailureRoundTrips(
+      SaveCheckoutShippingOptionsActionResult,
+      shippingFailures
+    );
+  });
+
+  it("distinguishes a confirmed Shipping Options save from a retryable outage", () => {
+    const projected = projectSaveCheckoutShippingOptionsFailure(
+      new CheckoutShippingOptionsRefreshRequired({
+        cartId: CartId.make("cart-1"),
+        message: "Saved but refresh failed",
+      }),
+      "en-US"
+    );
+
+    expect(projected).toMatchObject({
+      _tag: "CheckoutShippingOptionsRefreshRequired",
+      cartId: "cart-1",
+      code: "checkout.shippingOptions.refreshRequired",
+      recovery: "refresh",
+    });
   });
 
   it("encodes a projected failure through Schema.Result", () => {

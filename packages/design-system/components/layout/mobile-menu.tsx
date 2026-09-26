@@ -28,9 +28,10 @@ const navigationHref = (href: string): Route =>
 
 type MobileMenuProps = {
   navigationItems: NavigationItem[];
+  Search?: React.ReactNode;
 };
 
-export function MobileMenu({ navigationItems }: MobileMenuProps) {
+export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -47,6 +48,9 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <div className="mt-8 flex flex-col gap-4 px-4 pb-6 sm:px-6">
+          {Search === undefined || Search === null ? null : (
+            <div className="border-b pb-4">{Search}</div>
+          )}
           <div className="flex flex-col gap-2">
             {navigationItems.map((item, index) => {
               const hasChildren =

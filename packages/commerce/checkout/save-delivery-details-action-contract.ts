@@ -1,7 +1,8 @@
 import { makeDisplayActionResultSchema } from "@repo/actions";
 
-import { CheckoutState } from "../domain/checkout";
+import type { SaveCheckoutDeliveryDetailsInput } from "../domain/checkout";
 import { SaveCheckoutDeliveryDetailsPublicError } from "./public-errors";
+import { CheckoutPublicState } from "./public-state";
 
 /** This sentinel cannot decode as an AddressBookReference because `:` is forbidden there. */
 export const MANUAL_DELIVERY_ADDRESS_CHOICE = "manual:";
@@ -13,7 +14,7 @@ export type SaveCheckoutDeliveryDetailsActionError =
 
 export const SaveCheckoutDeliveryDetailsActionResult =
   makeDisplayActionResultSchema(
-    CheckoutState,
+    CheckoutPublicState,
     SaveCheckoutDeliveryDetailsActionError
   );
 export type SaveCheckoutDeliveryDetailsActionResult =
@@ -22,8 +23,10 @@ export type SaveCheckoutDeliveryDetailsActionFailure = Extract<
   typeof SaveCheckoutDeliveryDetailsActionResult.Type,
   { readonly _tag: "Failure" }
 >["failure"];
+export type SaveCheckoutDeliveryDetailsActionInput =
+  typeof SaveCheckoutDeliveryDetailsInput.Encoded;
 
 export type SaveCheckoutDeliveryDetailsAction = (
   previousResult: SaveCheckoutDeliveryDetailsActionResult | null,
-  formData: FormData
+  input: SaveCheckoutDeliveryDetailsActionInput
 ) => Promise<SaveCheckoutDeliveryDetailsActionResult>;

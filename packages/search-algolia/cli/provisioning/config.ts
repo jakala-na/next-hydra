@@ -18,11 +18,11 @@ export class AlgoliaProvisioningConfig extends Context.Service<
   static readonly layer = Layer.effect(
     AlgoliaProvisioningConfig,
     Effect.gen(function* () {
-      const applicationId = yield* Config.nonEmptyString(
+      const applicationId = yield* Config.NonEmptyString(
         "ALGOLIA_APPLICATION_ID"
       );
-      const adminApiKey = yield* Config.redacted("ALGOLIA_ADMIN_API_KEY");
-      const priceCustomerGroupIds = yield* Config.string(
+      const adminApiKey = yield* Config.Redacted("ALGOLIA_ADMIN_API_KEY");
+      const priceCustomerGroupIds = yield* Config.String(
         "ALGOLIA_PRICE_CUSTOMER_GROUP_IDS"
       ).pipe(Config.withDefault(""), Config.map(parsePriceCustomerGroupIds));
       const region = yield* Config.schema(AlgoliaRegion, "ALGOLIA_REGION");

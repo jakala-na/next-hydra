@@ -21,7 +21,7 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 ## User Stories
 
 1. As a buyer, I want to open Checkout only when I have an existing non-empty Cart, so that checkout always starts from products I intend to buy.
-2. As a buyer, I want Checkout to show one active step at a time, so that I know what information I need to provide next.
+2. As a buyer, I want Checkout to show one step at a time, so that I know what information I need to provide next.
 3. As a buyer, I want completed steps to collapse, so that I can focus on the first incomplete step.
 4. As a buyer, I want earlier completed steps to become incomplete again if their underlying details stop satisfying current rules, so that Checkout does not rely on stale completion flags.
 5. As a buyer, I want Contact to be skipped when all required Contact details are already available to Checkout, so that I avoid redundant confirmation.
@@ -48,7 +48,7 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 26. As a buyer, I want Checkout Violations to target the whole Cart, a cart item, or a Checkout Step when relevant, so that the UI can render the violation in the right place.
 27. As a buyer, I want Checkout to treat all first-slice Checkout Violations as blocking, so that progression rules are predictable.
 28. As a product engineer, I want Checkout State to be derived from Cart, buyer context, and Checkout Details, so that no persistent Checkout State needs to be migrated when rules change.
-29. As a product engineer, I want Checkout Step status to be binary, so that the active step can always be derived as the first incomplete step.
+29. As a product engineer, I want Checkout Step status to be binary, so that the Next Checkout Step can always be derived as the first incomplete step.
 30. As a product engineer, I want Checkout State to be a lean read model, so that it does not duplicate the full Cart or own option catalogs such as address book entries.
 31. As a product engineer, I want option lists and resolver choices to come from separate capabilities, so that Checkout State only represents current saved or derived Checkout Details.
 32. As a product engineer, I want Contact Source and Delivery Details Source to be input strategies, so that validation can branch without adding field-level provenance to domain contracts.
@@ -80,7 +80,7 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Require an existing non-empty Cart before Checkout can start. UI and adapters may redirect or recover when no active cart exists.
 - Use `CheckoutSession.getCurrent` to get Checkout State from the current Cart, buyer context, Checkout Details, and policy results.
 - Keep Checkout State construction in an internal `buildCheckoutState` function that `CheckoutSession.getCurrent` calls after resolving provider data.
-- `buildCheckoutState` receives a resolved Checkout Scope, `CartForCheckout`, Checkout Details, buyer context, Cart Policy Violations, and Checkout Policy Violations. It validates that Checkout can start, computes step completion, computes the active step, normalizes violations, and returns Checkout State.
+- `buildCheckoutState` receives a resolved Checkout Scope, `CartForCheckout`, Checkout Details, buyer context, Cart Policy Violations, and Checkout Policy Violations. It validates that Checkout can start, computes step completion, computes the Next Checkout Step, normalizes violations, and returns Checkout State.
 - `buildCheckoutState` is a Checkout state builder function, not a Service and not a use-case program.
 - Keep provider Cart projection in `decodeCartForCheckout`; this is a schema-backed provider-boundary decoder/mapper called inside the `CheckoutSession` layer after Cart fetch.
 - Define a storefront Checkout Scope value so HTTP handlers and Next.js server components/actions can resolve the current checkout context before running `CheckoutSession`.
@@ -109,13 +109,13 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Valid customer JWT with no Commerce Customer ID mapping should remain a typed internal account-mapping failure but map publicly to HTTP 404 `checkout.notFound` for current-checkout reads.
 - Future checkout mutation slices can define sharper write-specific auth/error mapping instead of inheriting the current-checkout read collapsing rule.
 - Provider/runtime failures during JWT validation or Commerce Customer ID lookup should map externally to HTTP 500.
-- Keep Checkout State lean. It reports current Checkout Details, binary step status, active step, and one global list of Checkout Violations.
+- Keep Checkout State lean. It reports current Checkout Details, binary step status, the Next Checkout Step, and one global list of Checkout Violations.
 - Keep unsaved option catalogs outside Checkout State. Address book entries, customer profile candidates, and similar choices come from separate resolver or option capabilities.
 - Use Checkout Read Schema for ordinary incomplete checkout. It must decode incomplete Contact and incomplete Delivery Details.
 - Use stricter Checkout Action Schemas for operations that require completed details.
 - Use binary Checkout Step status: complete or incomplete.
-- Derive the Active Checkout Step as the first incomplete step in the checkout step sequence.
-- Represent blocking through global Checkout Violations while the active step remains incomplete. Step status stays binary.
+- Derive the Next Checkout Step as the first incomplete step in the checkout step sequence.
+- Represent blocking through global Checkout Violations while the Next Checkout Step remains incomplete. Step status stays binary.
 - Use this step sequence as the first design: Contact, Delivery Details, Shipping Options, Payment Options, Review Order.
 - Implement Contact and Delivery Details first. Shipping Options, Payment Options, and Review Order can exist as planned step identifiers without full behavior.
 - Make Contact the step that establishes Buyer Contact and, when required, Buying Context.
@@ -168,7 +168,7 @@ Checkout behavior should live outside the HTTP boundary. Server components, serv
 - Good tests should exercise external behavior at `CheckoutSession`, `buildCheckoutState`, and adapter interfaces, not private helper ordering or implementation details.
 - Test `buildCheckoutState` as a deep state-builder function with in-memory Cart, buyer context, Checkout Details, and policy results.
 - Test that incomplete Checkout decodes through the Checkout Read Schema.
-- Test that the Active Checkout Step is the first incomplete step.
+- Test that the Next Checkout Step is the first incomplete step.
 - Test that step status is binary and that policy blocking does not create a third step status.
 - Test Contact completion for manual Buyer Contact, customer-profile Buyer Contact, missing required Buyer Contact details, authenticated B2B with Buying Context, and authenticated B2B without Buying Context.
 - Test Contact Source Policy behavior where Manual is allowed, Manual is disallowed for a new save, and previously saved Manual no longer satisfies Contact.

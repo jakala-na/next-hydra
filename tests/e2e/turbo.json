@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "e2e": {
+      "cache": false
+    },
+    "e2e:list": {
+      "cache": false
+    },
+    "test": {
+      "cache": false
+    }
+  }
+}

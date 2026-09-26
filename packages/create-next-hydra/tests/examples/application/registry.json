@@ -1,0 +1,329 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "root-package-requirement",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/root-package-requirement",
+          "kind": "add-on",
+          "packages": [
+            {
+              "cwd": ".",
+              "section": "dependencies",
+              "name": "picocolors",
+              "specifier": "^1.0.0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "root-dependencies",
+      "type": "registry:item",
+      "registryDependencies": ["runtime-colors"],
+      "dependencies": ["color-alias@npm:picocolors@1.1.1"],
+      "devDependencies": ["portless", "@types/node@24.13.3", "picocolors"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/root-dependencies",
+          "kind": "add-on"
+        }
+      }
+    },
+    {
+      "name": "runtime-colors",
+      "type": "registry:item",
+      "dependencies": ["picocolors@1.1.1", "kleur"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/recipes/runtime-colors",
+          "kind": "recipe"
+        }
+      }
+    },
+    {
+      "name": "site-preset",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/preset/site",
+          "kind": "preset",
+          "selections": {
+            "providers": {},
+            "addOns": ["branding", "instrumentation"]
+          }
+        }
+      }
+    },
+    {
+      "name": "with-tracking",
+      "type": "registry:item",
+      "registryDependencies": ["tracking"],
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/with-tracking", "kind": "add-on" }
+      }
+    },
+    {
+      "name": "tracking",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/recipes/tracking",
+          "kind": "recipe",
+          "compatibility": { "requires": ["example/add-ons/instrumentation"] }
+        }
+      },
+      "files": [
+        {
+          "path": "tracking.ts",
+          "target": "~/apps/web/tracking.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "privacy",
+      "type": "registry:item",
+      "docs": "Configure the privacy policy before publishing.",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/privacy",
+          "kind": "add-on",
+          "compatibility": { "conflicts": ["example/recipes/tracking"] }
+        }
+      }
+    },
+    {
+      "name": "alternative-patch",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/alternative-patch",
+          "kind": "add-on",
+          "assets": [
+            { "source": "client.patch", "target": "patches/alternative.patch" }
+          ],
+          "pnpmPatches": [
+            {
+              "dependency": "example-client@1.0.0",
+              "path": "patches/alternative.patch"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unowned-patch",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/unowned-patch",
+          "kind": "add-on",
+          "pnpmPatches": [
+            {
+              "dependency": "example-client@1.0.0",
+              "path": "patches/missing.patch"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "patched-client",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/patched-client",
+          "kind": "add-on",
+          "assets": [
+            { "source": "client.patch", "target": "patches/client.patch" }
+          ],
+          "pnpmPatches": [
+            {
+              "dependency": "example-client@1.0.0",
+              "path": "patches/client.patch"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "branding",
+      "type": "registry:item",
+      "docs": "Upload the brand assets before publishing.",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/branding",
+          "kind": "add-on",
+          "assets": [
+            { "source": "brand.svg", "target": "apps/web/public/brand.svg" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "docs": "Configure the site URL before starting the application.",
+      "meta": {
+        "nextHydra": { "id": "example/app/web", "kind": "package" },
+        "composition": {
+          "templates": [
+            {
+              "source": "layout.tsx.template",
+              "target": "~/apps/web/layout.tsx",
+              "slots": { "providers": "wrapper", "account": "element" }
+            },
+            {
+              "source": "configuration.ts.template",
+              "target": "apps/web/configuration.ts",
+              "slots": { "configuration": "call", "environment": "factory" }
+            },
+            {
+              "source": "query.ts.template",
+              "target": "apps/web/query.ts",
+              "slots": { "content": "graphql" }
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "apps/web/package.json",
+          "target": "~/apps/web/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/.env.example",
+          "target": "~/apps/web/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/.gitignore",
+          "target": "~/apps/web/.gitignore",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/vercel.json",
+          "target": "~/apps/web/vercel.json",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "a-outer",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/outer", "kind": "add-on" },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/layout.tsx",
+              "slot": "providers",
+              "module": "./outer",
+              "export": "Outer"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "outer.tsx",
+          "target": "~/apps/web/outer.tsx",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "hero",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/hero", "kind": "add-on" },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/query.ts",
+              "slot": "content",
+              "module": "./hero-fragment",
+              "export": "HeroFields",
+              "as": "HeroDocument"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "hero-fragment.ts",
+          "target": "~/apps/web/hero-fragment.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "instrumentation",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/instrumentation",
+          "kind": "add-on"
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/configuration.ts",
+              "slot": "configuration",
+              "module": "./configuration-support",
+              "export": "configure"
+            },
+            {
+              "target": "apps/web/configuration.ts",
+              "slot": "environment",
+              "module": "./configuration-support",
+              "export": "keys"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "configuration-support.ts",
+          "target": "~/apps/web/configuration-support.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "account",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/account", "kind": "add-on" },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/layout.tsx",
+              "slot": "providers",
+              "module": "./controls",
+              "export": "Frame"
+            },
+            {
+              "target": "apps/web/layout.tsx",
+              "slot": "account",
+              "module": "./controls",
+              "export": "Account"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "controls.tsx",
+          "target": "~/apps/web/controls.tsx",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { ActionClient, ActionMiddleware } from "@repo/actions";
 import type { EmptyActionContext } from "@repo/actions";
 import { NextServer } from "@repo/actions/next-server";
 import type { Locale } from "@repo/i18n/types";
+import { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { CheckoutPolicies } from "./lib/checkout/checkout-policy";
@@ -19,6 +20,8 @@ import { CommerceAccounts } from "./services/commerce-accounts";
 import { CommerceCompanyMemberships } from "./services/commerce-company-memberships";
 import { CompanyMemberRemovalRecords } from "./services/company-member-removal-records";
 import { CustomerAccountMembers } from "./services/customer-account-members";
+import { DeliveryPlanning } from "./services/delivery-planning";
+import { Orders } from "./services/orders";
 import type { StoreKey } from "./store";
 
 export type {
@@ -117,6 +120,10 @@ const unconfiguredRuntime = ManagedRuntime.make(
     Layer.effect(CartPolicies, Effect.die(new CommerceRuntimeNotConfigured())),
     Layer.effect(Carts, Effect.die(new CommerceRuntimeNotConfigured())),
     Layer.effect(
+      CheckoutPayments,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(
       CheckoutPolicies,
       Effect.die(new CommerceRuntimeNotConfigured())
     ),
@@ -128,6 +135,11 @@ const unconfiguredRuntime = ManagedRuntime.make(
       CommerceCompanyMemberships,
       Effect.die(new CommerceRuntimeNotConfigured())
     ),
+    Layer.effect(
+      DeliveryPlanning,
+      Effect.die(new CommerceRuntimeNotConfigured())
+    ),
+    Layer.effect(Orders, Effect.die(new CommerceRuntimeNotConfigured())),
     Layer.effect(
       CompanyMemberRemovalRecords,
       Effect.die(new CommerceRuntimeNotConfigured())

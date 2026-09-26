@@ -11,11 +11,12 @@ import type {
   CheckoutDetails,
   CheckoutPolicyViolation,
   CheckoutScope,
-  CheckoutState,
   CheckoutStep,
   CheckoutStepId,
   CheckoutViolation,
 } from "../../domain/checkout";
+import type { CheckoutState } from "../../domain/checkout-state";
+import { shippingAddressesEqual } from "./address-equality";
 
 export const CHECKOUT_STEP_SEQUENCE = [
   "contact",
@@ -65,10 +66,28 @@ const isDeliveryDetailsComplete = (details: CheckoutDetails) => {
   );
 };
 
+const isPaymentOptionsComplete = (
+  cart: CartSnapshot,
+  details: CheckoutDetails
+) => {
+  const payment = details.preparedPayment;
+  const shippingAddress = details.deliveryDetails?.shippingAddress;
+
+  return (
+    payment !== undefined &&
+    shippingAddress !== undefined &&
+    payment.amount.centAmount === cart.totalPrice.centAmount &&
+    payment.amount.currencyCode === cart.totalPrice.currencyCode &&
+    shippingAddressesEqual(payment.billingAddress, shippingAddress)
+  );
+};
+
 const buildCheckoutSteps = (
+  cart: CartSnapshot,
   details: CheckoutDetails,
   buyerContext: CheckoutBuyerContext,
-  allowedContactSources: readonly CheckoutContactSource[]
+  allowedContactSources: readonly CheckoutContactSource[],
+  shippingOptionsComplete: boolean
 ): readonly CheckoutStep[] => [
   {
     id: "contact",
@@ -82,11 +101,11 @@ const buildCheckoutSteps = (
   },
   {
     id: "shippingOptions",
-    status: "incomplete",
+    status: shippingOptionsComplete ? "complete" : "incomplete",
   },
   {
     id: "paymentOptions",
-    status: "incomplete",
+    status: isPaymentOptionsComplete(cart, details) ? "complete" : "incomplete",
   },
   {
     id: "reviewOrder",
@@ -94,32 +113,48 @@ const buildCheckoutSteps = (
   },
 ];
 
-const activeStepFrom = (steps: readonly CheckoutStep[]): CheckoutStepId =>
+const nextStepFrom = (steps: readonly CheckoutStep[]): CheckoutStepId =>
   steps.find((step) => step.status === "incomplete")?.id ?? "reviewOrder";
 
 const normalizeCartPolicyViolation = (
   violation: CartPolicyViolation
-): CheckoutViolation => ({
-  source: "cartPolicy",
-  severity: "blocking",
-  code: violation.code,
-  ...(violation.parameters === undefined
-    ? {}
-    : { parameters: violation.parameters }),
-  targets: violation.targets,
-});
+): CheckoutViolation => {
+  if (violation.parameters === undefined) {
+    return {
+      code: violation.code,
+      severity: "blocking",
+      source: "cartPolicy",
+      targets: violation.targets,
+    };
+  }
+  return {
+    code: violation.code,
+    parameters: violation.parameters,
+    severity: "blocking",
+    source: "cartPolicy",
+    targets: violation.targets,
+  };
+};
 
 const normalizeCheckoutPolicyViolation = (
   violation: CheckoutPolicyViolation
-): CheckoutViolation => ({
-  source: "checkoutPolicy",
-  severity: "blocking",
-  code: violation.code,
-  ...(violation.parameters === undefined
-    ? {}
-    : { parameters: violation.parameters }),
-  targets: violation.targets,
-});
+): CheckoutViolation => {
+  if (violation.parameters === undefined) {
+    return {
+      code: violation.code,
+      severity: "blocking",
+      source: "checkoutPolicy",
+      targets: violation.targets,
+    };
+  }
+  return {
+    code: violation.code,
+    parameters: violation.parameters,
+    severity: "blocking",
+    source: "checkoutPolicy",
+    targets: violation.targets,
+  };
+};
 
 const ensureNonEmptyCart = (cart: CartSnapshot) => {
   if (cart.totalLineItemQuantity <= 0 || cart.lineItems.length === 0) {
@@ -142,6 +177,7 @@ export interface BuildCheckoutStateInput {
   readonly allowedContactSources?: readonly CheckoutContactSource[];
   readonly cartPolicyViolations: readonly CartPolicyViolation[];
   readonly checkoutPolicyViolations: readonly CheckoutPolicyViolation[];
+  readonly shippingOptionsComplete?: boolean;
 }
 
 export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
@@ -152,21 +188,24 @@ export const buildCheckoutState = Effect.fn("buildCheckoutState")(function* ({
   allowedContactSources = ["manual", "customerProfile"],
   cartPolicyViolations,
   checkoutPolicyViolations,
+  shippingOptionsComplete = false,
 }: BuildCheckoutStateInput): Effect.fn.Return<
   CheckoutState,
   CheckoutUnavailable
 > {
   yield* ensureNonEmptyCart(cart);
   const steps = buildCheckoutSteps(
+    cart,
     details,
     buyerContext,
-    allowedContactSources
+    allowedContactSources,
+    shippingOptionsComplete
   );
 
   return {
-    activeStep: activeStepFrom(steps),
     cart,
     details,
+    nextStep: nextStepFrom(steps),
     scope,
     steps,
     violations: [

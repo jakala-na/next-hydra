@@ -5,7 +5,7 @@ import {
 import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
-import { hasLocale, setRequestLocale } from "@repo/i18n";
+import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
 import type { Route } from "next";
 import { cacheLife, cacheTag } from "next/cache";
@@ -65,7 +65,7 @@ const pagePreviewQuery = graphql(
   [...PageRenderer.fragments]
 );
 
-const LEADING_SLASHES = /^\/+/;
+const LEADING_SLASHES = /^\/+/u;
 const MOVED_PERMANENTLY_STATUS = 301;
 const PERMANENT_REDIRECT_STATUS = 308;
 
@@ -179,7 +179,6 @@ export async function Page(props: { url: string; locale: Locale }) {
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  setRequestLocale(locale);
 
   const { isEnabled: preview } = await draftMode();
   const previewContext = preview ? await getDrupalPreviewContext() : undefined;
@@ -190,6 +189,7 @@ export async function Page(props: { url: string; locale: Locale }) {
     : await getCachedCanvasPage(drupalPath);
 
   if (canvasPage && isPageRedirect(canvasPage)) {
+    // SAFETY: CMS-managed destinations are resolved at runtime, outside Next's generated route inventory.
     const destination = canvasPage.redirect.url as Route;
     if (
       canvasPage.redirect.statusCode === MOVED_PERMANENTLY_STATUS ||

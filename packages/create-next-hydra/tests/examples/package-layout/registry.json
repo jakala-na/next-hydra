@@ -1,0 +1,12 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "dependencies": ["@example/colors@workspace:*"],
+      "meta": { "nextHydra": { "id": "example/app/web", "kind": "package" } }
+    }
+  ]
+}

@@ -1,4 +1,34 @@
-import { Config, Context, Effect, Layer, Redacted } from "effect";
+import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
+
+import {
+  missingRuntimeScopes,
+  runtimeScopeValidationMessage,
+} from "./runtime-scopes";
+
+const CommercetoolsEnvironment = Schema.Struct({
+  COMMERCETOOLS_CLIENT_ID: Schema.NonEmptyString,
+  COMMERCETOOLS_CLIENT_SECRET: Schema.Redacted(Schema.NonEmptyString),
+  COMMERCETOOLS_PROJECT_KEY: Schema.NonEmptyString,
+  COMMERCETOOLS_REGION: Schema.NonEmptyString,
+  COMMERCETOOLS_SCOPE: Schema.NonEmptyString,
+}).check(
+  Schema.makeFilter((environment) => {
+    const missingScopes = missingRuntimeScopes(
+      environment.COMMERCETOOLS_PROJECT_KEY,
+      environment.COMMERCETOOLS_SCOPE
+    );
+
+    return missingScopes.length === 0
+      ? undefined
+      : {
+          issue: runtimeScopeValidationMessage(
+            environment.COMMERCETOOLS_PROJECT_KEY,
+            missingScopes
+          ),
+          path: ["COMMERCETOOLS_SCOPE"],
+        };
+  })
+);
 
 interface CommercetoolsConfigValue {
   readonly projectKey: string;
@@ -15,22 +45,14 @@ export class CommercetoolsConfig extends Context.Service<
   static readonly layer = Layer.effect(
     CommercetoolsConfig,
     Effect.gen(function* () {
-      const projectKey = yield* Config.nonEmptyString(
-        "COMMERCETOOLS_PROJECT_KEY"
-      );
-      const clientId = yield* Config.nonEmptyString("COMMERCETOOLS_CLIENT_ID");
-      const clientSecret = yield* Config.nonEmptyString(
-        "COMMERCETOOLS_CLIENT_SECRET"
-      ).pipe(Config.map(Redacted.make));
-      const scope = yield* Config.nonEmptyString("COMMERCETOOLS_SCOPE");
-      const region = yield* Config.nonEmptyString("COMMERCETOOLS_REGION");
+      const environment = yield* Config.schema(CommercetoolsEnvironment);
 
       return CommercetoolsConfig.of({
-        clientId,
-        clientSecret,
-        projectKey,
-        region,
-        scope,
+        clientId: environment.COMMERCETOOLS_CLIENT_ID,
+        clientSecret: environment.COMMERCETOOLS_CLIENT_SECRET,
+        projectKey: environment.COMMERCETOOLS_PROJECT_KEY,
+        region: environment.COMMERCETOOLS_REGION,
+        scope: environment.COMMERCETOOLS_SCOPE,
       });
     })
   );

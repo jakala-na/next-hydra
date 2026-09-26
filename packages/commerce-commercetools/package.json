@@ -10,8 +10,11 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/commerce-commercetools/tsconfig.json"
   },
   "exports": {
+    "./next-config": "./next-config.ts",
     "./provider": "./provider.ts",
     "./cart": "./cart/index.ts",
+    "./delivery-planning": "./delivery-planning/index.ts",
+    "./payment-repository": "./payment-repository/index.ts",
     "./commerce-accounts": "./commerce-accounts/index.ts",
     "./address-book": "./address-book/index.ts",
     "./product": "./product/index.ts",
@@ -31,6 +34,7 @@
     "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/payments": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/versioned-store": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
@@ -51,6 +55,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "effect": "catalog:",
+    "next": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

@@ -1,0 +1,20 @@
+{
+  "name": "conflicting-root",
+  "type": "registry:item",
+  "dependencies": ["site-metrics@^1"],
+  "registryDependencies": ["banner.json"],
+  "meta": {
+    "nextHydra": {
+      "id": "example/add-on/conflicting-root",
+      "kind": "add-on",
+      "packages": [
+        {
+          "cwd": ".",
+          "name": "site-metrics",
+          "specifier": "^2",
+          "section": "dependencies"
+        }
+      ]
+    }
+  }
+}

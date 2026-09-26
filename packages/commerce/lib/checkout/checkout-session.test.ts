@@ -1,7 +1,14 @@
 import { describe, expect, it } from "@effect/vitest";
+import {
+  CheckoutPayments,
+  PaymentConfirmationReference,
+  PaymentProviderReference,
+  PaymentReference,
+} from "@repo/payments";
 import { Effect, Layer, Redacted } from "effect";
 
 import {
+  AddressBookEntry,
   AddressBookReference,
   AddressBookWriteOutcomeUnknown,
 } from "../../domain/address-book";
@@ -25,12 +32,24 @@ import {
   AuthUserId,
   CustomerCommerceContextRequest,
 } from "../../domain/commerce-request-context";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanReference,
+  DeliveryPlanQuoteReference,
+  ShippingOptionReference,
+} from "../../domain/delivery-plan";
+import type { DeliveryPlanQuote } from "../../domain/delivery-plan";
 import { AddressBook } from "../../services/address-book";
 import { CartPolicies } from "../../services/cart-policies";
 import { Carts } from "../../services/carts";
 import { CommerceAccounts } from "../../services/commerce-accounts";
 import { CommerceContext } from "../../services/commerce-context";
 import { CurrentCart } from "../../services/current-cart";
+import {
+  DeliveryPlanning,
+  DeliveryPlanningProviderFailure,
+} from "../../services/delivery-planning";
+import { Orders } from "../../services/orders";
 import { CommerceLocale, Store, StoreKey } from "../../store";
 import type { CurrentCartCookie } from "../current-cart/cookie";
 import { CheckoutPolicies } from "./checkout-policy";
@@ -52,7 +71,6 @@ const cart: CartSnapshot = {
       totalPrice: { centAmount: 2500, currencyCode: "USD" },
       unitPrice: { centAmount: 2500, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make("variant-1"),
         images: [],
         name: "Hydra Wrench",
@@ -79,14 +97,21 @@ const currentCartCookie: CurrentCartCookie = {
 const provideCheckout = <A, E>(
   program: Effect.Effect<A, E, CheckoutSession>,
   carts = Carts.layerMemory({ carts: [cart] }),
-  addressBookOverride?: Layer.Layer<AddressBook>
+  addressBookOverride?: Layer.Layer<AddressBook>,
+  deliveryPlanningOverride = DeliveryPlanning.emptyLayer,
+  checkoutPaymentsOverride = CheckoutPayments.unavailableLayer,
+  currentCartCookieOverride = currentCartCookie
 ) => {
   const commerceAccounts = CommerceAccounts.layerMemoryFrom({});
   const dependencies = Layer.mergeAll(
     carts,
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
-    commerceAccounts
+    CheckoutPayments.unavailableLayer,
+    commerceAccounts,
+    checkoutPaymentsOverride,
+    deliveryPlanningOverride,
+    Orders.layerMemory()
   );
   const commerceContext = CommerceContext.layer(context).pipe(
     Layer.provide(commerceAccounts)
@@ -94,7 +119,7 @@ const provideCheckout = <A, E>(
   const addressBook =
     addressBookOverride ??
     AddressBook.layerMemory().pipe(Layer.provide(commerceContext));
-  const currentCart = CurrentCart.layer(currentCartCookie).pipe(
+  const currentCart = CurrentCart.layer(currentCartCookieOverride).pipe(
     Layer.provide(Layer.merge(dependencies, commerceContext))
   );
   const checkoutSession = CheckoutSession.layer.pipe(
@@ -138,7 +163,10 @@ const provideCustomerCheckout = <A, E>(
     Carts.layerMemory({ carts: [customerCart] }),
     CartPolicies.layerEmpty,
     CheckoutPolicies.layerEmpty,
-    commerceAccounts
+    CheckoutPayments.unavailableLayer,
+    commerceAccounts,
+    DeliveryPlanning.emptyLayer,
+    Orders.layerMemory()
   );
   const addressBook = AddressBook.layerMemory().pipe(
     Layer.provide(commerceContext)
@@ -165,7 +193,7 @@ describe(CheckoutSession, () => {
           anonymousCartId: cart.id,
           channel: "storefrontAnonymous",
         });
-        expect(state.activeStep).toBe("contact");
+        expect(state.nextStep).toBe("contact");
         expect("version" in state.cart).toBeFalsy();
       })
     )
@@ -193,9 +221,178 @@ describe(CheckoutSession, () => {
           },
           source: "manual",
         });
-        expect(state.activeStep).toBe("deliveryDetails");
+        expect(state.nextStep).toBe("deliveryDetails");
       })
     )
+  );
+
+  it.effect("rejects a selection from an older Delivery Plan quote", () => {
+    const shippingAddress = {
+      addressLine1: "1 Hydra Way",
+      city: "New York",
+      country: CountryCode.make("US"),
+      postalCode: "10001",
+    };
+    const checkoutReadyCart: CartSnapshot = {
+      ...cart,
+      checkoutDetails: {
+        contact: {
+          buyerContact: {
+            email: "ada@example.com",
+            firstName: "Ada",
+            lastName: "Lovelace",
+          },
+          source: "manual",
+        },
+        deliveryDetails: { shippingAddress, source: "manual" },
+      },
+    };
+    const planReference = DeliveryPlanReference.make("plan-1");
+    const groupReference = DeliveryGroupReference.make("delivery-1");
+    const optionReference = ShippingOptionReference.make("standard");
+    const quote = {
+      plans: [
+        {
+          groups: [
+            {
+              reference: groupReference,
+              shippingAddress,
+              shippingOptions: [
+                {
+                  name: "Standard",
+                  price: { centAmount: 500, currencyCode: "USD" },
+                  reference: optionReference,
+                },
+              ],
+              targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+            },
+          ],
+          reference: planReference,
+        },
+      ],
+      reference: DeliveryPlanQuoteReference.make("quote-current"),
+    } as const satisfies DeliveryPlanQuote;
+
+    return provideCheckout(
+      CheckoutSession.saveShippingOptions({
+        cart: { id: cart.id },
+        selection: {
+          groups: [
+            {
+              deliveryGroupReference: groupReference,
+              shippingOptionReference: optionReference,
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-stale"),
+          reference: planReference,
+        },
+      }).pipe(
+        Effect.flip,
+        Effect.map((error) => {
+          expect(error).toMatchObject({
+            _tag: "CheckoutShippingSelectionUnavailable",
+            quoteReference: "quote-stale",
+          });
+          return error;
+        })
+      ),
+      Carts.layerMemory({ carts: [checkoutReadyCart] }),
+      undefined,
+      DeliveryPlanning.layerMemory(() => Effect.succeed(quote))
+    );
+  });
+
+  it.effect(
+    "requires refresh instead of retry when saving succeeds but re-quoting fails",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const checkoutReadyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+      const planReference = DeliveryPlanReference.make("plan-1");
+      const groupReference = DeliveryGroupReference.make("delivery-1");
+      const optionReference = ShippingOptionReference.make("standard");
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  {
+                    name: "Standard",
+                    price: { centAmount: 500, currencyCode: "USD" },
+                    reference: optionReference,
+                  },
+                ],
+                targets: [
+                  { lineItemId: LineItemId.make("line-1"), quantity: 1 },
+                ],
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+      let quoteCalls = 0;
+
+      return provideCheckout(
+        CheckoutSession.saveShippingOptions({
+          cart: { id: cart.id },
+          selection: {
+            groups: [
+              {
+                deliveryGroupReference: groupReference,
+                shippingOptionReference: optionReference,
+              },
+            ],
+            quoteReference,
+            reference: planReference,
+          },
+        }).pipe(
+          Effect.flip,
+          Effect.map((error) => {
+            expect(error).toMatchObject({
+              _tag: "CheckoutShippingOptionsRefreshRequired",
+              cartId: cart.id,
+            });
+            return error;
+          })
+        ),
+        Carts.layerMemory({ carts: [checkoutReadyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => {
+          quoteCalls += 1;
+          return quoteCalls === 1
+            ? Effect.succeed(quote)
+            : Effect.fail(
+                new DeliveryPlanningProviderFailure({
+                  operation: "quote",
+                  reason: "unavailable",
+                })
+              );
+        })
+      );
+    }
   );
 
   it.effect(
@@ -212,6 +409,7 @@ describe(CheckoutSession, () => {
               _tag: "CheckoutCustomerProfileIncomplete",
               missingFields: ["email"],
             });
+            return error;
           })
         ),
         new CommerceCustomerProfile({
@@ -278,6 +476,7 @@ describe(CheckoutSession, () => {
       ).pipe(
         Effect.map((error) => {
           expect(error._tag).toBe("CheckoutCartMismatch");
+          return error;
         })
       )
     )
@@ -302,6 +501,7 @@ describe(CheckoutSession, () => {
         ).pipe(
           Effect.map((error) => {
             expect(error._tag).toBe("CheckoutVersionConflict");
+            return error;
           })
         ),
         Carts.layerMemory({
@@ -337,6 +537,7 @@ describe(CheckoutSession, () => {
             cartId: cart.id,
             operation: "saveContact",
           });
+          return error;
         })
       ),
       Carts.layerMemory({
@@ -382,6 +583,174 @@ describe(CheckoutSession, () => {
   );
 
   it.effect(
+    "re-quotes and advances to Payment after saving every Delivery Group selection",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Hydra Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const checkoutReadyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "ada@example.com",
+              firstName: "Ada",
+              lastName: "Lovelace",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+      const planReference = DeliveryPlanReference.make("plan-1");
+      const groupReference = DeliveryGroupReference.make("delivery-1");
+      const optionReference = ShippingOptionReference.make("standard");
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-1");
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  {
+                    name: "Standard",
+                    price: { centAmount: 500, currencyCode: "USD" },
+                    reference: optionReference,
+                  },
+                ],
+                targets: [
+                  { lineItemId: LineItemId.make("line-1"), quantity: 1 },
+                ],
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const before = yield* CheckoutSession.getCurrentWithDeliveryPlans();
+          expect(before.state.nextStep).toBe("shippingOptions");
+
+          const state = yield* CheckoutSession.saveShippingOptions({
+            cart: { id: cart.id },
+            selection: {
+              groups: [
+                {
+                  deliveryGroupReference: groupReference,
+                  shippingOptionReference: optionReference,
+                },
+              ],
+              quoteReference,
+              reference: planReference,
+            },
+          });
+
+          expect(state.nextStep).toBe("paymentOptions");
+          expect(
+            state.steps.find((step) => step.id === "shippingOptions")?.status
+          ).toBe("complete");
+          expect(
+            state.details.selectedDeliveryPlan?.groups[0].selectedShippingOption
+          ).toStrictEqual(quote.plans[0].groups[0].shippingOptions[0]);
+        }),
+        Carts.layerMemory({ carts: [checkoutReadyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => Effect.succeed(quote))
+      );
+    }
+  );
+
+  it.effect(
+    "preserves the saved Address Book reference when post-write re-quoting fails",
+    () => {
+      let savedEntry: AddressBookEntry | undefined;
+      let saveCalls = 0;
+      let quoteCalls = 0;
+      const addressBook = Layer.succeed(
+        AddressBook,
+        AddressBook.of({
+          get: () =>
+            savedEntry === undefined
+              ? Effect.die("Address Book entry was not saved")
+              : Effect.succeed(savedEntry),
+          list: () =>
+            Effect.succeed(savedEntry === undefined ? [] : [savedEntry]),
+          save: (input) => {
+            saveCalls += 1;
+            savedEntry = new AddressBookEntry(input);
+            return Effect.succeed(savedEntry);
+          },
+        })
+      );
+      const deliveryPlanning = DeliveryPlanning.layerMemory(() => {
+        quoteCalls += 1;
+        return quoteCalls === 2
+          ? Effect.fail(
+              new DeliveryPlanningProviderFailure({
+                operation: "quote",
+                reason: "unavailable",
+              })
+            )
+          : Effect.succeed({
+              plans: [],
+              reference: DeliveryPlanQuoteReference.make(`quote-${quoteCalls}`),
+            });
+      });
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const error = yield* CheckoutSession.saveDeliveryDetails({
+            cart: { id: cart.id },
+            deliveryDetails: {
+              makeDefaultShipping: false,
+              saveToAddressBook: true,
+              shippingAddress: {
+                addressLine1: "1 Hydra Way",
+                city: "New York",
+                country: CountryCode.make("US"),
+                postalCode: "10001",
+              },
+              type: "manual",
+            },
+          }).pipe(Effect.flip);
+
+          expect(error).toMatchObject({
+            _tag: "CheckoutMutationProviderFailure",
+            operation: "checkout.deliveryPlanning.quote",
+          });
+          if (
+            error._tag !== "CheckoutMutationProviderFailure" ||
+            error.addressBookReference === undefined
+          ) {
+            throw new Error("Expected the saved Address Book reference");
+          }
+
+          yield* CheckoutSession.saveDeliveryDetails({
+            cart: { id: cart.id },
+            deliveryDetails: {
+              addressBookReference: error.addressBookReference,
+              type: "addressBook",
+            },
+          });
+
+          expect(saveCalls).toBe(1);
+        }),
+        Carts.layerMemory({ carts: [cart] }),
+        addressBook,
+        deliveryPlanning
+      );
+    }
+  );
+
+  it.effect(
     "preserves the generated Address Book reference when saving is unconfirmed",
     () =>
       provideCheckout(
@@ -409,6 +778,7 @@ describe(CheckoutSession, () => {
               throw new Error("Expected an unknown Checkout mutation outcome");
             }
             expect(error.addressBookReference).toBeDefined();
+            return error;
           })
         ),
         Carts.layerMemory({ carts: [cart] }),
@@ -427,5 +797,335 @@ describe(CheckoutSession, () => {
           })
         )
       )
+  );
+
+  it.effect(
+    "does not prepare Payment Options before current Shipping Options are complete",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Payment Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const cartBeforeShipping: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "payment@example.com",
+              firstName: "Payment",
+              lastName: "Buyer",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+        },
+      };
+
+      return provideCheckout(
+        CheckoutSession.preparePaymentOptions().pipe(
+          Effect.flip,
+          Effect.map((failure) => {
+            expect(failure).toMatchObject({
+              _tag: "CheckoutPaymentOptionsUnavailable",
+              reason: "shippingOptionsIncomplete",
+            });
+            return failure;
+          })
+        ),
+        Carts.layerMemory({ carts: [cartBeforeShipping] })
+      );
+    }
+  );
+
+  it.effect(
+    "prepares and saves the parameterized Card payment before Review without authorization",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Payment Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-payment");
+      const planReference = DeliveryPlanReference.make("plan-payment");
+      const groupReference = DeliveryGroupReference.make("group-payment");
+      const optionReference = ShippingOptionReference.make("option-payment");
+      const selectedDeliveryPlan = {
+        groups: [
+          {
+            reference: groupReference,
+            selectedShippingOption: {
+              name: "Parameterized Shipping",
+              price: { centAmount: 500, currencyCode: "USD" },
+              reference: optionReference,
+            },
+            shippingAddress,
+            targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+          },
+        ],
+        quoteReference,
+        reference: planReference,
+      } as const;
+      const readyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "payment@example.com",
+              firstName: "Payment",
+              lastName: "Buyer",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+          selectedDeliveryPlan,
+        },
+        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+      };
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  selectedDeliveryPlan.groups[0].selectedShippingOption,
+                ],
+                targets: selectedDeliveryPlan.groups[0].targets,
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+      const paymentReference = PaymentReference.make("payment-from-input");
+      const confirmationReference = PaymentConfirmationReference.make(
+        "confirmation-from-input"
+      );
+      const publicConfiguration = "public-configuration-from-input";
+      const clientToken = "client-token-from-input";
+      const payments = CheckoutPayments.layerMemory({
+        card: {
+          clientTokenFor: () => clientToken,
+          confirmationAvailabilityFor: ({
+            confirmationReference: submittedConfirmationReference,
+          }) => {
+            expect(submittedConfirmationReference).toBe(confirmationReference);
+            return "available";
+          },
+          provider: "Memory Card Provider",
+          providerReferenceFor: () =>
+            PaymentProviderReference.make("provider-from-input"),
+          publicConfiguration,
+        },
+        cardPaymentReferenceFor: () => paymentReference,
+        creditProfiles: [],
+        netTermsPaymentReferenceFor: () =>
+          PaymentReference.make("unused-net-terms-payment"),
+      });
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const prepared = yield* CheckoutSession.preparePaymentOptions();
+          const card = prepared.paymentOptions.methods.find(
+            (method) => method.method === "card"
+          );
+          if (card === undefined) {
+            return yield* Effect.die("Expected Card preparation input");
+          }
+          const { preparationReference } = card.input;
+          expect(preparationReference.length).toBeGreaterThan(0);
+          expect(prepared.deliveryPlanQuote).toStrictEqual(quote);
+          expect(prepared.paymentOptions).toStrictEqual({
+            amount: readyCart.totalPrice,
+            methods: [
+              {
+                availability: "available",
+                displayName: "Card",
+                input: {
+                  clientIntegration: {
+                    clientToken,
+                    provider: "Memory Card Provider",
+                    publicConfiguration,
+                  },
+                  preparationReference,
+                },
+                method: "card",
+              },
+            ],
+          });
+
+          const state = yield* CheckoutSession.savePaymentOptions({
+            cart: { id: readyCart.id },
+            selection: {
+              billingAddress: { source: "shippingAddress" },
+              payment: {
+                confirmationReference,
+                method: "card",
+                preparationReference,
+              },
+            },
+          });
+
+          expect(state.nextStep).toBe("reviewOrder");
+          const attemptReference =
+            state.details.preparedPayment?.attemptReference;
+          if (!(attemptReference ?? "").startsWith("checkout-cart-1-")) {
+            return yield* Effect.die("Expected a Cart-scoped Payment attempt");
+          }
+          expect(state.details.preparedPayment).toStrictEqual({
+            amount: readyCart.totalPrice,
+            attemptReference,
+            billingAddress: shippingAddress,
+            method: "card",
+            paymentReference,
+            preparationReference,
+          });
+        }),
+        Carts.layerMemory({ carts: [readyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => Effect.succeed(quote)),
+        payments
+      );
+    }
+  );
+
+  it.effect(
+    "places the Order and forgets the anonymous Cart so it is never reused",
+    () => {
+      const shippingAddress = {
+        addressLine1: "1 Placement Way",
+        city: "New York",
+        country: CountryCode.make("US"),
+        postalCode: "10001",
+      };
+      const quoteReference = DeliveryPlanQuoteReference.make("quote-placement");
+      const planReference = DeliveryPlanReference.make("plan-placement");
+      const groupReference = DeliveryGroupReference.make("group-placement");
+      const optionReference = ShippingOptionReference.make("option-placement");
+      const selectedDeliveryPlan = {
+        groups: [
+          {
+            reference: groupReference,
+            selectedShippingOption: {
+              name: "Parameterized Shipping",
+              price: { centAmount: 500, currencyCode: "USD" },
+              reference: optionReference,
+            },
+            shippingAddress,
+            targets: [{ lineItemId: LineItemId.make("line-1"), quantity: 1 }],
+          },
+        ],
+        quoteReference,
+        reference: planReference,
+      } as const;
+      const readyCart: CartSnapshot = {
+        ...cart,
+        checkoutDetails: {
+          contact: {
+            buyerContact: {
+              email: "placement@example.com",
+              firstName: "Placement",
+              lastName: "Buyer",
+            },
+            source: "manual",
+          },
+          deliveryDetails: { shippingAddress, source: "manual" },
+          selectedDeliveryPlan,
+        },
+        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+      };
+      const quote = {
+        plans: [
+          {
+            groups: [
+              {
+                reference: groupReference,
+                shippingAddress,
+                shippingOptions: [
+                  selectedDeliveryPlan.groups[0].selectedShippingOption,
+                ],
+                targets: selectedDeliveryPlan.groups[0].targets,
+              },
+            ],
+            reference: planReference,
+          },
+        ],
+        reference: quoteReference,
+      } as const satisfies DeliveryPlanQuote;
+      const paymentReference = PaymentReference.make("payment-for-placement");
+      const confirmationReference = PaymentConfirmationReference.make(
+        "confirmation-for-placement"
+      );
+      const payments = CheckoutPayments.layerMemory({
+        card: {
+          clientTokenFor: () => "client-token-for-placement",
+          confirmationAvailabilityFor: () => "available",
+          provider: "Memory Card Provider",
+          providerReferenceFor: () =>
+            PaymentProviderReference.make("provider-for-placement"),
+          publicConfiguration: "public-configuration-for-placement",
+        },
+        cardPaymentReferenceFor: () => paymentReference,
+        creditProfiles: [],
+        netTermsPaymentReferenceFor: () =>
+          PaymentReference.make("unused-net-terms-payment"),
+      });
+      const cleared: boolean[] = [];
+      const currentCartCookieOverride: CurrentCartCookie = {
+        clear: () => Effect.sync(() => cleared.push(true)).pipe(Effect.asVoid),
+        set: () => Effect.void,
+      };
+
+      return provideCheckout(
+        Effect.gen(function* () {
+          const prepared = yield* CheckoutSession.preparePaymentOptions();
+          const card = prepared.paymentOptions.methods.find(
+            (method) => method.method === "card"
+          );
+          if (card === undefined) {
+            return yield* Effect.die("Expected Card preparation input");
+          }
+          yield* CheckoutSession.savePaymentOptions({
+            cart: { id: readyCart.id },
+            selection: {
+              billingAddress: { source: "shippingAddress" },
+              payment: {
+                confirmationReference,
+                method: "card",
+                preparationReference: card.input.preparationReference,
+              },
+            },
+          });
+
+          const result = yield* CheckoutSession.placeOrder({
+            cart: { id: readyCart.id },
+          });
+          if (result._tag !== "Placed") {
+            return yield* Effect.die(
+              `Expected the Order to be Placed, got ${result._tag}`
+            );
+          }
+          expect(result.order.cartId).toBe(readyCart.id);
+
+          expect(cleared).toStrictEqual([true]);
+
+          const reread = yield* CheckoutSession.getCurrent().pipe(Effect.flip);
+          expect(reread).toMatchObject({
+            _tag: "CheckoutUnavailable",
+            reason: "noCart",
+          });
+        }),
+        Carts.layerMemory({ carts: [readyCart] }),
+        undefined,
+        DeliveryPlanning.layerMemory(() => Effect.succeed(quote)),
+        payments,
+        currentCartCookieOverride
+      );
+    }
   );
 });

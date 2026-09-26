@@ -8,9 +8,13 @@ import {
   makeCheckoutAuthenticationUnavailable,
   makeCheckoutUnauthenticated,
   projectCheckoutReadFailure,
+  projectPlaceCheckoutOrderFailure,
+  projectPrepareCheckoutPaymentOptionsFailure,
   projectCheckoutRequestFailure,
   projectSaveCheckoutContactFailure,
   projectSaveCheckoutDeliveryDetailsFailure,
+  projectSaveCheckoutPaymentOptionsFailure,
+  projectSaveCheckoutShippingOptionsFailure,
 } from "@repo/commerce/checkout/public-errors";
 import { CartId } from "@repo/commerce/domain/cart";
 import { currentCartOperationFailure } from "@repo/commerce/domain/cart-errors";
@@ -25,7 +29,11 @@ import {
   CheckoutSessionMiddleware,
 } from "@repo/commerce/http/checkout-api";
 import { checkoutApiErrorMessage } from "@repo/commerce/http/checkout-api-messages";
-import { toCheckoutApiState } from "@repo/commerce/http/checkout-api-state";
+import {
+  toCheckoutApiSnapshot,
+  toCheckoutApiPaymentOptionsSnapshot,
+  toCheckoutApiState,
+} from "@repo/commerce/http/checkout-api-state";
 import { CommerceRequestHeaders } from "@repo/commerce/http/commerce-request";
 import {
   ANONYMOUS_CART_COOKIE_NAME,
@@ -87,14 +95,16 @@ interface CheckoutDiagnosticFailure {
 const exhaustive = (_value: never): undefined => undefined;
 
 const logCheckoutDiagnosticFailure = (error: CheckoutDiagnosticFailure) =>
-  Effect.logError(error.message, error).pipe(
-    Effect.annotateLogs({
-      "checkout.error.tag": error._tag,
-      ...(error.operation === undefined
-        ? {}
-        : { "checkout.operation": error.operation }),
-    })
-  );
+  error.operation === undefined
+    ? Effect.logError(error.message, error).pipe(
+        Effect.annotateLogs({ "checkout.error.tag": error._tag })
+      )
+    : Effect.logError(error.message, error).pipe(
+        Effect.annotateLogs({
+          "checkout.error.tag": error._tag,
+          "checkout.operation": error.operation,
+        })
+      );
 
 const toCheckoutBadRequest = (locale?: string, cause?: Schema.SchemaError) => {
   const message = checkoutApiErrorMessage(locale, "checkout.badRequest");
@@ -121,10 +131,8 @@ const getCheckoutRequestHeadersFromRequest = Effect.gen(
     }
 
     return yield* Schema.decodeUnknownEffect(CommerceRequestHeaders)({
+      "x-context-business-unit-id": businessUnitId,
       "x-context-locale": locale,
-      ...(businessUnitId === undefined
-        ? {}
-        : { "x-context-business-unit-id": businessUnitId }),
     }).pipe(Effect.mapError((cause) => toCheckoutBadRequest(locale, cause)));
   }
 );
@@ -229,12 +237,8 @@ const makeHttpCommerceRequest = (
       return {
         context: new CustomerCommerceContextRequest({
           authUserId,
+          businessUnitId: headers["x-context-business-unit-id"],
           store,
-          ...(headers["x-context-business-unit-id"] === undefined
-            ? {}
-            : {
-                businessUnitId: headers["x-context-business-unit-id"],
-              }),
         }),
         currentCartCookie: {
           clear: () => Effect.void,
@@ -280,8 +284,8 @@ const makeHttpCommerceRequest = (
       cookieCartId === null ? undefined : CartId.make(cookieCartId);
     return {
       context: new AnonymousCommerceContextRequest({
+        anonymousCartId,
         store,
-        ...(anonymousCartId === undefined ? {} : { anonymousCartId }),
       }),
       currentCartCookie: {
         clear: () => Ref.set(cartCookieChange, Option.some({ _tag: "Clear" })),
@@ -361,45 +365,98 @@ const makeCheckoutHttpHandlers = () =>
   HttpApiBuilder.group(
     CheckoutHttpApi,
     "checkout",
-    Effect.fn(function* makeCheckoutHttpHandlers(handlers) {
-      return handlers
-        .handle("current", ({ headers }) =>
-          CheckoutSession.getCurrent().pipe(
-            Effect.map(toCheckoutApiState),
-            Effect.mapError((error) =>
-              projectCheckoutReadFailure(error, headers["x-context-locale"])
-            )
-          )
-        )
-        .handle("saveContact", ({ headers, payload }) =>
-          CheckoutSession.saveContact({
-            cart: payload.cart,
-            contact: payload.contact,
-          }).pipe(
-            Effect.map(toCheckoutApiState),
-            Effect.mapError((error) =>
-              projectSaveCheckoutContactFailure(
-                error,
-                headers["x-context-locale"]
+    Effect.fn("makeCheckoutHttpHandlers")((handlers) =>
+      Effect.succeed(
+        handlers
+          .handle("placeOrder", ({ headers, payload }) =>
+            CheckoutSession.placeOrder({
+              cart: payload.cart,
+            }).pipe(
+              Effect.mapError((error) =>
+                projectPlaceCheckoutOrderFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
               )
             )
           )
-        )
-        .handle("saveDeliveryDetails", ({ headers, payload }) =>
-          CheckoutSession.saveDeliveryDetails({
-            cart: payload.cart,
-            deliveryDetails: payload.deliveryDetails,
-          }).pipe(
-            Effect.map((result) => toCheckoutApiState(result.state)),
-            Effect.mapError((error) =>
-              projectSaveCheckoutDeliveryDetailsFailure(
-                error,
-                headers["x-context-locale"]
+          .handle("current", ({ headers }) =>
+            CheckoutSession.getCurrentWithDeliveryPlans().pipe(
+              Effect.map(toCheckoutApiSnapshot),
+              Effect.mapError((error) =>
+                projectCheckoutReadFailure(error, headers["x-context-locale"])
               )
             )
           )
-        );
-    })
+          .handle("preparePaymentOptions", ({ headers }) =>
+            CheckoutSession.preparePaymentOptions().pipe(
+              Effect.map(toCheckoutApiPaymentOptionsSnapshot),
+              Effect.mapError((error) =>
+                projectPrepareCheckoutPaymentOptionsFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
+          .handle("saveContact", ({ headers, payload }) =>
+            CheckoutSession.saveContact({
+              cart: payload.cart,
+              contact: payload.contact,
+            }).pipe(
+              Effect.map(toCheckoutApiState),
+              Effect.mapError((error) =>
+                projectSaveCheckoutContactFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
+          .handle("saveDeliveryDetails", ({ headers, payload }) =>
+            CheckoutSession.saveDeliveryDetails({
+              cart: payload.cart,
+              deliveryDetails: payload.deliveryDetails,
+            }).pipe(
+              Effect.map((result) => toCheckoutApiState(result.state)),
+              Effect.mapError((error) =>
+                projectSaveCheckoutDeliveryDetailsFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
+          .handle("saveShippingOptions", ({ headers, payload }) =>
+            CheckoutSession.saveShippingOptions({
+              cart: payload.cart,
+              selection: payload.selection,
+            }).pipe(
+              Effect.map(toCheckoutApiState),
+              Effect.mapError((error) =>
+                projectSaveCheckoutShippingOptionsFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
+          .handle("savePaymentOptions", ({ headers, payload }) =>
+            CheckoutSession.savePaymentOptions({
+              cart: payload.cart,
+              selection: payload.selection,
+            }).pipe(
+              Effect.map(toCheckoutApiState),
+              Effect.mapError((error) =>
+                projectSaveCheckoutPaymentOptionsFailure(
+                  error,
+                  headers["x-context-locale"]
+                )
+              )
+            )
+          )
+      )
+    )
   );
 
 const makeCheckoutHttpApiLayer = (dependencies: CheckoutHttpDependencies) =>

@@ -1,36 +1,58 @@
 import { ActionClient, ActionMiddleware } from "@repo/actions";
+import {
+  PaymentAttemptReference,
+  PaymentReference,
+  PreparedPaymentReference,
+} from "@repo/payments";
 import { Effect, Layer, ManagedRuntime } from "effect";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { CountryCode } from "../domain/address";
 import { AddressBookEntry, AddressBookReference } from "../domain/address-book";
 import { CartId, LineItemId, ProductId, VariantId } from "../domain/cart";
-import type { CheckoutState } from "../domain/checkout";
 import {
+  CheckoutCartMismatch,
+  CheckoutMutationOutcomeUnknown,
+  CheckoutMutationProviderFailure,
+  CheckoutShippingOptionsRefreshRequired,
+  CheckoutShippingSelectionUnavailable,
   CheckoutVersionConflict,
   StorefrontCustomerCheckoutScope,
 } from "../domain/checkout";
+import type {
+  SaveCheckoutContactInput,
+  SaveCheckoutDeliveryDetailsInput,
+  SaveCheckoutShippingOptionsInput,
+} from "../domain/checkout";
+import type { CheckoutState } from "../domain/checkout-state";
 import {
   CommerceBusinessUnitId,
   CommerceBusinessUnitKey,
   CommerceCustomerId,
 } from "../domain/commerce-account";
 import { AnonymousCommercePrincipal } from "../domain/commerce-request-context";
+import {
+  DeliveryGroupReference,
+  DeliveryPlanQuoteReference,
+  DeliveryPlanReference,
+  ShippingOptionReference,
+} from "../domain/delivery-plan";
 import type {
   CheckoutSaveContactFailure,
-  SaveCheckoutContactInput,
-  SaveCheckoutDeliveryDetailsInput,
+  CheckoutSaveShippingOptionsFailure,
   SaveCheckoutDeliveryDetailsResult,
 } from "../lib/checkout/checkout-session";
 import { CheckoutSession } from "../lib/checkout/checkout-session";
 import { AddressBook } from "../services/address-book";
 import { CommerceContext } from "../services/commerce-context";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
+import type { SaveCheckoutShippingOptionsActionInput } from "./action-contract";
+import { CartSidebar, CheckoutSteps } from "./checkout-view";
+import type { CheckoutPageMessages } from "./checkout-view";
 import { makeCheckoutProcedures } from "./procedures";
-import { MANUAL_DELIVERY_ADDRESS_CHOICE } from "./save-delivery-details-action-contract";
 
 const checkoutState: CheckoutState = {
-  activeStep: "contact",
   cart: {
     checkoutDetails: {},
     id: CartId.make("cart-1"),
@@ -41,7 +63,6 @@ const checkoutState: CheckoutState = {
         totalPrice: { centAmount: 2500, currencyCode: "USD" },
         unitPrice: { centAmount: 2500, currencyCode: "USD" },
         variant: {
-          attributes: {},
           id: VariantId.make("variant-1"),
           images: [],
           name: "Hydra Wrench",
@@ -55,6 +76,7 @@ const checkoutState: CheckoutState = {
     totalPrice: { centAmount: 2500, currencyCode: "USD" },
   },
   details: {},
+  nextStep: "contact",
   scope: new StorefrontCustomerCheckoutScope({
     businessUnitId: CommerceBusinessUnitId.make("business-unit-1"),
     businessUnitKey: CommerceBusinessUnitKey.make("business-unit-key"),
@@ -72,10 +94,32 @@ const checkoutState: CheckoutState = {
   violations: [],
 };
 
+const checkoutPageMessages = {
+  attention: "Attention",
+  card: "Card",
+  cartItems: (count: number) => `${count} items`,
+  cartQuantity: (quantity: number) => `Quantity ${quantity}`,
+  cartTitle: "Cart",
+  cartViolations: "Cart issues",
+  delivery: (number: number) => `Delivery ${number}`,
+  edit: "Edit",
+  netTerms: (days: number) => `Net ${days}`,
+  paymentMethod: "Payment method",
+  stepLabels: {
+    contact: "Contact",
+    deliveryDetails: "Delivery details",
+    paymentOptions: "Payment options",
+    reviewOrder: "Review order",
+    shippingOptions: "Shipping options",
+  },
+  subtotal: "Subtotal",
+  title: "Checkout",
+  violation: () => "Violation",
+} satisfies CheckoutPageMessages;
+
 const encodedCheckoutSuccess = {
   _tag: "Success",
   success: {
-    activeStep: "contact",
     cart: {
       checkoutDetails: {},
       id: "cart-1",
@@ -86,7 +130,6 @@ const encodedCheckoutSuccess = {
           totalPrice: { centAmount: 2500, currencyCode: "USD" },
           unitPrice: { centAmount: 2500, currencyCode: "USD" },
           variant: {
-            attributes: {},
             id: "variant-1",
             images: [],
             name: "Hydra Wrench",
@@ -100,12 +143,9 @@ const encodedCheckoutSuccess = {
       totalPrice: { centAmount: 2500, currencyCode: "USD" },
     },
     details: {},
+    nextStep: "contact",
     scope: {
-      _tag: "StorefrontCustomerCheckoutScope",
-      businessUnitId: "business-unit-1",
-      businessUnitKey: "business-unit-key",
       channel: "storefrontCustomer",
-      customerId: "customer-1",
       locale: "en-US",
     },
     steps: [
@@ -139,12 +179,25 @@ const makeCheckoutHarness = (options?: {
   readonly saveDeliveryDetails?: (
     input: SaveCheckoutDeliveryDetailsInput
   ) => Effect.Effect<SaveCheckoutDeliveryDetailsResult>;
+  readonly saveShippingOptions?: (
+    input: SaveCheckoutShippingOptionsInput
+  ) => Effect.Effect<CheckoutState, CheckoutSaveShippingOptionsFailure>;
 }) => {
   let provideCalls = 0;
   let getLocaleCalls = 0;
 
   const checkoutSession = {
     getCurrent: () => Effect.succeed(checkoutState),
+    getCurrentWithDeliveryPlans: () =>
+      Effect.succeed({
+        deliveryPlanQuote: {
+          plans: [],
+          reference: DeliveryPlanQuoteReference.make("empty-delivery-quote"),
+        },
+        state: checkoutState,
+      }),
+    placeOrder: () => Effect.die("not used"),
+    preparePaymentOptions: () => Effect.die("not used"),
     saveContact:
       options?.saveContact ??
       ((_input: SaveCheckoutContactInput) => Effect.succeed(checkoutState)),
@@ -152,6 +205,11 @@ const makeCheckoutHarness = (options?: {
       options?.saveDeliveryDetails ??
       ((_input: SaveCheckoutDeliveryDetailsInput) =>
         Effect.succeed({ state: checkoutState })),
+    savePaymentOptions: () => Effect.die("not used"),
+    saveShippingOptions:
+      options?.saveShippingOptions ??
+      ((_input: SaveCheckoutShippingOptionsInput) =>
+        Effect.succeed(checkoutState)),
   };
 
   const addressBook = {
@@ -193,44 +251,185 @@ const makeCheckoutHarness = (options?: {
       )
     );
 
-  const { saveCheckoutContactProcedure, saveCheckoutDeliveryDetailsProcedure } =
-    makeCheckoutProcedures(TestCommerceActions);
+  const {
+    saveCheckoutContactProcedure,
+    saveCheckoutDeliveryDetailsProcedure,
+    saveCheckoutPaymentOptionsProcedure,
+    saveCheckoutShippingOptionsProcedure,
+  } = makeCheckoutProcedures(TestCommerceActions);
 
   return {
     checkoutSession,
     getLocaleCalls: () => getLocaleCalls,
     provideCalls: () => provideCalls,
-    saveCheckoutContact: saveCheckoutContactProcedure.toFormAction({
+    saveCheckoutContact: saveCheckoutContactProcedure.toActionState({
       getFailureMessage: (error) => `Localized en-US ${error._tag}`,
     }),
     saveCheckoutContactProcedure,
     saveCheckoutDeliveryDetails:
-      saveCheckoutDeliveryDetailsProcedure.toFormAction({
+      saveCheckoutDeliveryDetailsProcedure.toActionState({
+        getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+      }),
+    saveCheckoutPaymentOptions:
+      saveCheckoutPaymentOptionsProcedure.toActionState({
+        getFailureMessage: (error) => `Localized en-US ${error._tag}`,
+      }),
+    saveCheckoutShippingOptions:
+      saveCheckoutShippingOptionsProcedure.toActionState({
         getFailureMessage: (error) => `Localized en-US ${error._tag}`,
       }),
   };
 };
 
 describe("Checkout boundaries", () => {
+  it("routes completed Checkout Steps through explicit edit requests", () => {
+    const state: CheckoutState = {
+      ...checkoutState,
+      nextStep: "reviewOrder",
+      steps: checkoutState.steps.map((step) => ({
+        ...step,
+        status: step.id === "reviewOrder" ? "incomplete" : "complete",
+      })),
+    };
+
+    const markup = renderToStaticMarkup(
+      <CheckoutSteps
+        checkoutPath="/en-US/checkout"
+        isEditing={false}
+        messages={checkoutPageMessages}
+        renderedStep="reviewOrder"
+        state={state}
+      >
+        <button type="button">Place order</button>
+      </CheckoutSteps>
+    );
+
+    expect(markup).toContain('action="/en-US/checkout" method="get"');
+    expect(
+      [
+        'aria-label="Edit Delivery details"',
+        'value="deliveryDetails" name="edit"',
+        'aria-label="Edit Payment options"',
+        'value="paymentOptions" name="edit"',
+      ].every((attribute) => markup.includes(attribute))
+    ).toBeTruthy();
+    expect({
+      editsReview: markup.includes('aria-label="Edit Review order"'),
+      expandedSteps: markup.match(/data-checkout-step-content="[^"]+"/gu),
+      statusLabels: /Active step|Incomplete|Complete|Editing/u.test(markup),
+    }).toStrictEqual({
+      editsReview: false,
+      expandedSteps: ['data-checkout-step-content="reviewOrder"'],
+      statusLabels: false,
+    });
+
+    const editMarkup = renderToStaticMarkup(
+      <CheckoutSteps
+        checkoutPath="/en-US/checkout"
+        isEditing={true}
+        messages={checkoutPageMessages}
+        renderedStep="deliveryDetails"
+        state={state}
+      >
+        <button type="button">Save delivery details</button>
+      </CheckoutSteps>
+    );
+    expect({
+      editingLabel: editMarkup.includes("Editing"),
+      editingState: editMarkup.includes(
+        'data-checkout-step="deliveryDetails" data-state="editing"'
+      ),
+      editsContact: editMarkup.includes('aria-label="Edit Contact"'),
+      editsPayment: editMarkup.includes('aria-label="Edit Payment options"'),
+      expandedSteps: editMarkup.match(/data-checkout-step-content="[^"]+"/gu),
+    }).toStrictEqual({
+      editingLabel: false,
+      editingState: true,
+      editsContact: true,
+      editsPayment: false,
+      expandedSteps: ['data-checkout-step-content="deliveryDetails"'],
+    });
+  });
+
+  it("renders merchandise subtotal separately from selected Shipping", () => {
+    const selectedShippingOption = {
+      name: "Standard",
+      price: { centAmount: 500, currencyCode: "USD" as const },
+      reference: ShippingOptionReference.make("standard"),
+    };
+    const state: CheckoutState = {
+      ...checkoutState,
+      cart: {
+        ...checkoutState.cart,
+        totalPrice: { centAmount: 3000, currencyCode: "USD" },
+      },
+      details: {
+        selectedDeliveryPlan: {
+          groups: [
+            {
+              reference: DeliveryGroupReference.make("delivery-1"),
+              selectedShippingOption,
+              shippingAddress: shippingAddress.address,
+              targets: [
+                {
+                  lineItemId: LineItemId.make("line-item-1"),
+                  quantity: 1,
+                },
+              ],
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          reference: DeliveryPlanReference.make("plan-1"),
+        },
+      },
+      nextStep: "paymentOptions",
+      steps: checkoutState.steps.map((step) => ({
+        ...step,
+        status:
+          step.id === "contact" || step.id === "shippingOptions"
+            ? "complete"
+            : "incomplete",
+      })),
+    };
+
+    const markup = renderToStaticMarkup(
+      <CartSidebar messages={checkoutPageMessages} state={state} />
+    );
+
+    expect(markup).toContain(
+      'data-commerce-money="checkout-subtotal" data-currency="USD" data-minor-amount="2500"'
+    );
+    expect(markup).toContain(
+      'data-commerce-money="selected-shipping-option" data-currency="USD" data-minor-amount="500"'
+    );
+  });
+
   it("runs each Checkout mutation with fresh request state", async () => {
     const harness = makeCheckoutHarness();
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "manual");
-    contact.set("email", "ada@example.com");
-    contact.set("firstName", "Ada");
-    contact.set("lastName", "Lovelace");
-
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("addressLine1", "1 Hydra Way");
-    deliveryDetails.set("postalCode", "10001");
-    deliveryDetails.set("city", "New York");
-    deliveryDetails.set("country", "us");
-    deliveryDetails.set(
-      "deliveryAddressChoice",
-      MANUAL_DELIVERY_ADDRESS_CHOICE
-    );
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: {
+        buyerContact: {
+          email: "ada@example.com",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+        source: "manual" as const,
+      },
+    };
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        saveToAddressBook: false as const,
+        shippingAddress: {
+          addressLine1: "1 Hydra Way",
+          city: "New York",
+          country: "us",
+          postalCode: "10001",
+        },
+        type: "manual" as const,
+      },
+    };
 
     const contactResult = await harness.saveCheckoutContact(null, contact);
     const deliveryDetailsResult = await harness.saveCheckoutDeliveryDetails(
@@ -243,7 +442,42 @@ describe("Checkout boundaries", () => {
     expect(harness.provideCalls()).toBe(2);
   });
 
-  it("uses the native delivery address choice as the submitted Address Book reference", async () => {
+  it("projects internal payment references out of Action success values", async () => {
+    const preparedPayment = {
+      amount: checkoutState.cart.totalPrice,
+      attemptReference: PaymentAttemptReference.make("private-attempt"),
+      billingAddress: shippingAddress.address,
+      method: "card" as const,
+      paymentReference: PaymentReference.make("private-payment-reference"),
+      preparationReference: PreparedPaymentReference.make(
+        "private-preparation-reference"
+      ),
+    };
+    const state = {
+      ...checkoutState,
+      cart: {
+        ...checkoutState.cart,
+        checkoutDetails: { preparedPayment },
+      },
+      details: { preparedPayment },
+    } satisfies CheckoutState;
+    const harness = makeCheckoutHarness({
+      saveContact: () => Effect.succeed(state),
+    });
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
+
+    const result = await harness.saveCheckoutContact(null, contact);
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).not.toContain(preparedPayment.paymentReference);
+    expect(serialized).not.toContain(preparedPayment.attemptReference);
+    expect(serialized).not.toContain(preparedPayment.preparationReference);
+  });
+
+  it("passes the structured Address Book selection to Checkout Session", async () => {
     let received: unknown;
     const harness = makeCheckoutHarness({
       saveDeliveryDetails: (input) => {
@@ -252,9 +486,13 @@ describe("Checkout boundaries", () => {
       },
     });
 
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("deliveryAddressChoice", "office");
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        addressBookReference: "office",
+        type: "addressBook" as const,
+      },
+    };
 
     await expect(
       harness.saveCheckoutDeliveryDetails(null, deliveryDetails)
@@ -270,9 +508,10 @@ describe("Checkout boundaries", () => {
 
   it("executes the shared procedure directly with the same encoded result", async () => {
     const harness = makeCheckoutHarness();
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "customerProfile");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
 
     await expect(
       harness.saveCheckoutContactProcedure.execute(contact)
@@ -287,12 +526,13 @@ describe("Checkout boundaries", () => {
         return Effect.succeed(checkoutState);
       },
     });
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "manual");
-    contact.set("email", "");
-    contact.set("firstName", "");
-    contact.set("lastName", "");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: {
+        buyerContact: { email: "", firstName: "", lastName: "" },
+        source: "manual" as const,
+      },
+    };
 
     const result = await harness.saveCheckoutContact(null, contact);
 
@@ -305,9 +545,18 @@ describe("Checkout boundaries", () => {
           category: "bad_input",
           code: "input.invalid",
           issues: [
-            { message: "This field is invalid.", path: ["email"] },
-            { message: "This field is invalid.", path: ["firstName"] },
-            { message: "This field is invalid.", path: ["lastName"] },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "email"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "firstName"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["contact", "buyerContact", "lastName"],
+            },
           ],
           message: "Invalid input.",
           recovery: "fix_input",
@@ -318,6 +567,37 @@ describe("Checkout boundaries", () => {
     expect(saveContactCalls).toBe(0);
   });
 
+  it("maps an invalid Payment Method to its structured input path", async () => {
+    const harness = makeCheckoutHarness();
+    const paymentOptions = {
+      cart: { id: "cart-1" },
+      selection: {
+        billingAddress: { source: "shippingAddress" as const },
+        payment: {
+          method: "invented-method",
+        },
+      },
+    };
+
+    await expect(
+      // @ts-expect-error -- Exercise the untrusted Server Action boundary.
+      harness.saveCheckoutPaymentOptions(null, paymentOptions)
+    ).resolves.toMatchObject({
+      _tag: "Failure",
+      failure: {
+        error: {
+          _tag: "InputInvalid",
+          issues: [
+            {
+              message: "This field is invalid.",
+              path: ["selection", "payment"],
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it("returns delivery schema failures with the invalid field paths", async () => {
     let saveDeliveryCalls = 0;
     const harness = makeCheckoutHarness({
@@ -326,16 +606,19 @@ describe("Checkout boundaries", () => {
         return Effect.succeed({ state: checkoutState });
       },
     });
-    const deliveryDetails = new FormData();
-    deliveryDetails.set("addressLine1", "");
-    deliveryDetails.set("cartId", "cart-1");
-    deliveryDetails.set("city", "");
-    deliveryDetails.set("country", "");
-    deliveryDetails.set(
-      "deliveryAddressChoice",
-      MANUAL_DELIVERY_ADDRESS_CHOICE
-    );
-    deliveryDetails.set("postalCode", "");
+    const deliveryDetails = {
+      cart: { id: "cart-1" },
+      deliveryDetails: {
+        saveToAddressBook: false as const,
+        shippingAddress: {
+          addressLine1: "",
+          city: "",
+          country: "",
+          postalCode: "",
+        },
+        type: "manual" as const,
+      },
+    };
 
     const result = await harness.saveCheckoutDeliveryDetails(
       null,
@@ -351,10 +634,22 @@ describe("Checkout boundaries", () => {
           category: "bad_input",
           code: "input.invalid",
           issues: [
-            { message: "This field is invalid.", path: ["addressLine1"] },
-            { message: "This field is invalid.", path: ["city"] },
-            { message: "This field is invalid.", path: ["country"] },
-            { message: "This field is invalid.", path: ["postalCode"] },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "addressLine1"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "city"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "country"],
+            },
+            {
+              message: "This field is invalid.",
+              path: ["deliveryDetails", "shippingAddress", "postalCode"],
+            },
           ],
           message: "Invalid input.",
           recovery: "fix_input",
@@ -374,9 +669,10 @@ describe("Checkout boundaries", () => {
           })
         ),
     });
-    const contact = new FormData();
-    contact.set("cartId", "cart-1");
-    contact.set("source", "customerProfile");
+    const contact = {
+      cart: { id: "cart-1" },
+      contact: { source: "customerProfile" as const },
+    };
 
     await expect(
       harness.saveCheckoutContact(null, contact)
@@ -395,5 +691,101 @@ describe("Checkout boundaries", () => {
         },
       },
     });
+  });
+
+  it("maps every expected Shipping Options service state at the action boundary", async () => {
+    const failures: readonly {
+      readonly error: CheckoutSaveShippingOptionsFailure;
+      readonly expected: {
+        readonly code: string;
+        readonly recovery: "refresh" | "retry";
+      };
+    }[] = [
+      {
+        error: new CheckoutCartMismatch({
+          currentCartId: CartId.make("cart-current"),
+          message: "Cart mismatch",
+          submittedCartId: CartId.make("cart-1"),
+        }),
+        expected: { code: "checkout.cartMismatch", recovery: "refresh" },
+      },
+      {
+        error: new CheckoutShippingSelectionUnavailable({
+          message: "Stale selection",
+          planReference: DeliveryPlanReference.make("plan-1"),
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          shippingOptionReference: ShippingOptionReference.make("standard"),
+        }),
+        expected: {
+          code: "checkout.shippingOptions.selectionUnavailable",
+          recovery: "refresh",
+        },
+      },
+      {
+        error: new CheckoutVersionConflict({
+          cartId: CartId.make("cart-1"),
+          message: "Conflict",
+        }),
+        expected: { code: "checkout.versionConflict", recovery: "refresh" },
+      },
+      {
+        error: new CheckoutMutationOutcomeUnknown({
+          cartId: CartId.make("cart-1"),
+          message: "Unknown outcome",
+          operation: "saveShippingOptions",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.outcomeUnknown",
+          recovery: "refresh",
+        },
+      },
+      {
+        error: new CheckoutMutationProviderFailure({
+          message: "Unavailable",
+          operation: "checkout.shippingOptions.save",
+          reason: "unavailable",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.providerFailure",
+          recovery: "retry",
+        },
+      },
+      {
+        error: new CheckoutShippingOptionsRefreshRequired({
+          cartId: CartId.make("cart-1"),
+          message: "Saved but refresh failed",
+        }),
+        expected: {
+          code: "checkout.shippingOptions.refreshRequired",
+          recovery: "refresh",
+        },
+      },
+    ];
+
+    for (const { error, expected } of failures) {
+      const harness = makeCheckoutHarness({
+        saveShippingOptions: () => Effect.fail(error),
+      });
+      const input: SaveCheckoutShippingOptionsActionInput = {
+        cart: { id: "cart-1" },
+        selection: {
+          groups: [
+            {
+              deliveryGroupReference: DeliveryGroupReference.make("delivery-1"),
+              shippingOptionReference: ShippingOptionReference.make("standard"),
+            },
+          ],
+          quoteReference: DeliveryPlanQuoteReference.make("quote-1"),
+          reference: DeliveryPlanReference.make("plan-1"),
+        },
+      };
+
+      // oxlint-disable-next-line no-await-in-loop -- Each isolated action boundary must complete before asserting its projected error.
+      const result = await harness.saveCheckoutShippingOptions(null, input);
+      expect(result).toMatchObject({
+        _tag: "Failure",
+        failure: { error: expected },
+      });
+    }
   });
 });

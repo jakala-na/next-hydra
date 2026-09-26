@@ -187,14 +187,14 @@ export const accessTokenVerifierLayer = ({
   Layer.effect(
     AccessTokenVerifier,
     Effect.gen(function* () {
-      const publishableKey = yield* Config.string(
+      const publishableKey = yield* Config.String(
         configKey(configPrefix, "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY")
       );
-      const secretKey = yield* Config.string(
+      const secretKey = yield* Config.String(
         configKey(configPrefix, "CLERK_SECRET_KEY")
       );
       const jwtKey = yield* Config.option(
-        Config.string(configKey(configPrefix, "CLERK_JWT_KEY"))
+        Config.String(configKey(configPrefix, "CLERK_JWT_KEY"))
       ).pipe(Effect.map(Option.getOrUndefined));
       const authorizedParties = yield* Config.schema(
         Schema.NonEmptyString,

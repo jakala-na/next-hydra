@@ -502,7 +502,7 @@ export const createClerkAuthProvisioningLayer = <E, R>(
 ) =>
   Layer.effect(
     AuthWebhookProvisioner,
-    Config.redacted("CLERK_SECRET_KEY").pipe(
+    Config.Redacted("CLERK_SECRET_KEY").pipe(
       Effect.map((secretKey) =>
         makeClerkAuthWebhookProvisioner({
           fetch: globalThis.fetch,

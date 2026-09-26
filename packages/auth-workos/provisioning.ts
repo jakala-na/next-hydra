@@ -308,7 +308,7 @@ export const createWorkosAuthProvisioningLayer = <E, R>(
 ) =>
   Layer.effect(
     AuthWebhookProvisioner,
-    Config.redacted("WORKOS_API_KEY").pipe(
+    Config.Redacted("WORKOS_API_KEY").pipe(
       Effect.map((apiKey) =>
         makeWorkosAuthWebhookProvisioner({
           apiKey,

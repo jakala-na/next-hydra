@@ -1,8 +1,10 @@
 # Provider and Add-on Composition
 
-Status: accepted
+Status: historical; superseded for the current implementation
 
-This is the canonical implementation contract for Provider and Add-on composition. The [Wayfinder map](map.md) retains the decision history, and [ADR 0004](../../docs/adr/0004-use-next-hydra-over-shadcn-for-workspace-composition.md) records the architectural choice.
+This document preserves the original Provider and Add-on composition contract and its decision history. It is not the current implementation contract. Use the [Workspace Composition context](../../packages/create-next-hydra/CONTEXT.md), [ADR-0010](../../docs/adr/0010-compose-named-workspaces-for-development-and-deployment.md), and [current CLI guide](../../packages/create-next-hydra/README.md) for the supported model.
+
+In particular, the historical `use` command, root Workspace Selection, clone-and-prune scaffold, and mandatory Auth/Commerce slots below have been replaced. Current composition uses named workspaces, a shared constructor, optional Auth, and whole-package Commerce that requires Auth. Named workspaces also retain derived Turbo task metadata and synchronize the outer lockfile. The [Wayfinder map](map.md) and its resolved issues remain historical records, not an execution checklist.
 
 ## Scope
 

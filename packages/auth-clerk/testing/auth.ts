@@ -520,17 +520,17 @@ const clerkAuthTestControlLayer = (names: ClerkAuthTestEnvironmentNames) =>
   Layer.effect(
     AuthTestControl,
     Effect.gen(function* () {
-      const publishableKey = yield* Config.string(names.publishableKey);
-      const secretKey = yield* Config.redacted(names.secretKey);
+      const publishableKey = yield* Config.String(names.publishableKey);
+      const secretKey = yield* Config.Redacted(names.secretKey);
       const secretKeyValue = Redacted.value(secretKey);
       const client = createClerkClient({ secretKey: secretKeyValue });
       const e2eApiUrl = Option.getOrUndefined(
-        yield* Config.option(Config.string("E2E_API_URL"))
+        yield* Config.option(Config.String("E2E_API_URL"))
       );
       const localE2EApiUrl = localE2EUrl(e2eApiUrl);
       const localWebhookSecret =
         names.webhookSecret !== undefined && localE2EApiUrl !== undefined
-          ? Redacted.value(yield* Config.redacted(names.webhookSecret))
+          ? Redacted.value(yield* Config.Redacted(names.webhookSecret))
           : undefined;
       const parsedPublishableKey = parsePublishableKey(publishableKey, {
         fatal: true,

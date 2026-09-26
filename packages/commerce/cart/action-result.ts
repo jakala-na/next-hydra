@@ -11,7 +11,7 @@ import {
   CurrentCartSelectionConflict,
   CurrentCartUnavailable,
 } from "../domain/cart-errors";
-import { CurrentCartState } from "../domain/cart-snapshot";
+import { CartPublicState } from "./public-state";
 
 const CartContextUnavailableDefinition = definePublicError({
   category: "not_found",
@@ -29,7 +29,7 @@ const CartContextUnavailableDefinition = definePublicError({
 });
 export const CartContextUnavailable = CartContextUnavailableDefinition.schema;
 export type CartContextUnavailable = typeof CartContextUnavailable.Type;
-export const makeCartContextUnavailable = CartContextUnavailableDefinition.make;
+export const cartContextUnavailable = CartContextUnavailableDefinition.make;
 
 export const CartActionOperation = Schema.Literals([
   "addItem",
@@ -59,7 +59,7 @@ export const AddToCartActionFailure = Schema.Union([
 export type AddToCartActionFailure = typeof AddToCartActionFailure.Type;
 
 export const AddToCartActionResult = makeActionResultSchema(
-  CurrentCartState,
+  CartPublicState,
   AddToCartActionFailure
 );
 export type AddToCartActionResult = typeof AddToCartActionResult.Encoded;
@@ -77,7 +77,7 @@ export type SetCartLineItemQuantityActionFailure =
   typeof SetCartLineItemQuantityActionFailure.Type;
 
 export const SetCartLineItemQuantityActionResult = makeActionResultSchema(
-  CurrentCartState,
+  CartPublicState,
   SetCartLineItemQuantityActionFailure
 );
 export type SetCartLineItemQuantityActionResult =
@@ -89,7 +89,7 @@ export type RemoveCartLineItemActionFailure =
   typeof RemoveCartLineItemActionFailure.Type;
 
 export const RemoveCartLineItemActionResult = makeActionResultSchema(
-  CurrentCartState,
+  CartPublicState,
   RemoveCartLineItemActionFailure
 );
 export type RemoveCartLineItemActionResult =

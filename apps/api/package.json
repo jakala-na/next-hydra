@@ -17,7 +17,6 @@
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/api/tsconfig.json"
   },
   "dependencies": {
-    "@repo/analytics": "workspace:*",
     "@repo/auth": "workspace:@repo/auth-workos@*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
@@ -26,6 +25,8 @@
     "@repo/errors": "workspace:*",
     "@repo/next-config": "workspace:*",
     "@repo/observability": "workspace:*",
+    "@repo/payments": "workspace:*",
+    "@repo/payments-stripe": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/testing": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",

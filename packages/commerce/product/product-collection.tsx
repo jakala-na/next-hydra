@@ -1,4 +1,4 @@
-import { NextCommerce } from "@repo/commerce/runtime";
+import { CatalogRuntime } from "@repo/commerce/product/catalog-runtime";
 import {
   ProductCollection as ProductCollectionView,
   ProductGrid,
@@ -56,14 +56,15 @@ const getProductCards = async ({
     encodedInput = { ...encodedInput, excludeProductId };
   }
   const input = Schema.decodeSync(ListProductCardsInput)(encodedInput);
-  const { products, store } = await NextCommerce.runPromise(
+  const { products, store } = await CatalogRuntime.run(
+    locale,
     Effect.gen(function* () {
       const context = yield* CommerceContext;
       const discovery = yield* ProductDiscovery;
       const discoveredProducts = yield* discovery.listCards(input);
 
       return { products: discoveredProducts, store: context.store };
-    }).pipe(NextCommerce.provide(locale))
+    })
   );
 
   return { products: products.map(toProductCardPresentation), store };

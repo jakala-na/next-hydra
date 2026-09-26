@@ -287,7 +287,7 @@ export class ContentSearchAppInstallationConfig extends Context.Service<
   static readonly layer = Layer.effect(
     ContentSearchAppInstallationConfig,
     Effect.gen(function* () {
-      const regionInput = yield* Config.string("CONTENTSTACK_REGION").pipe(
+      const regionInput = yield* Config.String("CONTENTSTACK_REGION").pipe(
         Config.withDefault("NA")
       );
       const region = marketplaceRegion(regionInput);
@@ -297,34 +297,34 @@ export class ContentSearchAppInstallationConfig extends Context.Service<
           new Error(`Unsupported CONTENTSTACK_REGION ${regionInput}`)
         );
       }
-      const environment = yield* Config.nonEmptyString(
+      const environment = yield* Config.NonEmptyString(
         "CONTENTSTACK_ENVIRONMENT"
       );
-      const deliveryTokenName = yield* Config.string(
+      const deliveryTokenName = yield* Config.String(
         "CONTENTSTACK_DELIVERY_TOKEN_NAME"
       ).pipe(Config.withDefault(environment));
 
       return ContentSearchAppInstallationConfig.of({
-        applicationId: yield* Config.nonEmptyString("ALGOLIA_APPLICATION_ID"),
-        authtoken: yield* Config.redacted("CONTENTSTACK_AUTHTOKEN"),
-        branch: yield* Config.string("CONTENTSTACK_BRANCH").pipe(
+        applicationId: yield* Config.NonEmptyString("ALGOLIA_APPLICATION_ID"),
+        authtoken: yield* Config.Redacted("CONTENTSTACK_AUTHTOKEN"),
+        branch: yield* Config.String("CONTENTSTACK_BRANCH").pipe(
           Config.withDefault("main")
         ),
-        cdnBaseUrl: yield* Config.string("CONTENTSTACK_CDN_BASE_URL").pipe(
+        cdnBaseUrl: yield* Config.String("CONTENTSTACK_CDN_BASE_URL").pipe(
           Config.withDefault(CONTENTSTACK_CDN_BASE_URL_DEFAULT)
         ),
-        contentWriteApiKey: yield* Config.redacted(
+        contentWriteApiKey: yield* Config.Redacted(
           "ALGOLIA_CONTENT_WRITE_API_KEY"
         ),
-        deliveryToken: yield* Config.redacted("CONTENTSTACK_DELIVERY_TOKEN"),
+        deliveryToken: yield* Config.Redacted("CONTENTSTACK_DELIVERY_TOKEN"),
         deliveryTokenName,
-        deliveryTokenUid: yield* Config.nonEmptyString(
+        deliveryTokenUid: yield* Config.NonEmptyString(
           "CONTENTSTACK_DELIVERY_TOKEN_UID"
         ),
         environment,
-        orgUid: yield* Config.nonEmptyString("CONTENTSTACK_ORG_UID"),
+        orgUid: yield* Config.NonEmptyString("CONTENTSTACK_ORG_UID"),
         region,
-        stackApiKey: yield* Config.nonEmptyString("CONTENTSTACK_STACK_API_KEY"),
+        stackApiKey: yield* Config.NonEmptyString("CONTENTSTACK_STACK_API_KEY"),
       });
     })
   );

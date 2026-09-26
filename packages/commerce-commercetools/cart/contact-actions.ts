@@ -2,37 +2,11 @@ import { CartProviderFailure } from "@repo/commerce/domain/cart-errors";
 import type { CheckoutContact } from "@repo/commerce/domain/checkout";
 import { Effect } from "effect";
 
+import { customFieldsBuilder } from "../custom-fields";
+import { CheckoutOrderCustomFields } from "./checkout-custom-fields";
 import type { CommercetoolsCart } from "./provider-cart";
 
-export const ORDER_CUSTOM_TYPE_KEY = "orderCustomFields";
-export const CHECKOUT_CONTACT_CUSTOM_FIELD_NAME = "checkoutContact";
-
-type SaveCheckoutContactAction =
-  | {
-      readonly setCustomerEmail: {
-        readonly email: string;
-      };
-    }
-  | {
-      readonly setCustomField: {
-        readonly name: string;
-        readonly value: string;
-      };
-    }
-  | {
-      readonly setCustomType: {
-        readonly typeKey: string;
-        readonly fields: [
-          {
-            readonly name: string;
-            readonly value: string;
-          },
-        ];
-      };
-    };
-
-const checkoutContactCustomFieldValue = (contact: CheckoutContact) =>
-  JSON.stringify(JSON.stringify(contact));
+export const ORDER_CUSTOM_TYPE_KEY = CheckoutOrderCustomFields.typeKey;
 
 const contactsEqual = (
   left: CheckoutContact | undefined,
@@ -51,52 +25,36 @@ export const hasPersistedCheckoutContact = (
   contactsEqual(cart.checkoutDetails?.contact, contact) &&
   cart.customerEmail === contact.buyerContact.email;
 
-/**
- * A Cart already carrying a different custom type cannot hold the checkout
- * Contact: overwriting it would discard whatever owns that type today.
- */
-const cartCustomTypeConflict = (actualTypeKey: string | undefined) =>
-  new CartProviderFailure({
-    cause: new Error(
-      `Commercetools Cart carries custom type ${actualTypeKey ?? "<unavailable>"} rather than ${ORDER_CUSTOM_TYPE_KEY}`
-    ),
-    operation: "saveContact",
-    reason: "invalidData",
-  });
+export const buildSaveCheckoutContactUpdate = (
+  cart: Pick<CommercetoolsCart, "custom">,
+  contact: CheckoutContact
+) =>
+  customFieldsBuilder
+    .forType(CheckoutOrderCustomFields)
+    .set("checkoutContact", contact)
+    .againstGraphql(cart.custom)
+    .mapError(
+      (cause) =>
+        new CartProviderFailure({
+          cause,
+          operation: "saveContact",
+          reason: "invalidData",
+        })
+    );
 
 export const buildSaveCheckoutContactActions = (
   cart: Pick<CommercetoolsCart, "custom">,
   contact: CheckoutContact
-): Effect.Effect<SaveCheckoutContactAction[], CartProviderFailure> => {
-  const field = {
-    name: CHECKOUT_CONTACT_CUSTOM_FIELD_NAME,
-    value: checkoutContactCustomFieldValue(contact),
-  };
-  const customTypeKey = cart.custom?.type?.key;
-
-  if (
-    cart.custom !== null &&
-    cart.custom !== undefined &&
-    customTypeKey !== ORDER_CUSTOM_TYPE_KEY
-  ) {
-    return Effect.fail(cartCustomTypeConflict(customTypeKey));
-  }
-
-  return Effect.succeed([
-    {
-      setCustomerEmail: {
-        email: contact.buyerContact.email,
-      },
-    },
-    customTypeKey === ORDER_CUSTOM_TYPE_KEY
-      ? {
-          setCustomField: field,
-        }
-      : {
-          setCustomType: {
-            fields: [field],
-            typeKey: ORDER_CUSTOM_TYPE_KEY,
+) =>
+  buildSaveCheckoutContactUpdate(cart, contact)
+    .toGraphqlUpdateActions()
+    .pipe(
+      Effect.map((customFieldActions) => [
+        {
+          setCustomerEmail: {
+            email: contact.buyerContact.email,
           },
         },
-  ]);
-};
+        ...customFieldActions,
+      ])
+    );

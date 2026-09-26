@@ -76,3 +76,10 @@ export function DynamicProductCollection(props: DynamicProductCollectionProps) {
 }
 
 DynamicProductCollection.fragment = dynamicProductCollectionFragment;
+
+export const DrupalDynamicProductCollection = dynamicProductCollectionFragment;
+export const ParagraphDynamicProductCollection = {
+  Component: DynamicProductCollection,
+  fragment: dynamicProductCollectionFragment,
+  getCacheTags: (): string[] => [],
+};

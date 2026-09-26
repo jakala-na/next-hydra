@@ -1,0 +1,11 @@
+# Shared versions survive composition.
+packages:
+  - apps/*
+  - packages/*
+catalog:
+  next: 16.3.1
+  typescript: npm:@typescript/typescript6@6.0.2
+onlyBuiltDependencies:
+  - sharp
+patchedDependencies:
+  unselected@1.0.0: patches/unselected.patch

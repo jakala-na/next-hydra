@@ -1,47 +1,45 @@
 import type { Locale } from "@repo/i18n";
-import type { ComponentProps } from "react";
+import { createElement } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
-import { FeaturedArticles } from "./blocks/featured-articles";
-import { HeroSection } from "./blocks/hero-section";
+import type { ResultOf } from "../graphql";
+import { componentMap, componentFragments } from "./component-registry";
+import type { landingPageFragment } from "./pages/landing-page-query";
 
-export const componentMap = {
-  ParagraphDynamicProductCollection: {
-    Component: DynamicProductCollection,
-    fragment: DynamicProductCollection.fragment,
-    getCacheTags: () => [],
-  },
-  ParagraphFeaturedArticle: {
-    Component: FeaturedArticles,
-    fragment: FeaturedArticles.fragment,
-    getCacheTags: FeaturedArticles.getCacheTags,
-  },
-  ParagraphHero: {
-    Component: HeroSection,
-    fragment: HeroSection.fragment,
-    getCacheTags: () => [],
-  },
-} as const;
-
-type BaseData = {
-  __typename: string;
-  id: string;
-};
+export { componentMap } from "./component-registry";
 
 type ComponentMap = typeof componentMap;
 type ComponentKey = keyof ComponentMap;
-type ComponentData = ComponentProps<
-  ComponentMap[ComponentKey]["Component"]
->["data"];
-
+type DataMap = {
+  [K in ComponentKey]: ComponentProps<ComponentMap[K]["Component"]>["data"];
+};
+type Block<K extends ComponentKey = ComponentKey> = {
+  [P in K]: DataMap[P] & { __typename: P; id: string };
+}[K];
 export type DataWithTypename =
-  | (ComponentData & BaseData)
-  | BaseData
+  | NonNullable<ResultOf<typeof landingPageFragment>["components"]>[number]
   | null
   | undefined;
+const definitions: {
+  [K in ComponentKey]: {
+    Component: (props: { data: DataMap[K]; locale: Locale }) => ReactNode;
+    getCacheTags: (data: DataMap[K]) => string[];
+  };
+} = componentMap;
 
-function isComponentKey(key: string): key is ComponentKey {
-  return key in componentMap;
+function isSupportedBlock(data: NonNullable<DataWithTypename>): data is Block {
+  return Object.hasOwn(componentMap, data.__typename);
+}
+
+function renderBlock<K extends ComponentKey>(data: Block<K>, locale: Locale) {
+  return createElement(definitions[data.__typename].Component, {
+    data,
+    locale,
+  });
+}
+
+function blockCacheTags<K extends ComponentKey>(data: Block<K>) {
+  return definitions[data.__typename].getCacheTags(data);
 }
 
 type ComponentRendererProps = {
@@ -61,11 +59,7 @@ export default function ComponentRenderer({
     return (
       <>
         {data.map((item) => {
-          if (
-            item === null ||
-            item === undefined ||
-            !isComponentKey(item.__typename)
-          ) {
+          if (item === null || item === undefined || !isSupportedBlock(item)) {
             return null;
           }
 
@@ -79,24 +73,14 @@ export default function ComponentRenderer({
     );
   }
 
-  if (!isComponentKey(data.__typename)) {
+  if (!isSupportedBlock(data)) {
     return null;
   }
 
-  const { Component } = componentMap[data.__typename];
-
-  return (
-    <Component
-      // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching fragment component.
-      data={data as any}
-      locale={locale}
-    />
-  );
+  return renderBlock(data, locale);
 }
 
-ComponentRenderer.fragments = Object.values(componentMap).map(
-  ({ fragment }) => fragment
-);
+ComponentRenderer.fragments = componentFragments;
 
 ComponentRenderer.getCacheTags = (
   data: DataWithTypename | DataWithTypename[]
@@ -109,11 +93,9 @@ ComponentRenderer.getCacheTags = (
     return data.flatMap((item) => ComponentRenderer.getCacheTags(item));
   }
 
-  if (!isComponentKey(data.__typename)) {
+  if (!isSupportedBlock(data)) {
     return [];
   }
 
-  const definition = componentMap[data.__typename];
-  // oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects the matching component fragment.
-  return definition.getCacheTags(data as any);
+  return blockCacheTags(data);
 };

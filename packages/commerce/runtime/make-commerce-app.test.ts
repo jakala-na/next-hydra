@@ -1,3 +1,4 @@
+import { CheckoutPayments } from "@repo/payments";
 import { Effect, Layer, ManagedRuntime, Option } from "effect";
 import { describe, expect, it, vi } from "vitest";
 
@@ -31,6 +32,8 @@ import { CommerceAccounts } from "../services/commerce-accounts";
 import { CommerceCompanyMemberships } from "../services/commerce-company-memberships";
 import { CommerceContext } from "../services/commerce-context";
 import { CurrentCart } from "../services/current-cart";
+import { DeliveryPlanning } from "../services/delivery-planning";
+import { Orders } from "../services/orders";
 import { CommerceLocale, resolveStore, StoreKey } from "../store";
 import type { CommerceRequestInput } from "./commerce-request";
 import type {
@@ -62,7 +65,6 @@ const cart = (id: string, businessUnitId: string) => ({
       totalPrice: { centAmount: 1000, currencyCode: "USD" },
       unitPrice: { centAmount: 1000, currencyCode: "USD" },
       variant: {
-        attributes: {},
         id: VariantId.make(`variant-${id}`),
         images: [],
         name: `Product ${id}`,
@@ -133,6 +135,7 @@ const makeApp = (
             cartsLayer,
             Layer.effectDiscard(Effect.sync(onStableLayerBuild))
           ),
+    checkoutPaymentsLayer: CheckoutPayments.unavailableLayer,
     checkoutPoliciesLayer: CheckoutPolicies.layer,
     commerceAccountsLayer: CommerceAccounts.layerMemoryFrom({
       businessUnitMemberships: [
@@ -150,6 +153,8 @@ const makeApp = (
       customers: [{ authUserId, customerId }],
     }),
     commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
+    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
+    ordersLayer: Orders.layerMemory(),
     productDiscoveryLayer: ProductDiscovery.testLayer(),
   });
 };

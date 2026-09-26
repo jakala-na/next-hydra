@@ -127,10 +127,10 @@ export const loadContentSearchProjection = <E, R>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>
 ) =>
   Effect.gen(function* () {
-    const branch = yield* Config.nonEmptyString("CONTENTSTACK_BRANCH").pipe(
+    const branch = yield* Config.NonEmptyString("CONTENTSTACK_BRANCH").pipe(
       Config.withDefault("main")
     );
-    const environment = yield* Config.nonEmptyString(
+    const environment = yield* Config.NonEmptyString(
       "CONTENTSTACK_ENVIRONMENT"
     );
 

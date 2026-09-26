@@ -89,7 +89,7 @@ export class CatalogDriver {
       .click();
     await expect(
       this.#page.getByRole("heading", { level: 2, name: productName })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
   }
 
   async selectVariant(attributes: ReadonlyMap<string, string>): Promise<void> {

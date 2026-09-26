@@ -5,11 +5,9 @@ import type {
   AddToCartInput,
 } from "@repo/commerce/cart/add-to-cart";
 import type { ChangeCartItemsQuantityAction } from "@repo/commerce/cart/change-cart-items-quantity";
+import type { CartPublicStateEncoded } from "@repo/commerce/cart/public-state";
 import type { RemoveCartItemAction } from "@repo/commerce/cart/remove-cart-item";
-import type {
-  CartLineItemEncoded,
-  CurrentCartStateEncoded,
-} from "@repo/commerce/domain/cart-snapshot";
+import type { CartLineItemEncoded } from "@repo/commerce/domain/cart-snapshot";
 import { useTranslations } from "@repo/i18n";
 import type { CurrencyCode } from "@repo/i18n/types";
 import {
@@ -19,6 +17,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -33,9 +32,9 @@ type CartActions = {
 };
 
 type CartContextType = {
-  cartPromise: Promise<CurrentCartStateEncoded | null>;
-  cart: CurrentCartStateEncoded | null;
-  setCart: (cart: CurrentCartStateEncoded | null) => void;
+  cartPromise: Promise<CartPublicStateEncoded | null>;
+  cart: CartPublicStateEncoded | null;
+  setCart: (cart: CartPublicStateEncoded | null) => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -46,7 +45,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 type CartProviderProps = {
   children: ReactNode;
-  cartPromise: Promise<CurrentCartStateEncoded | null>;
+  cartPromise: Promise<CartPublicStateEncoded | null>;
   actions: CartActions;
 };
 
@@ -61,7 +60,7 @@ export function CartProvider({
   cartPromise,
   actions,
 }: CartProviderProps) {
-  const [cart, setCart] = useState<CurrentCartStateEncoded | null>(null);
+  const [cart, setCart] = useState<CartPublicStateEncoded | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const openCart = useCallback(() => {
@@ -104,12 +103,18 @@ export function useCartData() {
   // Resolve promise - this causes suspension!
   const resolvedCart = use(cartPromise);
 
-  // Sync resolved cart to shared state on first resolve
+  // Sync resolved cart to shared state whenever the server hands us a new
+  // cartPromise (e.g. after order placement clears the cart). Gated on
+  // promise identity, not `cart` truthiness, so a fresh empty cart isn't
+  // masked by stale local state. Mutation actions (add/remove/update) call
+  // setCart directly without changing cartPromise, so they aren't clobbered.
+  const cartPromiseRef = useRef<typeof cartPromise | null>(null);
   useEffect(() => {
-    if (resolvedCart && !cart) {
+    if (cartPromiseRef.current !== cartPromise) {
+      cartPromiseRef.current = cartPromise;
       setCart(resolvedCart);
     }
-  }, [resolvedCart, cart, setCart]);
+  }, [cartPromise, resolvedCart, setCart]);
 
   // Return shared state if available, otherwise the freshly resolved cart
   return cart ?? resolvedCart;
@@ -155,8 +160,9 @@ export function useCart() {
     actions,
   } = ctx;
   const cart = currentCart?.cart ?? null;
+  const cartCurrency = cart?.totalPrice.currencyCode;
   const currencyCode: CurrencyCode =
-    (cart?.totalPrice.currencyCode as CurrencyCode | undefined) ?? "USD";
+    cartCurrency === "EUR" || cartCurrency === "GBP" ? cartCurrency : "USD";
   const violations = currentCart?.violations ?? [];
 
   const items = useMemo(() => {
@@ -171,7 +177,7 @@ export function useCart() {
         name: variant.name ?? "",
         price: unitPrice.centAmount / CENTS_PER_UNIT,
         quantity,
-        variant: "",
+        summaryAttribute: variant.summaryAttribute,
       };
     });
   }, [cart]);

@@ -66,7 +66,7 @@ export const createMigrateCommand = () => {
   const migrate = Command.make(
     "migrate",
     {
-      dryRun: Flag.boolean("dry-run").pipe(
+      dryRun: Flag.Boolean("dry-run").pipe(
         Flag.withDescription("Show pending migrations without applying them"),
         Flag.withDefault(false)
       ),
@@ -166,12 +166,12 @@ export const createMigrateCommand = () => {
   const create = Command.make(
     "create",
     {
-      description: Flag.string("description").pipe(
+      description: Flag.String("description").pipe(
         Flag.withAlias("d"),
         Flag.withDescription("Migration description"),
         Flag.optional
       ),
-      name: Argument.string("name"),
+      name: Argument.String("name"),
     },
     ({ description, name }) => {
       const spinner = ora("Creating migration").start();

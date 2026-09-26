@@ -20,16 +20,16 @@ export class BootstrapCommercetoolsConfig extends Context.Service<
   static readonly layer = Layer.effect(
     BootstrapCommercetoolsConfig,
     Effect.gen(function* () {
-      const projectKey = yield* Config.nonEmptyString("CTP_PROJECT_KEY").pipe(
+      const projectKey = yield* Config.NonEmptyString("CTP_PROJECT_KEY").pipe(
         Config.map((value) => ProjectKey.make(value))
       );
-      const clientId = yield* Config.nonEmptyString("CTP_CLIENT_ID").pipe(
+      const clientId = yield* Config.NonEmptyString("CTP_CLIENT_ID").pipe(
         Config.map((value) => ApiClientId.make(value))
       );
-      const clientSecret = yield* Config.redacted("CTP_CLIENT_SECRET");
-      const authUrl = yield* Config.url("CTP_AUTH_URL");
-      const apiUrl = yield* Config.url("CTP_API_URL");
-      const scopes = yield* Config.nonEmptyString("CTP_SCOPES").pipe(
+      const clientSecret = yield* Config.Redacted("CTP_CLIENT_SECRET");
+      const authUrl = yield* Config.URL("CTP_AUTH_URL");
+      const apiUrl = yield* Config.URL("CTP_API_URL");
+      const scopes = yield* Config.NonEmptyString("CTP_SCOPES").pipe(
         Config.map((value) => value.split(/\s+/u))
       );
       const region = CommercetoolsRegion.make(
