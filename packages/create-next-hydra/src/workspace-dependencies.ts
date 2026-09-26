@@ -475,6 +475,18 @@ export class WorkspaceDependencies extends Context.Service<
         const inputs = yield* inputsFor(directory, files).pipe(
           Effect.mapError(() => failure("inputs"))
         );
+        const preserved = access ? (yield* access.observation).preserved : [];
+        const workspaceOwnedInputs = inputs.files.filter((file) =>
+          preserved.includes(file.target)
+        );
+        if (workspaceOwnedInputs.length > 0) {
+          return {
+            dependencies: "pending",
+            dependencyReasons: [
+              `Installation skipped for preserved pnpm inputs: ${workspaceOwnedInputs.map((file) => file.target).join(", ")}. Run pnpm install in the workspace`,
+            ],
+          };
+        }
         const expected = access
           ? new Map(
               (yield* access.appliedEntries).map((entry) => [

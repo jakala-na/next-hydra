@@ -26,6 +26,38 @@ const sync = Effect.gen(function* () {
 });
 
 it.effect(
+  "refreshes an environment example without treating its temporary file as a runtime secret",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* sync;
+        yield* fs.writeFileString(
+          `${root}/apps/web/.env.local`,
+          "PRIVATE_TOKEN=preserve\n"
+        );
+        yield* fs.writeFileString(
+          "/source/apps/web/.env.example",
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        yield* sync;
+        const workspace = yield* (yield* Workspaces).named({
+          name: "configured-site",
+          sourceRoot: "/source",
+        });
+        expect((yield* workspace.check).changes).toEqual([]);
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.example`)).toBe(
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.local`)).toBe(
+          "PRIVATE_TOKEN=preserve\n"
+        );
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
   "initializes, checks and refreshes beside unreadable unrelated output",
   () =>
     Effect.gen(function* () {

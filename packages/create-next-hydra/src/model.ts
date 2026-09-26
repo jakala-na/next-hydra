@@ -33,6 +33,9 @@ export const WorkspaceDefinition = Schema.Struct({
   development: Schema.optionalKey(
     Schema.Struct({ port: Schema.optionalKey(DevelopmentPort) })
   ),
+  preserve: Schema.Array(Schema.NonEmptyString).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([]))
+  ),
 });
 
 export interface PreparedFile {

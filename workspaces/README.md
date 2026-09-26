@@ -44,6 +44,20 @@ Refresh prepares the actual registry composition in isolation, preflights all ow
 
 `--explain <workspace-relative-file>` is read-only: it shows the selected registry owner, absolute canonical source/template path, and the source to edit before refreshing. It also works before initialization. Applied state retains this provenance, and conflict reports include the edit location. The watcher tracks additions, edits, renames and deletions in selected source trees, along with registry files, templates and dependency inputs. It excludes dependencies, caches, ignored output and local environment files. New registry-owned files still require registration; watching does not infer ownership.
 
+### Files managed by other tools
+
+List exact workspace-relative files in a definition's `preserve` array:
+
+```json
+"preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"]
+```
+
+Compose seeds missing files once from the selected composition, then leaves their contents and deliberate deletions alone. Existing files are retained, including edits to files previously managed by Compose. They are excluded from freshness checks and subsequent composition snapshots; recipe source files remain synchronized.
+
+Removing a path resumes synchronization only when its local contents match the current composed output. Otherwise Compose reports a conflict for you to reconcile. If the file is no longer selected, it is left in place as an ordinary local file.
+
+This is a named-workspace setting, not registry metadata. Drupal definitions preserve their Composer files so native recipe installation can update dependencies. If you preserve a pnpm installation input, Compose skips automatic installation; run `pnpm install` in that workspace yourself. Git visibility is separate: new ignore files expose preserved paths; existing `.gitignore` files are never rewritten. Add allow rules there if you want to commit those files. Do not put credentials in `preserve`; runtime environment files already have their own handling.
+
 ### Inspect workspace changes
 
 All workspaces use physical copies so imports and dependency resolution match scaffolded projects. The authoring commands are:

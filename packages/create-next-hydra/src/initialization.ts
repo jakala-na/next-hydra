@@ -6,6 +6,7 @@ import {
   SourceChanged,
 } from "./errors.ts";
 import { cacheDirectories, isEnvironmentFile } from "./file-policy.ts";
+import { relativeFile } from "./files.ts";
 import type { PreparedWorkspace } from "./model.ts";
 
 type WorkspaceSettingKind = "definition" | "readme" | "ignore" | "deployment";
@@ -50,11 +51,47 @@ export function workspaceSetting(
     : undefined;
 }
 
-function namedIgnoreRules(): string {
+export const validatePreservedFiles = Effect.fn(
+  "Workspaces.validatePreservedFiles"
+)(function* (targets: readonly string[]) {
+  const unique = new Set(targets);
+  for (const target of targets) {
+    const normalized = yield* relativeFile(target);
+    const parts = target.split("/");
+    if (
+      normalized !== target ||
+      /[*?\[\]{}!\r\n]/u.test(target) ||
+      target.startsWith(".workspace-composition") ||
+      workspaceSetting(target) !== undefined ||
+      isEnvironmentFile(target) ||
+      parts.some((part) => cacheDirectories.has(part)) ||
+      parts.some((_, index) => {
+        const ancestor = parts.slice(0, index).join("/");
+        return (
+          unique.has(ancestor) ||
+          workspaceSetting(ancestor) !== undefined ||
+          isEnvironmentFile(ancestor)
+        );
+      })
+    ) {
+      return yield* new InvalidComposition({
+        message: `Expected an exact application file in preserve: ${target}`,
+      });
+    }
+  }
+  if (unique.size !== targets.length) {
+    return yield* new InvalidComposition({
+      message: "Preserve paths must be unique",
+    });
+  }
+});
+
+function namedIgnoreRules(preserve: readonly string[]): string {
   const rules = new Set([
     "# Commit workspace settings only; Compose owns the materialized application.",
     "/*",
   ]);
+  const allow = new Set<string>();
   for (const { directory, files } of settings) {
     let prefix = "/";
     for (const segment of directory) {
@@ -63,17 +100,27 @@ function namedIgnoreRules(): string {
       rules.add(`${prefix}*`);
     }
     for (const name of Object.keys(files)) {
-      rules.add(`!${prefix}${name}`);
+      allow.add(`!${prefix}${name}`);
     }
   }
-  return `${[...rules].join("\n")}\n`;
+  for (const target of preserve) {
+    const parts = target.split("/");
+    for (let end = 1; end < parts.length; end += 1) {
+      const prefix = `/${parts.slice(0, end).join("/")}/`;
+      rules.add(`!${prefix}`);
+      rules.add(`${prefix}*`);
+    }
+    allow.add(`!/${target}`);
+  }
+  return `${[...rules, ...allow].join("\n")}\n`;
 }
 
 export const namedInitializationFiles = Effect.fn(
   "Workspaces.namedInitializationFiles"
 )(function* (
   files: PreparedWorkspace["files"],
-  preserved: ReadonlySet<string>
+  preserved: ReadonlySet<string>,
+  preserve: readonly string[] = []
 ) {
   const targets = new Set(files.map((file) => file.target));
   for (const target of preserved) {
@@ -120,7 +167,7 @@ export const namedInitializationFiles = Effect.fn(
   }
   if (!preserved.has(".gitignore")) {
     output.push({
-      content: new TextEncoder().encode(namedIgnoreRules()),
+      content: new TextEncoder().encode(namedIgnoreRules(preserve)),
       mode: 0o644,
       origin: { kind: "policy", policy: "application-ignore", sources: [] },
       target: ".gitignore",

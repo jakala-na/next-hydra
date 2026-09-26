@@ -1,4 +1,5 @@
 {
   "providers": { "cms": "drupal" },
-  "addOns": []
+  "addOns": [],
+  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"]
 }

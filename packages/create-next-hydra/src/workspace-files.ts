@@ -29,7 +29,8 @@ const fingerprint = (content: Uint8Array, mode: number): Fingerprint => ({
 function compareFile(
   previous: WorkspaceObservation["entries"][number] | undefined,
   wanted: PreparedFile | undefined,
-  before: Fingerprint | null
+  before: Fingerprint | null,
+  returning = false
 ) {
   const desired = wanted ? fingerprint(wanted.content, wanted.mode) : null;
   const after =
@@ -38,9 +39,12 @@ function compareFile(
     same(before, previous.applied)
       ? previous.applied
       : desired;
-  const conflict = previous
-    ? !same(before, previous.applied) && !same(before, after)
-    : before !== null;
+  let conflict = !same(before, desired);
+  if (!returning) {
+    conflict = previous
+      ? !same(before, previous.applied) && !same(before, after)
+      : before !== null;
+  }
   return { after, conflict, desired };
 }
 
@@ -70,12 +74,14 @@ export class WorkspaceFiles extends Context.Service<
     >;
     readonly inspect: (
       observation: WorkspaceObservation,
-      files: PreparedWorkspace["files"]
+      files: PreparedWorkspace["files"],
+      preserve?: readonly string[]
     ) => Effect.Effect<readonly FileChange[], WorkspaceFileError>;
     readonly apply: (
       access: WorkspaceWriteAccess,
       files: PreparedWorkspace["files"],
-      initialization: readonly string[]
+      initialization: readonly string[],
+      preserve?: readonly string[]
     ) => Effect.Effect<
       {
         readonly removedFiles: readonly string[];
@@ -186,17 +192,84 @@ export class WorkspaceFiles extends Context.Service<
         }
         return files;
       });
+      const preservation = Effect.fn("WorkspaceFiles.preservation")(function* (
+        observation: WorkspaceObservation,
+        files: PreparedWorkspace["files"],
+        preserve: readonly string[]
+      ) {
+        const desired = new Map(files.map((file) => [file.target, file]));
+        const previouslyManaged = new Set(
+          observation.entries.map((entry) => entry.target)
+        );
+        const handedOff = new Set(observation.preserved);
+        const preserved = preserve.filter(
+          (target) =>
+            desired.has(target) ||
+            previouslyManaged.has(target) ||
+            handedOff.has(target)
+        );
+        const initialization: PreparedWorkspace["files"][number][] = [];
+        for (const target of preserved) {
+          // A completed handoff includes local deletions. Do not inspect these files again.
+          if (previouslyManaged.has(target) || handedOff.has(target)) {
+            continue;
+          }
+          const ancestor = yield* blockingAncestor(
+            observation.directory,
+            target,
+            new Set()
+          );
+          if (ancestor !== null) {
+            return yield* new WorkspaceConflict({ paths: [ancestor] });
+          }
+          const absolute = path.join(observation.directory, target);
+          if (yield* fs.exists(absolute)) {
+            if ((yield* fs.stat(absolute)).type !== "File") {
+              return yield* new WorkspaceConflict({ paths: [target] });
+            }
+          } else {
+            const file = desired.get(target);
+            if (file) {
+              initialization.push(file);
+            }
+          }
+        }
+        return { initialization, preserved };
+      });
       const inspect = Effect.fn("WorkspaceFiles.inspect")(function* (
         observation: WorkspaceObservation,
-        files: PreparedWorkspace["files"]
+        files: PreparedWorkspace["files"],
+        preserve: readonly string[] = []
       ) {
+        const handoff = yield* preservation(observation, files, preserve);
         const desired = new Map(files.map((file) => [file.target, file]));
         const applied = new Map(
           observation.entries.map((entry) => [entry.target, entry])
         );
         const changes = new Map<string, FileChange>();
-        const targets = new Set([...applied.keys(), ...desired.keys()]);
+        const targets = new Set([
+          ...applied.keys(),
+          ...desired.keys(),
+          ...observation.preserved,
+        ]);
         for (const target of targets) {
+          if (handoff.preserved.includes(target)) {
+            if (!observation.preserved.includes(target)) {
+              changes.set(target, {
+                kind: handoff.initialization.some(
+                  (file) => file.target === target
+                )
+                  ? "create"
+                  : "record",
+                target,
+              });
+            }
+            continue;
+          }
+          if (observation.preserved.includes(target) && !desired.has(target)) {
+            changes.set(target, { kind: "record", target });
+            continue;
+          }
           if (changes.get(target)?.kind === "conflict") {
             continue;
           }
@@ -221,10 +294,18 @@ export class WorkspaceFiles extends Context.Service<
             after,
             conflict,
             desired: wanted,
-          } = compareFile(previous, desired.get(target), before);
+          } = compareFile(
+            previous,
+            desired.get(target),
+            before,
+            observation.preserved.includes(target)
+          );
           if (conflict) {
             changes.set(target, {
-              kind: previous ? "conflict" : "unregistered",
+              kind:
+                previous || observation.preserved.includes(target)
+                  ? "conflict"
+                  : "unregistered",
               target,
             });
           } else if (!same(before, after)) {
@@ -339,8 +420,11 @@ export class WorkspaceFiles extends Context.Service<
       const apply = Effect.fn("WorkspaceFiles.apply")(function* (
         access: WorkspaceWriteAccess,
         files: PreparedWorkspace["files"],
-        initialization: readonly string[]
+        initialization: readonly string[],
+        preserve: readonly string[] = []
       ) {
+        const observation = yield* access.observation;
+        const handoff = yield* preservation(observation, files, preserve);
         const desired = new Map(files.map((file) => [file.target, file]));
         const applied = new Map(
           (yield* access.appliedEntries).map((entry) => [entry.target, entry])
@@ -350,6 +434,9 @@ export class WorkspaceFiles extends Context.Service<
         const intent: FileIntent[] = [];
         const conflicts: string[] = [];
         for (const target of targets) {
+          if (handoff.preserved.includes(target)) {
+            continue;
+          }
           // File-to-directory transitions require a separate, explicitly designed
           // operation. Never remove parents recursively during ordinary refresh.
           const ancestor = yield* blockingAncestor(
@@ -367,7 +454,12 @@ export class WorkspaceFiles extends Context.Service<
             after,
             conflict,
             desired: desiredFingerprint,
-          } = compareFile(previous, wanted, before);
+          } = compareFile(
+            previous,
+            wanted,
+            before,
+            observation.preserved.includes(target)
+          );
           if (conflict) {
             conflicts.push(target);
           }
@@ -396,7 +488,14 @@ export class WorkspaceFiles extends Context.Service<
         }
         // The entire before/after set, including unchanged files, is durable before
         // the first application write. A failure leaves that intent for inspection.
-        yield* access.begin(intent, initialization);
+        yield* access.begin(
+          intent,
+          [
+            ...initialization,
+            ...handoff.initialization.map((file) => file.target),
+          ],
+          handoff.preserved
+        );
         const completedFiles: string[] = [];
         const removedFiles: string[] = [];
         for (const item of intent) {
@@ -443,6 +542,24 @@ export class WorkspaceFiles extends Context.Service<
                   directory: access.directory,
                   failedFile: item.target,
                 })
+            )
+          );
+        }
+        for (const file of handoff.initialization) {
+          yield* access.initialize(
+            file.target,
+            writeFile(access.directory, file, true).pipe(
+              Effect.provideService(FileSystem.FileSystem, fs),
+              Effect.provideService(Path.Path, path),
+              Effect.mapError(
+                (error) =>
+                  new MaterializationFailed({
+                    completedFiles,
+                    diagnostic: Redacted.make(error),
+                    directory: access.directory,
+                    failedFile: file.target,
+                  })
+              )
             )
           );
         }
