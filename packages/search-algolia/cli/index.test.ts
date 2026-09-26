@@ -1,7 +1,12 @@
-import { Cause } from "effect";
+import type {
+  InstallContentSearchAppOptions,
+  InstalledContentSearchApp,
+} from "@repo/search/content-search-app";
+import { Cause, Effect } from "effect";
 import { CliOutput } from "effect/unstable/cli";
 import { describe, expect, it } from "vitest";
 
+import { requireContentSearchAppHook } from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { AlgoliaProvisioningError } from "./provisioning/model";
 
@@ -46,5 +51,36 @@ describe("search command errors", () => {
       "The API key does not have access to this operation"
     );
     expect(output).not.toContain("secret-admin-key");
+  });
+});
+
+const hook = (
+  options: InstallContentSearchAppOptions
+): Effect.Effect<InstalledContentSearchApp> =>
+  Effect.succeed({
+    environment: "production",
+    indexName: options.indexName,
+    installationUid: "installation-id",
+    status: "installed",
+  });
+
+describe(requireContentSearchAppHook, () => {
+  it("fails clearly when the CMS provider supplies no hook", async () => {
+    const failure = await requireContentSearchAppHook(undefined).pipe(
+      Effect.flip,
+      Effect.runPromise
+    );
+
+    expect(failure).toBeInstanceOf(AlgoliaProvisioningError);
+    expect(failure.operation).toBe("content search app installation");
+    expect(failure.message).toContain(
+      "not supported for the selected CMS provider"
+    );
+  });
+
+  it("returns the composed hook unchanged", async () => {
+    await expect(
+      requireContentSearchAppHook(hook).pipe(Effect.runPromise)
+    ).resolves.toBe(hook);
   });
 });

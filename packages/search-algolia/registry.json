@@ -42,6 +42,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/content-search-app-hook.ts",
+          "target": "~/packages/search-algolia/cli/content-search-app-hook.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/error-message.ts",
           "target": "~/packages/search-algolia/cli/error-message.ts",
           "type": "registry:file"

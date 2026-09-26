@@ -47,6 +47,26 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/content-search-app/index.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/installation.test.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/installation.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/installation.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/installation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/model.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/model.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/index.test.ts",
           "target": "~/packages/cms-contentstack/cli/index.test.ts",
           "type": "registry:file"

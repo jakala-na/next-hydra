@@ -110,6 +110,31 @@ describe("workspace CLI program", () => {
     expect(loadConfigProvider).toHaveBeenCalledExactlyOnceWith(undefined);
   });
 
+  it("plans content search app installation without touching the network", async () => {
+    const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
+      Effect.succeed(
+        ConfigProvider.fromUnknown({
+          CONTENTSTACK_BRANCH: "main",
+          CONTENTSTACK_ENVIRONMENT: "production",
+        })
+      )
+    );
+
+    const result = await runProgram(createProgram(loadConfigProvider), [
+      "search",
+      "provision",
+      "--dry-run",
+      "--locale",
+      "en-US",
+      "--install-content-search-app",
+    ]);
+
+    expect(Exit.isSuccess(result.exit)).toBeTruthy();
+    expect(result.stdout).toContain(
+      'Content search app installation: Contentstack Algolia app -> "content"'
+    );
+  });
+
   it("plans an arbitrary search locale against the default English Store", async () => {
     const loadConfigProvider = vi.fn<typeof loadCliConfigProvider>(() =>
       Effect.succeed(

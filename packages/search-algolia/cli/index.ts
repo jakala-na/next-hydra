@@ -5,6 +5,7 @@ import {
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
 import { storeConfiguration } from "@repo/commerce/store";
+import type { InstalledContentSearchApp } from "@repo/search/content-search-app";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import type { ConfigProvider, Effect as EffectType } from "effect";
 import { Console, Effect, Option } from "effect";
@@ -13,9 +14,12 @@ import { Command, Flag } from "effect/unstable/cli";
 import { contentIndexName } from "../index-graph";
 import type { ContentIndexingHandoff } from "./content-indexing-handoff";
 import { formatContentIndexingHandoff } from "./content-indexing-handoff";
+import type { ContentSearchAppHook } from "./content-search-app-hook";
+import { requireContentSearchAppHook } from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { createSearchProvisioningLayer } from "./layer";
 import type { AlgoliaCommerceConnectorSource } from "./provisioning/commerce-connector-source";
+import type { AlgoliaProvisioningReceipt } from "./provisioning/model";
 import { AlgoliaProvisioningError } from "./provisioning/model";
 import { formatAlgoliaProvisioningPlan } from "./provisioning/plan";
 import { provisionAlgolia } from "./provisioning/provision";
@@ -37,6 +41,12 @@ export interface SearchCliComposition<CommerceError, ContentError> {
       indexName: string,
       configProvider: EffectType.Effect<ConfigProvider.ConfigProvider>
     ) => EffectType.Effect<ContentSearchProjection, ContentError>;
+    /**
+     * Installs the CMS provider's content search app. Providers without a
+     * search app (Drupal) omit the hook; the CLI then reports their manual
+     * indexing handoff instead.
+     */
+    readonly installContentSearchApp?: ContentSearchAppHook<ContentError>;
   };
 }
 
@@ -57,6 +67,11 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>,
   composition: SearchCliComposition<CommerceError, ContentError>
 ) => {
+  interface SearchProvisionResult {
+    readonly contentSearchApp: InstalledContentSearchApp | undefined;
+    readonly receipt: AlgoliaProvisioningReceipt | undefined;
+  }
+
   const provision = Command.make(
     "provision",
     {
@@ -72,6 +87,12 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
         ),
         Flag.optional
       ),
+      installContentSearchApp: Flag.boolean("install-content-search-app").pipe(
+        Flag.withDescription(
+          "Install and configure the composed CMS provider's content search app for the provisioned Content index (Contentstack only)"
+        ),
+        Flag.withDefault(false)
+      ),
       locales: Flag.string("locale").pipe(
         Flag.withDescription(
           "Commerce locale to provision; repeat for every deployment locale"
@@ -80,7 +101,13 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
       ),
       ...runtimeEnvironmentDestinationFlags(),
     },
-    ({ dryRun, indexPrefix, locales, ...destinationFlags }) => {
+    ({
+      dryRun,
+      indexPrefix,
+      installContentSearchApp,
+      locales,
+      ...destinationFlags
+    }) => {
       const provisionProgram = Effect.gen(function* () {
         const requestedIndexPrefix = Option.getOrUndefined(indexPrefix);
         const resolvedConfigProvider = yield* configProvider;
@@ -99,7 +126,15 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
             contentProjection
           );
           yield* Console.log(plan);
-          return;
+          if (installContentSearchApp) {
+            yield* Console.log(
+              `  Content search app installation: Contentstack Algolia app -> "${contentIndexName(requestedIndexPrefix)}"`
+            );
+          }
+          return {
+            contentSearchApp: undefined,
+            receipt: undefined,
+          } satisfies SearchProvisionResult;
         }
 
         const provisioningLayer = createSearchProvisioningLayer(
@@ -108,17 +143,36 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
         const commerceConnectorSource = yield* composition.commerce.create(
           resolvedConfigProviderEffect
         );
-        return yield* provisionAlgolia({
+        const receipt = yield* provisionAlgolia({
           commerceConnectorSource,
           contentProjection,
           destination: runtimeEnvironmentDestinationFromFlags(destinationFlags),
           indexPrefix: requestedIndexPrefix,
           locales,
         }).pipe(Effect.provide(provisioningLayer));
+
+        if (!installContentSearchApp) {
+          return {
+            contentSearchApp: undefined,
+            receipt,
+          } satisfies SearchProvisionResult;
+        }
+
+        const installHook = yield* requireContentSearchAppHook(
+          composition.content.installContentSearchApp
+        );
+        const contentSearchApp = yield* installHook(
+          { indexName: contentIndexName(receipt.indexPrefix) },
+          resolvedConfigProviderEffect
+        );
+        return {
+          contentSearchApp,
+          receipt,
+        } satisfies SearchProvisionResult;
       });
 
       return asUserError(provisionProgram).pipe(
-        Effect.flatMap((receipt) =>
+        Effect.flatMap(({ contentSearchApp, receipt }) =>
           receipt === undefined
             ? Effect.void
             : Console.log("✓ Algolia search provisioned").pipe(
@@ -146,13 +200,17 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
                   )
                 ),
                 Effect.andThen(
-                  Console.log(
-                    formatContentIndexingHandoff(
-                      composition.content.createIndexingHandoff(
-                        contentIndexName(receipt.indexPrefix)
+                  contentSearchApp === undefined
+                    ? Console.log(
+                        formatContentIndexingHandoff(
+                          composition.content.createIndexingHandoff(
+                            contentIndexName(receipt.indexPrefix)
+                          )
+                        )
                       )
-                    )
-                  )
+                    : Console.log(
+                        `  Content search app: ${contentSearchApp.status} installation ${contentSearchApp.installationUid} for "${contentSearchApp.indexName}" (${contentSearchApp.environment})`
+                      )
                 )
               )
         )

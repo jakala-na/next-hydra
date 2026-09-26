@@ -1,5 +1,6 @@
 import { createAuthCommand } from "@repo/auth/cli";
 import { createCmsCommand } from "@repo/cms/cli";
+import { installContentSearchApp } from "@repo/cms/content-search-app";
 import {
   createContentIndexingHandoff,
   loadContentSearchProjection,
@@ -45,6 +46,7 @@ export const createProgram = (
     content: {
       createIndexingHandoff: createContentIndexingHandoff,
       createProjection: loadContentSearchProjection,
+      installContentSearchApp,
     },
   });
 

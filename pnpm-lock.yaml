@@ -984,6 +984,9 @@ importers:
       '@contentstack/management':
         specifier: 1.30.4
         version: 1.30.4(debug@4.4.3)
+      '@contentstack/marketplace-sdk':
+        specifier: ^1.5.4
+        version: 1.5.4(debug@4.4.3)
       '@contentstack/utils':
         specifier: ~1.9.1
         version: 1.9.1
