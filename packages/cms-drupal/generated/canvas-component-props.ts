@@ -10,6 +10,11 @@
 import type { ComponentType, ReactNode } from "react";
 
 export type CanvasComponentPropsMap = {
+  "announcement": {
+    message: string;
+    linkLabel: string;
+    linkUrl: string;
+  };
   "article": {
     title: string;
     summary: string;

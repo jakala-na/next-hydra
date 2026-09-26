@@ -71,3 +71,5 @@ The `site` page variant is shared by the Canvas pages and owns the `preHeader`, 
 The recipe configures Next revalidation for `page_variant` entities. The old theme PageRegion configuration and custom region endpoint are no longer used.
 
 The headless template is explicitly selected on Canvas pages, rather than made Drupal’s site-wide default. This keeps Drupal-owned login and administrative routes renderable without a JavaScript frontend.
+
+The Site template seeds one Announcement component above the header, identifying the Next Hydra template demo and linking to `https://next-hydra.dev`. Other shared slots start empty. Edit the component fields in Canvas to change the message and destination.

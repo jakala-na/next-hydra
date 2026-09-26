@@ -1,0 +1,59 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.announcement
+  module:
+    - link
+label: Announcement
+id: js.announcement
+source: js
+source_local_id: announcement
+provider: null
+active_version: 689562657d33b9df
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        message:
+          required: true
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'This is a Next Hydra template demo.'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        linkLabel:
+          required: true
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Explore Next Hydra'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        linkUrl:
+          required: true
+          field_type: link
+          field_storage_settings: {  }
+          field_instance_settings:
+            title: 0
+            link_type: 16
+          field_widget: link_default
+          default_value:
+            -
+              uri: 'https://next-hydra.dev'
+              options: {  }
+          expression: ℹ︎link␟url
+          derived_schema_metadata:
+            string_shape:
+              format: uri
+    fallback_metadata:
+      slot_definitions: {  }

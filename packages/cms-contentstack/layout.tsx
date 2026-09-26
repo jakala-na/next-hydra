@@ -2,6 +2,7 @@ import type { Locale } from "@repo/i18n";
 import { draftMode } from "next/headers";
 import type { ReactNode } from "react";
 
+import { SiteAnnouncement } from "./components/announcement";
 import { LivePreview } from "./components/live-preview";
 
 export {
@@ -20,6 +21,7 @@ export function CmsPageLayout({
   children,
   header,
   footer,
+  locale,
 }: {
   children: ReactNode;
   header: ReactNode;
@@ -28,6 +30,7 @@ export function CmsPageLayout({
 }) {
   return (
     <>
+      <SiteAnnouncement locale={locale} />
       {header}
       {children}
       {footer}

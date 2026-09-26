@@ -73,6 +73,16 @@
           "type": "registry:file"
         },
         {
+          "path": "canvas-components/announcement/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/announcement/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/announcement/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/announcement/index.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "canvas-components/article-card/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/article-card/component.yml",
           "type": "registry:file"
@@ -275,6 +285,16 @@
         {
           "path": "content-templates/node.article.full.json",
           "target": "~/packages/cms-drupal/content-templates/node.article.full.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.feature",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.steps.ts",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
           "type": "registry:file"
         },
         {

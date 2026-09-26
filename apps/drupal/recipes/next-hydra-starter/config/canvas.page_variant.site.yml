@@ -2,54 +2,32 @@ langcode: en
 status: true
 dependencies:
   config:
+    - canvas.component.js.announcement
     - canvas.component.js.site-shell
-    - canvas.component.js.text
     - canvas.component.marker.page_content
 id: site
 label: Site
-description: 'Shared content around the application header, page and footer.'
+description: Shared content around the application header, page and footer.
 component_tree:
   bc54b1e8-11e8-4eeb-9e06-2044b01bcc59:
     uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
     component_id: js.site-shell
     component_version: 99f464bae24bc529
-    inputs: {  }
+    inputs: {}
   bc54b1e8-11e8-4eeb-9e06-2044b01bcc01:
     parent_uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
     slot: preHeader
     uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc01
-    component_id: js.text
-    component_version: 9a9978112194b13f
+    component_id: js.announcement
+    component_version: 689562657d33b9df
     inputs:
-      text: 'Global pre-header region'
-  bc54b1e8-11e8-4eeb-9e06-2044b01bcc02:
-    parent_uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
-    slot: postHeader
-    uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc02
-    component_id: js.text
-    component_version: 9a9978112194b13f
-    inputs:
-      text: 'Global post-header region'
+      message: This is a Next Hydra template demo.
+      linkLabel: Explore Next Hydra
+      linkUrl: https://next-hydra.dev
   bc54b1e8-11e8-4eeb-9e06-2044b01bcc03:
     parent_uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
     slot: content
     uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc03
     component_id: marker.page_content
     component_version: 3b12c0b99a6caecc
-    inputs: {  }
-  bc54b1e8-11e8-4eeb-9e06-2044b01bcc04:
-    parent_uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
-    slot: preFooter
-    uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc04
-    component_id: js.text
-    component_version: 9a9978112194b13f
-    inputs:
-      text: 'Global pre-footer region'
-  bc54b1e8-11e8-4eeb-9e06-2044b01bcc05:
-    parent_uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc59
-    slot: postFooter
-    uuid: bc54b1e8-11e8-4eeb-9e06-2044b01bcc05
-    component_id: js.text
-    component_version: 9a9978112194b13f
-    inputs:
-      text: 'Global post-footer region'
+    inputs: {}

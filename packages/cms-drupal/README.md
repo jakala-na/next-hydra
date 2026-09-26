@@ -27,6 +27,12 @@ The generated schema now exposes the Drupal-native Hydra structure:
 
 Drupal configuration for this model lives in `apps/drupal/recipes/next-hydra-starter/config`.
 
+## Site announcement
+
+The native **Site** page template puts an **Announcement** component in the Site shell’s pre-header slot. It replaces the four placeholder region Text components; the remaining shared slots start empty. The banner uses the design system’s shadcn Alert primitive and exposes Message, Link label, and Link URL in Canvas. The recipe seeds a Next Hydra demo notice linking to `https://next-hydra.dev`.
+
+Edit and publish the Site template in Canvas to update the announcement across CMS pages and application routes. The announcement is template content, not hardcoded into the application layout.
+
 ## Article content template
 
 The starter recipe enables `canvas.content_template.node.article.full` for every Article's full view. Drupal chooses this template by entity type, bundle, and view mode; authors do not assign it to individual articles.

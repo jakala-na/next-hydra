@@ -1,0 +1,25 @@
+name: Announcement
+machineName: announcement
+status: true
+required:
+  - message
+  - linkLabel
+  - linkUrl
+props:
+  properties:
+    message:
+      title: Message
+      type: string
+      examples:
+        - This is a Next Hydra template demo.
+    linkLabel:
+      title: Link label
+      type: string
+      examples:
+        - Explore Next Hydra
+    linkUrl:
+      title: Link URL
+      type: string
+      format: uri
+      examples:
+        - https://next-hydra.dev

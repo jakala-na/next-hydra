@@ -7,38 +7,19 @@
     "shell": {
       "type": "js.site-shell",
       "slots": {
-        "preHeader": ["preHeader"],
-        "postHeader": ["postHeader"],
-        "content": ["content"],
-        "preFooter": ["preFooter"],
-        "postFooter": ["postFooter"]
-      }
-    },
-    "preHeader": {
-      "type": "js.text",
-      "props": {
-        "text": "Global pre-header region"
-      }
-    },
-    "postHeader": {
-      "type": "js.text",
-      "props": {
-        "text": "Global post-header region"
+        "preHeader": ["announcement"],
+        "content": ["content"]
       }
     },
     "content": {
       "type": "marker.page_content"
     },
-    "preFooter": {
-      "type": "js.text",
+    "announcement": {
+      "type": "js.announcement",
       "props": {
-        "text": "Global pre-footer region"
-      }
-    },
-    "postFooter": {
-      "type": "js.text",
-      "props": {
-        "text": "Global post-footer region"
+        "message": "This is a Next Hydra template demo.",
+        "linkLabel": "Explore Next Hydra",
+        "linkUrl": "https://next-hydra.dev"
       }
     }
   }
