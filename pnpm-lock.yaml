@@ -1130,6 +1130,9 @@ importers:
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16(@typescript/typescript6@6.0.2)(graphql@16.12.0))(@typescript/typescript6@6.0.2)(graphql@16.12.0)
+      '@repo/e2e-testing':
+        specifier: workspace:*
+        version: link:../e2e-testing
       '@repo/testing':
         specifier: workspace:*
         version: link:../testing
@@ -1148,6 +1151,9 @@ importers:
       dotenv:
         specifier: ^17.0.0
         version: 17.4.2
+      playwright-bdd:
+        specifier: 'catalog:'
+        version: 9.2.0(@playwright/test@1.62.1)
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'

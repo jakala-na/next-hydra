@@ -11,7 +11,7 @@ ddev start
 ddev composer install
 
 ## Install Drupal
-ddev drush site:install minimal --verbose -y
+ddev drush site:install minimal --account-name=admin --account-pass=admin --verbose -y
 
 ## Apply the starter recipe
 ddev drush recipe ../recipes/next-hydra-starter -v

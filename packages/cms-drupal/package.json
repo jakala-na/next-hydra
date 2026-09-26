@@ -59,12 +59,14 @@
     "@drupal-canvas/cli": "^0.25.2",
     "@drupal-canvas/workbench": "^0.12.0",
     "@gql.tada/cli-utils": "^1.6.3",
+    "@repo/e2e-testing": "workspace:*",
     "@repo/testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "dotenv": "^17.0.0",
+    "playwright-bdd": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

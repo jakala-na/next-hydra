@@ -1,0 +1,43 @@
+{
+  "label": "Article full",
+  "entityType": "node",
+  "bundle": "article",
+  "viewMode": "full",
+  "pageVariant": "site",
+  "elements": {
+    "4eaf5c38-6bd6-435c-bad8-36b07639e351": {
+      "type": "js.article",
+      "props": {
+        "title": {
+          "sourceType": "entity-field",
+          "expression": "ℹ︎␜entity:node:article␝title␞␟value"
+        },
+        "summary": {
+          "sourceType": "entity-field",
+          "expression": "ℹ︎␜entity:node:article␝field_summary␞␟value"
+        },
+        "publishedAt": {
+          "sourceType": "entity-field",
+          "expression": "ℹ︎␜entity:node␝created␞␟value",
+          "adapter": "unix_to_date"
+        },
+        "image": {
+          "sourceType": "entity-field",
+          "expression": "ℹ︎␜entity:node:article␝field_image␞␟entity␜␜entity:media:image␝field_media_image␞␟{src↠src,alt↠alt,width↠width,height↠height}"
+        }
+      },
+      "slots": {
+        "body": ["40ea3e16-7d15-4d68-bec3-06833e6ec124"]
+      }
+    },
+    "40ea3e16-7d15-4d68-bec3-06833e6ec124": {
+      "type": "js.rich-text",
+      "props": {
+        "html": {
+          "sourceType": "entity-field",
+          "expression": "ℹ︎␜entity:node:article␝body␞␟processed"
+        }
+      }
+    }
+  }
+}

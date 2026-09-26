@@ -32,3 +32,22 @@ default:
     - entity: 8ca9c299-9626-4435-87db-27924e2400c3
   field_summary:
     - value: "Match operating weight, reach, and site constraints to the work instead of selecting equipment by bucket size alone."
+translations:
+  fr:
+    status:
+      - value: true
+    title:
+      - value: "Choisir la bonne pelle pour le chantier"
+    revision_translation_affected:
+      - value: true
+    path:
+      - alias: /resources/choisir-la-bonne-pelle
+        langcode: fr
+    body:
+      - value: "<p>Le choix d’une pelle commence par les besoins du chantier : profondeur de fouille, portée de levage, nature du sol et accès au site.</p><h2>Commencer par le travail à réaliser</h2><p>Déterminez la charge maximale, la portée de travail et le passage le plus étroit pour choisir la catégorie de machine adaptée.</p><h2>Tenir compte des accessoires</h2><p>Le débit hydraulique, le poids des accessoires et la géométrie de l’attache influencent la capacité réelle. Vérifiez la configuration complète.</p><h2>Préparer le transport</h2><p>Les autorisations et les remorques disponibles comptent aussi. La meilleure machine est celle qui peut rejoindre le site et travailler en sécurité.</p>"
+        format: basic_html
+        summary: ""
+    field_image:
+      - entity: 8ca9c299-9626-4435-87db-27924e2400c3
+    field_summary:
+      - value: "Adaptez le poids, la portée et les dimensions de la machine aux contraintes du chantier."

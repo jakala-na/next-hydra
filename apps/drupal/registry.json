@@ -118,6 +118,11 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/canvas.component.js.article.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.article.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/canvas.component.js.featured-articles.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.featured-articles.yml",
           "type": "registry:file"
@@ -130,6 +135,11 @@
         {
           "path": "recipes/next-hydra-starter/config/canvas.component.js.product-collection.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.product-collection.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/canvas.component.js.rich-text.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.component.js.rich-text.yml",
           "type": "registry:file"
         },
         {
@@ -148,8 +158,18 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/canvas.content_template.node.article.full.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.content_template.node.article.full.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/canvas.js_component.article-card.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.article-card.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/canvas.js_component.article.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.article.yml",
           "type": "registry:file"
         },
         {
@@ -165,6 +185,11 @@
         {
           "path": "recipes/next-hydra-starter/config/canvas.js_component.product-collection.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.product-collection.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/canvas.js_component.rich-text.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/canvas.js_component.rich-text.yml",
           "type": "registry:file"
         },
         {
@@ -415,6 +440,11 @@
         {
           "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.canvas_page.canvas_page.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/next.next_entity_type_config.content_template.content_template.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/next.next_entity_type_config.content_template.content_template.yml",
           "type": "registry:file"
         },
         {

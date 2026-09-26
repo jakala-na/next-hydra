@@ -4,9 +4,11 @@ import type { CanvasComponentRegistry } from "@drupal-canvas/headless-react";
 
 import generatedCanvasComponents from "../.canvas/components";
 import CanvasArticleCardNextAdapter from "../canvas-components/article-card/next";
+import CanvasArticleNextAdapter from "../canvas-components/article/next";
 
 const canvasComponents = {
   ...generatedCanvasComponents,
+  article: CanvasArticleNextAdapter,
   "article-card": CanvasArticleCardNextAdapter,
 } satisfies CanvasComponentRegistry;
 

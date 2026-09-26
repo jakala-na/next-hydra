@@ -1,0 +1,15 @@
+name: Rich text
+machineName: rich-text
+status: true
+required:
+  - html
+props:
+  properties:
+    html:
+      title: HTML
+      type: string
+      contentMediaType: text/html
+      x-formatting-context: block
+      examples:
+        - <p>Practical advice for your next project.</p>
+slots: {}

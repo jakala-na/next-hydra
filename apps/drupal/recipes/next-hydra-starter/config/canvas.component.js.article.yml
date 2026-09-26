@@ -1,0 +1,73 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.article
+    - field.field.media.image.field_media_image
+    - image.style.canvas_parametrized_width
+    - media.type.image
+  module:
+    - datetime
+    - file
+    - media
+    - media_library
+active_version: c41a1fa7b92a7383
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        title:
+          required: true
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: Choosing the right equipment for the job
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        summary:
+          required: true
+          field_type: string
+          field_storage_settings: {}
+          field_instance_settings: {}
+          field_widget: string_textfield
+          default_value:
+            - value: Practical advice for planning your next project.
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {}
+        publishedAt:
+          required: false
+          field_type: datetime
+          field_storage_settings:
+            datetime_type: date
+          field_instance_settings: {}
+          field_widget: datetime_default
+          default_value: null
+          expression: ℹ︎datetime␟value
+          derived_schema_metadata: {}
+        image:
+          required: false
+          field_type: entity_reference
+          field_storage_settings:
+            target_type: media
+          field_instance_settings:
+            handler: default:media
+            handler_settings:
+              target_bundles:
+                image: image
+          field_widget: media_library_widget
+          default_value: {}
+          expression: ℹ︎entity_reference␟entity␜␜entity:media:image␝field_media_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}
+          derived_schema_metadata: {}
+    fallback_metadata:
+      slot_definitions:
+        body:
+          title: Body
+label: Article
+id: js.article
+provider: null
+source: js
+source_local_id: article

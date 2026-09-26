@@ -65,6 +65,9 @@ config:
     - field.storage.paragraph.field_tagline
     - filter.format.basic_html
   import:
+    canvas:
+      - filter.format.canvas_html_block
+      - editor.editor.canvas_html_block
     canvas_headless:
       - simple_oauth.oauth2_scope.canvas_headless
     gin:

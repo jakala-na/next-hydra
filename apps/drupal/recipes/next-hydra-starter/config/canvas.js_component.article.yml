@@ -1,0 +1,32 @@
+langcode: en
+status: true
+dependencies: {  }
+machineName: article
+name: Article
+type: external
+required:
+  - title
+  - summary
+props:
+  title:
+    type: string
+    title: Title
+    examples:
+      - 'Choosing the right equipment for the job'
+  summary:
+    type: string
+    title: Summary
+    examples:
+      - 'Practical advice for planning your next project.'
+  publishedAt:
+    type: string
+    format: date
+    title: 'Article date'
+  image:
+    type: object
+    $ref: 'json-schema-definitions://canvas.module/image'
+    title: Image
+slots:
+  body:
+    title: Body
+dataDependencies: {  }

@@ -20,7 +20,7 @@ cd apps/drupal
 ddev install
 ```
 
-The command installs Composer dependencies, installs Drupal, applies the Next Hydra recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link.
+The command installs Composer dependencies, installs Drupal, applies the Next Hydra recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link. The local administrator login is `admin` / `admin`.
 
 Copy the generated credentials into `apps/web/.env.local`:
 
@@ -160,7 +160,7 @@ Delete `next-hydra-bootstrap.env` from Acquia after storing the credentials secu
 The Next Hydra recipe installs the demo content model and integration configuration:
 
 - Page and product content types
-- Canvas components and page templates
+- Canvas components, page templates, and an Article full content template
 - GraphQL Compose schema configuration
 - Preview and revalidation configuration
 - Previewer and viewer OAuth consumers
@@ -186,6 +186,8 @@ Canvas is pinned to `dev-1.x#9211e2e8109501ceeb2d7f1a3a8ef3c913432a67` to match 
 Unlike release archives, this development checkout does not include compiled editor assets. Composer's post-install and post-update hooks run `scripts/build-canvas.sh`, using the upstream npm lockfile to build missing assets. Node 24.5+ (or 22.19–22.x), npm, and network access are required on the build machine. DDEV's Node 24 runtime is suitable. To rebuild manually, remove the generated `docroot/modules/contrib/canvas/ui/dist` directory and run `ddev exec bash scripts/build-canvas.sh`.
 
 The starter recipe installs the native `site` page template (`canvas.page_variant.site`) on its Canvas pages. Its `site-shell` component provides four shared slots around the page-content marker. The frontend supplies the application header and footer, and renders the shared template once around the route outlet. Canvas pages render their main-content slot, including draft edits. Commerce and other application-owned routes use the empty `/site-shell` Canvas page to obtain the shared template through the standard content API. No custom regions endpoint or React region-marker patch is required.
+
+Articles use the enabled `canvas.content_template.node.article.full` content template automatically. Its Article and Rich text components bind to the node's existing title, summary, creation date, image, and processed body fields. The template selects the same `site` page template. Edit and publish the content template in Canvas to change all article full views together; article lists and cards keep their existing GraphQL rendering. The recipe includes a French article translation and revalidation configuration for content-template changes.
 
 After updating an existing installation, run `ddev drush updatedb -y` and `ddev drush cr`. The recipe is the fresh-install source of truth; use `ddev install` to reset a disposable local site and verify it from scratch. That command replaces the database and generates new credentials, which must be copied into `apps/web/.env.local`.
 

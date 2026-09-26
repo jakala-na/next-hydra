@@ -170,10 +170,10 @@ export async function Page(props: { url: string; locale: Locale }) {
     return null;
   }
 
-  if (
-    canvasPage?.route.managedByCanvas &&
-    canvasPage.route.entity?.entityType === "canvas_page"
-  ) {
+  // Existing Drupal/GraphQL revision previews keep their authenticated data path.
+  // Canvas draft sessions and published content use the enabled content template.
+  const useDrupalPreview = previewContext?.path === drupalPath && !draft;
+  if (canvasPage?.route.managedByCanvas && !useDrupalPreview) {
     return (
       <ArchitectureBoundary
         cacheProfile={
