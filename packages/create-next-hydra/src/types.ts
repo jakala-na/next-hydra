@@ -9,6 +9,7 @@ export type CreateOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
+  without?: ("auth" | "cms" | "commerce")[];
   addOns?: string[];
   preset?: string;
 };
@@ -30,15 +31,4 @@ export type ScaffoldResult = {
   packageName: string;
   gitInitialized: boolean;
   committed: boolean;
-};
-
-export type GitInitResult = {
-  gitInitialized: boolean;
-  committed: boolean;
-  commitError?: string;
-};
-
-export type RunCommandResult = {
-  stdout: string;
-  stderr: string;
 };

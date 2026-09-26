@@ -1,0 +1,12 @@
+{
+  "providers": {},
+  "addOns": [
+    "account",
+    "a-outer",
+    "instrumentation",
+    "hero",
+    "branding",
+    "patched-client",
+    "with-tracking"
+  ]
+}

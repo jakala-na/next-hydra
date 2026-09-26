@@ -25,19 +25,10 @@ import {
   CommerceRequestContextNotFound,
 } from "@repo/commerce/domain/commerce-request-context";
 import type { CustomerCommercePrincipal } from "@repo/commerce/domain/commerce-request-context";
-import { CheckoutPolicies } from "@repo/commerce/lib/checkout/checkout-policy";
-import { ProductDiscovery } from "@repo/commerce/product";
-import { makeCommerceApp } from "@repo/commerce/runtime/make-commerce-app";
 import { AddressBook } from "@repo/commerce/services/address-book";
-import { CartPolicies } from "@repo/commerce/services/cart-policies";
-import { Carts } from "@repo/commerce/services/carts";
 import { CommerceAccounts } from "@repo/commerce/services/commerce-accounts";
-import { CommerceCompanyMemberships } from "@repo/commerce/services/commerce-company-memberships";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
-import { DeliveryPlanning } from "@repo/commerce/services/delivery-planning";
-import { Orders } from "@repo/commerce/services/orders";
 import { StoreKey } from "@repo/commerce/store";
-import { CheckoutPayments } from "@repo/payments";
 import { Context, Effect, Layer } from "effect";
 import { describe, expect, test } from "vitest";
 
@@ -138,25 +129,12 @@ const authenticationLayer = Layer.succeed(
 
 const makeHandler = (
   addressBookLayer: Layer.Layer<AddressBook, never, CommerceContext>
-) => {
-  const commerceApp = makeCommerceApp({
+) =>
+  makeAddressBookHttpHandler({
     addressBookLayer,
-    cartPoliciesLayer: CartPolicies.layer,
-    cartsLayer: Carts.layerMemory(),
-    checkoutPaymentsLayer: CheckoutPayments.unavailableLayer,
-    checkoutPoliciesLayer: CheckoutPolicies.layer,
-    commerceAccountsLayer,
-    commerceCompanyMembershipsLayer: CommerceCompanyMemberships.layerMemory,
-    deliveryPlanningLayer: DeliveryPlanning.emptyLayer,
-    ordersLayer: Orders.layerMemory(),
-    productDiscoveryLayer: ProductDiscovery.testLayer(),
-  });
-
-  return makeAddressBookHttpHandler({
     authenticationLayer,
-    commerceApp,
+    commerceAccountsLayer,
   });
-};
 
 const emptyContext = () => Context.empty();
 

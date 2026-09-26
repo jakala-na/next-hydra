@@ -1,0 +1,8 @@
+{
+  "providers": {
+    "cms": "contentstack",
+    "auth": "workos",
+    "commerce": "commercetools"
+  },
+  "addOns": ["app-web-navigation-search"]
+}

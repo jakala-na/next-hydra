@@ -2,54 +2,90 @@
 
 The Workspace Composition context describes the selectable parts of a Next Hydra workspace and how registry items materialize them.
 
+Customer scaffolding and local composition use one workspace constructor. It owns baseline files, the selected registry graph, package dependency closure, templates, registry transformations, aliases and patches. Scaffolding acquires a source revision in a temporary checkout, constructs copied output, installs dependencies and initializes customer Git. Development composition constructs from canonical local source, copies files and applies ownership-aware refresh.
+
+Registry setup instructions travel with operation results, separately from delegated ShadCN terminal output. Creation, synchronization and addition display the selected items' instructions only after successful execution. These instructions do not authorize or execute external provisioning.
+
+Composition keeps environment examples as documentation and does not seed runtime env files. Provisioning owns creating values; explicit `--copy-env` copies missing existing local files. Runtime env output targets are rejected and credentials are excluded from preparation and managed-source state. Refresh does not merge new variables into existing files or retain credential contents/fingerprints. Application task graphs preserve shell environment access, type-check/test build gates, and package commands.
+
+Package manifests own their scripts and tooling dependencies. Portless is included in both Customer and Development Workspaces. Composition derives host replacements from selected applications' `portless.name` declarations and scopes them to the project name. Exact hostnames in text are updated regardless of filename; binary source and registry-declared assets remain byte-for-byte intact. It preserves development scripts and does not infer commands from a Next dependency. Named definitions may specify application ports. Entrypoints importing composed siblings, such as the administration CLI entrypoint, are copied and refreshed together with those siblings so Node resolves them inside the selected workspace.
+
+Named workspaces always initialize or refresh in `workspaces/<name>`. All application source is copied, with imports resolving inside the selected workspace. Definitions, root and app-local `.gitignore` files, optional READMEs, app-local `vercel.json` files are workspace-owned settings, not registry output. Initialization and refresh preserve arbitrary unrelated local files without adopting them. Conflicting managed-file edits and unowned files occupying intended output paths block publication; unrelated files do not affect readiness. Refresh preserves dependency and build caches in place. Customer and named workspaces share task configuration that hashes materialized sources, including ignored paths, and selected environment inputs. Vercel composes and installs during its Install Command, then builds the selected app at that same named path in its Git deployment; no upload workflow is required. Customer creation stays fresh-directory and receipt-free, retaining the registry's existing Vercel defaults and skip-CI scripts without adding maintainer commands. Named composition omits customer ignore and Vercel defaults and preserves its independently authored settings instead.
+
+Named Vercel deployments always compose and reconcile dependencies, then invoke Turbo from the installed application workspace root. Root Directory stays at the selected app with outside-root source access enabled. Root installation selects only tooling dependency closures; source package declarations remain available for composition discovery. Turbo caches application tasks using the same policy as customer output, not ownership-aware composition itself. Application commands run directly inside the composed workspace after explicit composition. Remote task outputs do not replace dependency installation, and external content changes require explicit cache invalidation when fetched during builds.
+
+Workspace Git visibility is owned locally: no parent workspace ignore policy hides new folders. Compose seeds missing `.gitignore` settings once with defaults that expose definitions and settings while excluding materialized output. Existing rules, including an empty file, remain author-owned. Check mode reports missing rules without creating them. Untracked definitions participate in discovery unless explicitly ignored. Ignoring new application files does not register their ownership. Reconciliation is needed only when making local files part of future compositions, not to permit refresh.
+
+Browser tests are part of the shared constructor output. Every web workspace receives its own `tests/e2e` runner; selected recipes add provider fixtures and scenarios. Maintainers run those same project commands directly in the composed workspace, without resolving test helpers from canonical source or selecting a separate reference-only browser-test stack.
+
 ## Language
 
 **Baseline**: The mandatory workspace content included in every composed Next Hydra project and maintained as ordinary canonical starter source. A currently fixed integration remains part of the Baseline until it becomes a Provider Slot. _Avoid_: Default provider, mandatory add-on
 
-**Maintainer Workspace**: The canonical Next Hydra source workspace in which Contribution Sources are authored and a selected stack can be recomposed for development. _Avoid_: Customer project, disposable clone
+**Maintainer Workspace**: The canonical Next Hydra source checkout containing implementation modules, templates and registry ownership. _Avoid_: Customer project, disposable clone
 
-**Customer Workspace**: A product-neutral scaffolded workspace after ownership of all materialized code has transferred to its customer. It does not retain the maintainer product name in application-facing identifiers or content, is inspected as it exists, and is not treated as a managed composition. _Avoid_: Maintainer Workspace, managed project
+**Development Workspace**: A named, materialized composition with its own dependency graph and safe refresh lifecycle. All files are physical. Maintainers locate canonical modules or templates with `--explain <file>`, edit source, then refresh; `--diff` identifies local output edits needing reconciliation. _Avoid_: Customer Workspace, second source of truth
 
-**Reference Composition**: The selected stack that keeps the canonical Maintainer Workspace runnable and reviewable. It is not an endorsement or automatic scaffold default. _Avoid_: Preferred stack, default Provider
+**Workspace Definition**: A version-controlled request for a named Development Workspace, containing its Workspace Selection and optional local development settings. Its stable name identifies its local application hosts and deployment directory. App-local deployment configuration and ignore rules may be committed alongside it; materialized runtime manifests are not part of the definition. _Avoid_: Generated app, application profile, ownership receipt
 
-**Workspace Selection**: The authoritative desired Provider and Add-on choices recorded only for a Maintainer Workspace. It is not retained as a receipt or management contract in a Customer Workspace. _Avoid_: Scaffold receipt, customer ownership ledger
+**Applied Workspace State**: Ignored local ownership and before/after fingerprints used to protect files during Development Workspace refresh and interruption recovery. _Avoid_: Desired selection, backup, customer management contract
+
+**Composition Snapshot**: A private local Git commit containing verified, materialized files from a Development Workspace. Applied Workspace State references it so inspection can show patches without adopting local edits. Stored outside application output; it excludes environment files, known credential paths and runtime artifacts, and does not register new files or provide automatic write-back. _Avoid_: Baseline, customer Git history, backup of unregistered work
+
+**Customer Workspace**: Internal ownership term for a product-neutral scaffolded workspace whose code belongs to its user and has no ongoing maintainer management contract. Public command help, output, package descriptions and usage guides call it an application or project, not a customer workspace. _Avoid_: Maintainer Workspace, managed project, customer-owned application in public wording
+
+**Reference Composition**: A named Development Workspace used to exercise a representative stack. Its assembled files are not retained in the canonical Maintainer Workspace. It is not an endorsement or automatic customer scaffold default. _Avoid_: Preferred stack, default Provider
+
+**Workspace Selection**: The authoritative desired Provider and Add-on choices in a Workspace Definition. It is not retained as a receipt or management contract in a Customer Workspace. _Avoid_: Scaffold receipt, customer ownership ledger
 
 **Preset**: A reusable, explicit request containing Provider and Add-on choices for a new composition. A Preset references Selection Definitions but does not replace their compatibility declarations or become retained management state in the Customer Workspace. _Avoid_: Default stack, Reference Composition, scaffold receipt
 
-**Provider Slot**: A dimension of the stack that governs how many Providers may be selected for a role. The v1 Auth, CMS, and Commerce slots each require exactly one Provider; future compositions may support different cardinalities when the application does. _Avoid_: Optional integration, package alias
+**Provider Slot**: A role in the selected stack filled by a Provider, distinct from a location in a composed file. Its cardinality is constrained by installed packages. _Avoid_: UI slot, package alias
 
-**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. V1 assigns `1..1` to Auth, CMS, and Commerce. _Avoid_: Permanent exactly-one invariant
+**Slot Cardinality**: The minimum and maximum number of Providers a composition may select for a Provider Slot. Installed packages may require or forbid a role; otherwise it is optional. _Avoid_: Permanent exactly-one invariant
 
 **Provider**: A selectable implementation that fills one Provider Slot and may depend on other registry items. _Avoid_: Provider package, registry item
 
-**Backend App**: A Provider- or Add-on-contributed application that runs as a separate backend service while remaining part of the composed workspace. _Avoid_: Sidecar, backend application
+**Backend App**: An application installed by a Provider, Composition Recipe or Add-on that runs as a separate backend service within the composed workspace. _Avoid_: Sidecar, backend application
 
 **Provider Alias**: The stable workspace package name through which Baseline code imports the Provider selected for one Provider Slot. Each slot defines its own current package interface; a Provider may satisfy part of that interface with an explicit no-op when the capability is validly unnecessary. V1 does not assign independent version numbers to these interfaces. _Avoid_: Concrete Provider package, generated binding module, universal Provider interface
 
-**Provider Binding**: The Provider-owned association between one Provider Alias and that Provider's installable implementation package, including its canonical Maintainer Workspace source when available. _Avoid_: Provider Alias, concrete consumer dependency, compatibility declaration
+**Provider Binding**: The Provider-owned association between one Provider Alias and that Provider's installable implementation package, including its package path inside the materialized workspace when available. _Avoid_: Provider Alias, concrete consumer dependency, compatibility declaration
 
 **Provider Dependency**: A consumer-owned declaration that one workspace package uses the Provider selected for a Provider Slot through that slot's Provider Alias. It does not select or require a concrete Provider. _Avoid_: Compatibility declaration, registry dependency, concrete Provider requirement
 
 **Add-on**: An optional composition selection that may depend on other registry items and is valid only when its compatibility requirements are satisfied by the complete selected stack. _Avoid_: Provider, optional package
 
-**Selection ID**: The stable, globally scoped identity of a Provider or Add-on, independent of where its materialization content is obtained. _Avoid_: Registry URL, repository path, registry item name
+**Package**: A complete domain implementation installed as one unit, including its standard functionality and required integrations. _Avoid_: Catalog/cart/checkout feature switches
 
-**Selection Definition**: The Provider- or Add-on-owned metadata that identifies a selection and declares its compatibility and package-specific requirements. Standard ShadCN fields describe its files, dependencies, and registry dependencies. _Avoid_: Registry catalog entry, Composition Plan
+**Composition Recipe**: A declarative assembly unit that brings files, dependencies or Slot Bindings into a workspace. Recipes may build on other recipes; a package-owned recipe connects participating packages without making the package's standard functionality an independent feature choice. _Avoid_: Contribution, Package Integration, independently selectable subfeature
+
+**Provisioning Recipe**: A provider-specific description of external configuration or content to apply after composition. Including it in a workspace does not apply it to an external service. _Avoid_: Installation hook, Composition Recipe
+
+**Composition Template**: The canonical structure of one materialized file, with named locations for Slot Bindings. Templates may belong to applications or packages; their output is ordinary customer-owned source. _Avoid_: Full-stack template permutation, runtime plugin host
+
+**Module Reference**: A reference to an export from canonical implementation source that a Slot Binding can place in a Composition Template. _Avoid_: Text snippet, executable scaffold hook
+
+**Slot Binding**: The placement of a Module Reference into a named Composition Template location, including its order and optional local name. It belongs to the selected registry item, not a separate customer feature choice. _Avoid_: Contribution, Composition Recipe, Provider Binding
+
+**Selection ID**: The stable, globally scoped identity of a Provider, Package, Composition Recipe, Add-on or Preset, independent of where its materialization content is obtained. _Avoid_: Registry URL, repository path, registry item name
+
+**Selection Definition**: The metadata identifying a Provider, Package, Composition Recipe, Add-on or Preset and its compatibility and package-specific requirements. _Avoid_: Registry catalog entry, Composition Plan
 
 **Selection Definition Schema**: The current JSON Schema for a complete ShadCN registry item containing `meta.nextHydra`. A companion Source Registry schema applies it to Selection Definitions inside colocated registry files while ordinary registry items continue to use ShadCN's schema directly. V1 follows one stable schema URL rather than exposing numbered schema generations. _Avoid_: Registry item schema, Customer Workspace version, Provider package version
 
-**Contribution Source**: The canonical code maintained for a registry item. Provider implementation code stays in its normal development location. A Managed Application File instead uses the contribution's `registry/` source directory because its runnable target belongs elsewhere in the workspace. _Avoid_: Materialized application copy, Customer Workspace receipt
+**Registry Source**: The canonical source owned by a registry item, including files installed outside their original package. _Avoid_: Contribution Source, materialized application copy, Customer Workspace receipt
 
-**Source Registry**: The standard ShadCN `registry.json` structure used to distribute Contribution Sources. Next Hydra keeps a root registry that includes package- and application-level `registry.json` files beside the code they describe. Managed Application Files live under a colocated `registry/` directory as canonical source, not as generated content-inlined item JSON. Public GitHub and local development resolve these source files directly; v1 does not require checked-in content-inlined registry output. _Avoid_: Generated template tree, Customer Workspace receipt, registry server
+**Source Registry**: The catalog of registry items and their Registry Sources, maintained alongside the code it describes. _Avoid_: Generated template tree, Customer Workspace receipt, registry server
 
 **Registry Artifact**: The resolved installable ShadCN representation of a registry item. ShadCN may produce it in memory from a local or public GitHub Source Registry, or a hosted registry may serve equivalent generated JSON. It is not a second checked-in source tree and official v1 does not require persistent generated artifacts. _Avoid_: Canonical source, required build folder, Customer Workspace receipt
 
-**Binary Asset**: A byte-for-byte file contribution declared separately when ShadCN's text-based source loader cannot safely represent the file. V1 uses this only while composing from the official or locally included Source Registry; separately fetched external Selections cannot contribute Binary Assets. _Avoid_: General file-copy operation, executable hook
+**Binary Asset**: A registry-owned file that must be preserved byte-for-byte rather than treated as text. _Avoid_: General file-copy operation, executable hook
 
 **Composition Plan**: The deterministic, validated expansion of a Baseline, selected Providers, and Add-ons into declarative materialization work. It contains no Provider-supplied executable hooks. _Avoid_: Setup script, Provider hook
 
-**Managed Application File**: A Provider- or Add-on-owned registry file placed outside that contribution's normal source directory, such as a Next.js route under `apps/web`. Its source lives under the contribution's colocated `registry/` directory. Maintainer `use` may replace known Managed Application Files when changing the selected stack; after scaffolding or customer `add`, the copied file is customer-owned. _Avoid_: Generated adapter, ownership receipt, customer-managed file
+**Managed Application File**: A package-owned registry file materialized outside its canonical source location, such as a provider-specific route in the web application. A Development Workspace retains its source ownership for safe refresh; a Customer Workspace owns the copied file outright. _Avoid_: Generated adapter, ownership receipt, customer-managed file
 
-**Additive Installation**: A customer-approved materialization that inspects the intact requested registry graph, creates missing targets, skips identical targets, and treats changed targets as explicit conflicts without inferring ownership or removing code. V1 accepts only explicitly targeted exact-copy ShadCN file types so its preview matches the installed content. It checks compatibility visible through the graph and exact known Provider aliases and discloses assumptions that cannot be proven without customer selection state. _Avoid_: Recomposition, synchronization, provider switch, Customer Workspace upgrade
+**Additive Installation**: A requested installation into an existing project that inspects the intact registry graph and delegates native transformations to ShadCN in the configured context. It checks known Provider requirements, discloses compatibility assumptions, and requires explicit overwrite policy for changed targets. It retains neither ownership state nor a lock; native writes and dependency installation may leave partial changes on failure. _Avoid_: Recomposition, synchronization, provider switch, Customer Workspace upgrade
 
 **Compatibility Declaration**: A Provider- or Add-on-owned statement naming the concrete Providers or Add-ons it requires or conflicts with. It must be satisfied before a closed-world composition can be materialized; Workspace Composition validates declarations but does not centrally re-author them. Customer Additive Installation hard-fails observable violations and discloses requirements whose state cannot be proven without a receipt. _Avoid_: Central compatibility matrix, registry dependency

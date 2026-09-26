@@ -13,6 +13,7 @@ export type {
   CheckoutPaymentOptionsFormProps,
 } from "./payment-options-form";
 export { CheckoutPage } from "./checkout-page";
+export { CheckoutSkeleton } from "./checkout-skeleton";
 export { CheckoutOrderConfirmationPage } from "./order-confirmation-page";
 export type {
   CheckoutPaymentOptionsRenderer,

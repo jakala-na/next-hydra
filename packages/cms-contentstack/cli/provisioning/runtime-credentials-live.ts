@@ -28,13 +28,13 @@ export const createContentstackRuntimeCredentialInputLayer = <E, R>(
       const path = yield* Path.Path;
       const terminal = yield* Terminal.Terminal;
       const deliveryTokenConfig = yield* Config.option(
-        Config.redacted("CONTENTSTACK_DELIVERY_TOKEN")
+        Config.Redacted("CONTENTSTACK_DELIVERY_TOKEN")
       );
       const previewTokenConfig = yield* Config.option(
-        Config.redacted("CONTENTSTACK_PREVIEW_TOKEN")
+        Config.Redacted("CONTENTSTACK_PREVIEW_TOKEN")
       );
       const webhookSecret = yield* Config.option(
-        Config.redacted("CONTENTSTACK_WEBHOOK_SECRET")
+        Config.Redacted("CONTENTSTACK_WEBHOOK_SECRET")
       ).pipe(
         Effect.map((configured) =>
           Option.getOrElse(configured, () => Redacted.make(""))
@@ -80,7 +80,7 @@ export const createContentstackRuntimeCredentialInputLayer = <E, R>(
             }
 
             const prompt = (tokenType: "Delivery" | "Preview") =>
-              Prompt.password({
+              Prompt.Password({
                 message: `${tokenType} Token for ${environment}`,
                 validate: (value) =>
                   value.trim().length === 0

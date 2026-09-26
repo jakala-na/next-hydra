@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { resolve } from "node:path";
+import nodePath from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -9,11 +9,26 @@ import {
   checkCommerceBoundaries,
   checkGeneratedProductAttributesSource,
   extractImportSpecifiers,
+  repositoryFiles,
 } from "./commerce-boundaries";
 
-const repoRoot = resolve(import.meta.dirname, "../../..");
+const repoRoot = nodePath.resolve(import.meta.dirname, "../../..");
 
 describe("Commerce provider boundaries", () => {
+  it("inspects physical and linked source files regardless of Git tracking", () => {
+    const files = repositoryFiles(repoRoot);
+    expect(files).toContain(
+      nodePath.resolve(
+        repoRoot,
+        "packages/commerce/services/customer-account-members.ts"
+      )
+    );
+    expect(files).toContain(
+      nodePath.resolve(repoRoot, "packages/commerce/package.json")
+    );
+    expect(files.some((file) => file.includes("/node_modules/"))).toBeFalsy();
+  });
+
   it("accepts the repository's configured commerce boundary", () => {
     expect(checkCommerceBoundaries(repoRoot)).toStrictEqual([]);
   });

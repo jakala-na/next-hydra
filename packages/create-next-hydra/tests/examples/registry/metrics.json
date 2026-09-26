@@ -1,0 +1,26 @@
+{
+  "name": "site-metrics",
+  "type": "registry:item",
+  "files": [
+    {
+      "path": "web/package.json",
+      "target": "~/apps/web/package.json",
+      "type": "registry:file",
+      "content": "{\"name\":\"web\",\"scripts\":{\"report\":\"metrics report\"},\"dependencies\":{\"existing\":\"^1\"}}\n"
+    }
+  ],
+  "meta": {
+    "nextHydra": {
+      "id": "example/add-on/metrics",
+      "kind": "add-on",
+      "packages": [
+        {
+          "cwd": "apps/web",
+          "name": "site-metrics",
+          "specifier": "^2",
+          "section": "dependencies"
+        }
+      ]
+    }
+  }
+}

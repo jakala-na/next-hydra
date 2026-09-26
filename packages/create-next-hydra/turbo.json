@@ -1,0 +1,30 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": [],
+      "inputs": [
+        "src/**",
+        "scripts/clean-dist.js",
+        "package.json",
+        "tsconfig.json",
+        "$TURBO_ROOT$/packages/typescript-config/**"
+      ],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": [],
+      "inputs": [
+        "src/**",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.tests.json",
+        "tests/**",
+        "$TURBO_ROOT$/packages/typescript-config/**"
+      ]
+    },
+    "test": { "dependsOn": [], "cache": false },
+    "workspace:test": { "dependsOn": ["build"], "cache": false },
+    "workspace:lint": { "dependsOn": ["build"], "cache": false }
+  }
+}

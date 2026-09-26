@@ -206,7 +206,7 @@ function ShippingOptionsFormForQuote({
               <legend className="sr-only">{t("chooseOption")}</legend>
               {group.shippingOptions.map((option) => (
                 <label
-                  className="grid cursor-pointer grid-cols-[auto_1fr_auto] items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                  className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-md border border-border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
                   data-shipping-option={option.reference}
                   data-shipping-option-name={option.name}
                   key={option.reference}
@@ -215,6 +215,7 @@ function ShippingOptionsFormForQuote({
                     checked={
                       selections.get(group.reference) === option.reference
                     }
+                    className="m-0 size-4 accent-primary"
                     name={`shipping-option-${group.reference}`}
                     onChange={() => {
                       setSelections((current) =>
@@ -223,29 +224,30 @@ function ShippingOptionsFormForQuote({
                     }}
                     type="radio"
                   />
-                  <span>
-                    <span className="block font-medium text-sm">
-                      {option.name}
-                    </span>
-                    {option.description === undefined ? null : (
-                      <span className="block text-muted-foreground text-xs">
-                        {option.description}
-                      </span>
-                    )}
-                    {option.deliveryPromise === undefined ? null : (
-                      <span className="block text-muted-foreground text-xs">
-                        {option.deliveryPromise.label}
-                      </span>
-                    )}
+                  <span className="min-w-0 font-medium text-sm">
+                    {option.name}
                   </span>
                   <span
-                    className="font-medium text-sm"
+                    className="whitespace-nowrap text-right font-medium text-sm tabular-nums"
                     data-commerce-money="shipping-option"
                     data-currency={option.price.currencyCode}
                     data-minor-amount={option.price.centAmount}
                   >
                     {formatMoney(option.price, locale)}
                   </span>
+                  {option.description === undefined &&
+                  option.deliveryPromise === undefined ? null : (
+                    <span className="col-span-2 col-start-2 text-muted-foreground text-xs">
+                      {option.description === undefined ? null : (
+                        <span className="block">{option.description}</span>
+                      )}
+                      {option.deliveryPromise === undefined ? null : (
+                        <span className="block">
+                          {option.deliveryPromise.label}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </label>
               ))}
             </fieldset>

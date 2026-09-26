@@ -1,7 +1,9 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 import nextEnvironment from "@next/env";
-import type { E2EApplicationUrls } from "@repo/e2e-testing";
+
+import type { E2EApplicationNames } from "./application-routing";
 
 const { loadEnvConfig, resetEnv } = nextEnvironment;
 
@@ -30,27 +32,23 @@ export interface E2EEnvironments {
 
 export const withE2EApplicationUrls = (
   environments: E2EEnvironments,
-  urls: E2EApplicationUrls
-): E2EEnvironments => ({
-  runner: environments.runner,
-  servers: {
-    admin: {
-      ...environments.servers.admin,
-      NEXT_PUBLIC_API_URL: urls.api,
-    },
-    api: {
-      ...environments.servers.api,
-      ADMIN_URL: urls.admin,
-      NEXT_PUBLIC_API_URL: urls.api,
-      NEXT_PUBLIC_WEB_URL: urls.web,
-    },
-    web: {
-      ...environments.servers.web,
-      NEXT_PUBLIC_API_URL: urls.api,
-      NEXT_PUBLIC_WEB_URL: urls.web,
-    },
-  },
-});
+  urls: E2EApplicationNames
+): E2EEnvironments => {
+  const admin = { ...environments.servers.admin };
+  const api = { ...environments.servers.api };
+  const web = { ...environments.servers.web };
+  api.NEXT_PUBLIC_WEB_URL = urls.web;
+  web.NEXT_PUBLIC_WEB_URL = urls.web;
+  if (urls.api) {
+    admin.NEXT_PUBLIC_API_URL = urls.api;
+    api.NEXT_PUBLIC_API_URL = urls.api;
+    web.NEXT_PUBLIC_API_URL = urls.api;
+  }
+  if (urls.admin) {
+    api.ADMIN_URL = urls.admin;
+  }
+  return { runner: environments.runner, servers: { admin, api, web } };
+};
 
 const adminWorkosEnvironmentNames = {
   ADMIN_WORKOS_ACCESS_TOKEN_ISSUER: "WORKOS_ACCESS_TOKEN_ISSUER",
@@ -285,21 +283,21 @@ export const loadE2EEnvironments = (workspaceRoot: string): E2EEnvironments => {
     web: path.resolve(workspaceRoot, "apps/web"),
   };
 
+  const load = (directory: string): Environment => {
+    if (!existsSync(path.join(directory, "package.json"))) {
+      return {};
+    }
+    return loadEnvConfig(directory, true, console, true).parsedEnv ?? {};
+  };
   let applicationEnvironments: ApplicationEnvironments;
   const mutableProcessEnvironment: Record<string, string | undefined> =
     process.env;
   mutableProcessEnvironment.NODE_ENV = "development";
   try {
     applicationEnvironments = {
-      admin:
-        loadEnvConfig(applicationDirectories.admin, true, console, true)
-          .parsedEnv ?? {},
-      api:
-        loadEnvConfig(applicationDirectories.api, true, console, true)
-          .parsedEnv ?? {},
-      web:
-        loadEnvConfig(applicationDirectories.web, true, console, true)
-          .parsedEnv ?? {},
+      admin: load(applicationDirectories.admin),
+      api: load(applicationDirectories.api),
+      web: load(applicationDirectories.web),
     };
   } finally {
     resetEnv();

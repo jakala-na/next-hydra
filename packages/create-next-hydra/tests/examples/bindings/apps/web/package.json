@@ -1,0 +1,14 @@
+{
+  "name": "web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "@repo/cms": "workspace:@example/archive@*",
+    "next": "16.3.1"
+  },
+  "custom": {
+    "keep": true
+  }
+}

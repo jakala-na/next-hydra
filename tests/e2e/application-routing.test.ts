@@ -45,6 +45,34 @@ describe(loadPortlessApplicationNames, () => {
 });
 
 describe(resolveE2EApplicationRouting, () => {
+  it("targets a web-only deployment without API or admin URLs", () => {
+    const getPortlessUrl = vi.fn<(name: string) => string>();
+    const routing = resolveE2EApplicationRouting({
+      environment: { E2E_WEB_URL: "https://cms.example.test" },
+      getPortlessUrl,
+      portlessApplicationNames: { web: "web.cms" },
+    });
+    expect(routing).toEqual({
+      mode: "external",
+      urls: { web: "https://cms.example.test" },
+    });
+    expect(getPortlessUrl).not.toHaveBeenCalled();
+  });
+
+  it("starts only the selected web application in CI", () => {
+    const routing = resolveE2EApplicationRouting({
+      environment: { CI: "true" },
+      getPortlessUrl: () => {
+        throw new Error("Portless must not run");
+      },
+      portlessApplicationNames: { web: "web.cms" },
+    });
+    expect(routing).toEqual({
+      mode: "direct",
+      urls: { web: "http://localhost:3001" },
+    });
+  });
+
   it("uses the current worktree's Portless origins for local E2E", () => {
     const getPortlessUrl = vi.fn<(name: string) => string>(
       (name: string) =>

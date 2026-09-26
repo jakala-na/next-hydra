@@ -15,7 +15,6 @@ import {
 import { Effect, Option, Schema } from "effect";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
 
 import {
   saveCheckoutContact,
@@ -77,27 +76,19 @@ export default async function Checkout({
     }
   }
   return (
-    <Suspense
-      fallback={
-        <main aria-busy="true" className="container mx-auto max-w-5xl p-6">
-          Loading checkout…
-        </main>
-      }
-    >
-      <CheckoutPage
-        actions={{
-          placeOrder: placeCheckoutOrder,
-          saveContact: saveCheckoutContact,
-          saveDeliveryDetails: saveCheckoutDeliveryDetails,
-          savePaymentOptions: saveCheckoutPaymentOptions,
-          saveShippingOptions: saveCheckoutShippingOptions,
-        }}
-        checkoutPath={checkoutPath}
-        locale={locale}
-        requestedEditStep={requestedEditStep}
-        renderPaymentOptions={renderPaymentOptions}
-        renderPlaceOrder={renderPlaceOrder}
-      />
-    </Suspense>
+    <CheckoutPage
+      actions={{
+        placeOrder: placeCheckoutOrder,
+        saveContact: saveCheckoutContact,
+        saveDeliveryDetails: saveCheckoutDeliveryDetails,
+        savePaymentOptions: saveCheckoutPaymentOptions,
+        saveShippingOptions: saveCheckoutShippingOptions,
+      }}
+      checkoutPath={checkoutPath}
+      locale={locale}
+      requestedEditStep={requestedEditStep}
+      renderPaymentOptions={renderPaymentOptions}
+      renderPlaceOrder={renderPlaceOrder}
+    />
   );
 }

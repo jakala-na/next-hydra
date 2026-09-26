@@ -155,18 +155,18 @@ const identityMembershipProjection = (
   operation: IdentityMembershipProjectionFailure["operation"],
   run: () => Promise<void>
 ) =>
-  Effect.tryPromise({ catch: (cause) => cause, try: run }).pipe(
-    Effect.catch((cause) =>
-      isClerkMembershipProjectionUnavailable(cause)
+  Effect.tryPromise({ catch: (error) => error, try: run }).pipe(
+    Effect.catch((error) =>
+      isClerkMembershipProjectionUnavailable(error)
         ? Effect.fail(
             new IdentityMembershipProjectionFailure({
-              cause,
+              cause: error,
               message: `Failed to ${operation} Clerk company membership metadata`,
               operation,
               reason: "unavailable",
             })
           )
-        : Effect.die(cause)
+        : Effect.die(error)
     )
   );
 
@@ -624,7 +624,7 @@ const clerkUserMetadataApi: ClerkUserMetadataApi = {
 };
 
 export const companyMemberInvitationsLayer = Layer.effectContext(
-  Config.url("NEXT_PUBLIC_WEB_URL").pipe(
+  Config.URL("NEXT_PUBLIC_WEB_URL").pipe(
     Effect.map((webUrl) => {
       const companyMemberInvitations = makeClerkCompanyMemberInvitations(
         clerkInvitationsApi,
@@ -685,7 +685,7 @@ export const companyMemberIdentityProjectionLayer = Layer.succeed(
 
 export const invitationsLayer = Layer.effectContext(
   Effect.gen(function* () {
-    const webUrl = yield* Config.url("NEXT_PUBLIC_WEB_URL");
+    const webUrl = yield* Config.URL("NEXT_PUBLIC_WEB_URL");
     const issueAttempts = yield* RegistrationInvitationIssueAttempts;
     const capabilities = makeClerkInvitationCapabilities(
       clerkInvitationsApi,

@@ -1,0 +1,4 @@
+{{imports}}
+
+export const document = `query Content { content { {{content.spreads}} } }`;
+export const fragments = [{{content.documents}}];

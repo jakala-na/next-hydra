@@ -61,7 +61,7 @@ export const CommerceApp = makeCommerceApp({
 });
 
 const companyMemberInvitationRecordsLayer = Layer.unwrap(
-  Config.string("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
+  Config.String("COMPANY_MEMBER_INVITATION_CONTAINER").pipe(
     Config.orElse(() =>
       Config.succeed(DEFAULT_COMPANY_MEMBER_INVITATION_CONTAINER)
     ),
@@ -74,7 +74,7 @@ const companyMemberInvitationRecordsLayer = Layer.unwrap(
 );
 
 const companyMemberRemovalRecordsLayer = Layer.unwrap(
-  Config.string("COMPANY_MEMBER_REMOVAL_CONTAINER").pipe(
+  Config.String("COMPANY_MEMBER_REMOVAL_CONTAINER").pipe(
     Config.orElse(() => Config.succeed("customer-company-member-removals")),
     Effect.map((container) =>
       companyMemberRemovalRecordsLayerStorage.pipe(

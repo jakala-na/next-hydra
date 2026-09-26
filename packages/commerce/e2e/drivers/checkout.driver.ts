@@ -83,29 +83,39 @@ export class CheckoutDriver {
   async expectStepStatuses(
     expectedStatuses: ReadonlyMap<string, string>
   ): Promise<void> {
-    const checkoutSteps = this.#page.locator("ol");
-    const visibleStatuses = new Map([
-      ["Active", "Active step"],
-      ["Complete", "Complete"],
-      ["Incomplete", "Incomplete"],
-    ]);
-
     await Promise.all(
       [...expectedStatuses].map(async ([step, status]) => {
-        const visibleStatus = visibleStatuses.get(status);
-        if (visibleStatus === undefined) {
+        if (!["Active", "Complete", "Incomplete"].includes(status)) {
           throw new Error(`Unknown Checkout Step status: ${status}`);
         }
-        const checkoutStep = checkoutSteps
-          .getByRole("listitem")
-          .filter({ hasText: step });
-        await expect(checkoutStep).toContainText(visibleStatus);
+        const checkoutStep = this.#page.locator(
+          `[data-checkout-step="${checkoutStepIdFor(step)}"]`
+        );
+        await expect(
+          checkoutStep.getByRole("heading", {
+            exact: true,
+            name: exactTextIgnoringCase(step),
+          })
+        ).toBeVisible();
         await expect(checkoutStep).toHaveAttribute(
           "data-state",
           status.toLowerCase()
         );
+        await expect(
+          checkoutStep.locator("[data-checkout-step-content]")
+        ).toHaveCount(status === "Active" ? 1 : 0);
+        if (status === "Complete") {
+          await expect(
+            checkoutStep.getByRole("button", {
+              name: exactTextIgnoringCase(`Edit ${step}`),
+            })
+          ).toBeVisible();
+        }
       })
     );
+    await expect(
+      this.#page.getByText(/^(?:Active step|Incomplete|Complete|Editing)$/u)
+    ).toHaveCount(0);
   }
 
   async expectStepAction(stepName: string, actionName: string): Promise<void> {
@@ -481,13 +491,9 @@ export class CheckoutDriver {
   }
 
   #activeStep(stepName: string): Locator {
-    return this.#page.locator("section").filter({
-      has: this.#page.getByRole("heading", {
-        exact: true,
-        level: 1,
-        name: exactTextIgnoringCase(stepName),
-      }),
-    });
+    return this.#page.locator(
+      `[data-checkout-step-content="${checkoutStepIdFor(stepName)}"]`
+    );
   }
 
   #shippingOption(group: Locator, name: string): Locator {

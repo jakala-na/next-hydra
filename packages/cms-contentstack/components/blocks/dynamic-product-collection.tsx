@@ -33,7 +33,7 @@ export function DynamicProductCollection(
   const { data: fragment, locale } = props;
   const data = readFragment(dynamicProductCollectionFragment, fragment);
   const { description, heading, product_category: productCategory } = data;
-  const title = heading || "";
+  const title = heading ?? "";
   const descriptionJson = description?.json;
   const categoryId = decodeCommerceCategoryId(productCategory);
 
@@ -54,9 +54,7 @@ export function DynamicProductCollection(
       sourceLabel="Contentstack CMS"
     >
       <ProductCollectionLayout
-        description={
-          Boolean(descriptionJson) ? renderRichText(descriptionJson) : undefined
-        }
+        description={renderRichText(descriptionJson)}
         title={title}
       >
         <Suspense
@@ -86,3 +84,17 @@ export function DynamicProductCollection(
 }
 
 DynamicProductCollection.fragment = dynamicProductCollectionFragment;
+
+export const ProductCollectionBlock = graphql(
+  `
+    fragment ProductCollectionBlock on LandingPageComponents @_unmask {
+      ... on LandingPageComponentsDynamicProductCollection {
+        dynamic_product_collection {
+          __typename
+          ...DynamicProductCollection
+        }
+      }
+    }
+  `,
+  [dynamicProductCollectionFragment]
+);

@@ -1,292 +1,161 @@
-/**
- * ComponentRenderer is a component that renders components based on the data supplied.
- *
- * A few ground principles for ComponentRenderer
- *
- * 1. It should accept data and decide which component(s) to render
- * 2. It should allow arrays of data to be passed and handle null/undefined
- * 3. As a proxy, it should let you know if it can't render the component you're asking because you didn't provide enough data.
- * 4. It should be able to render the component(s) with the data you provided.
- * 5. It should skip rendering if component is not found in the componentMap.
- */
 import { VB_EmptyBlockParentClass } from "@contentstack/live-preview-utils";
 import type { Locale } from "@repo/i18n";
-import type { ComponentProps } from "react";
+import { createElement } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
+import type { ResultOf } from "../graphql";
 import type { LivePreviewHelper } from "../lib/utils/live-preview-helper";
-import { DynamicProductCollection } from "./blocks/dynamic-product-collection";
-import { HeroSection } from "./blocks/hero-section";
+import { componentFragments, componentMap } from "./component-registry";
+import type { landingPageQuery } from "./pages/landing-page-query";
 
-export const componentMap = {
-  DynamicProductCollection,
-  HeroSection,
-} as const;
+export { componentMap } from "./component-registry";
 
-type BaseData = {
-  __typename: string;
+type ComponentKey = keyof typeof componentMap;
+type DataMap = {
+  [K in ComponentKey]: ComponentProps<(typeof componentMap)[K]>["data"];
 };
-
-type ComponentMapType = typeof componentMap;
-type Data = ComponentProps<ComponentMapType[ComponentKey]>["data"];
-type ComponentKey = keyof ComponentMapType;
-export type DataWithTypename = (Data & BaseData) | BaseData | null;
-
-type GraphQLComponent = (BaseData & Record<string, unknown>) | null;
-
-function isComponentKey(key: string): key is ComponentKey {
-  return key in componentMap;
-}
-
-function flattenComponentsWithPaths(
-  data: GraphQLComponent[],
-  livePreviewHelper?: LivePreviewHelper
-): {
-  data: DataWithTypename;
-  componentHelper?: LivePreviewHelper;
-}[] {
-  const result: {
-    data: DataWithTypename;
-    componentHelper?: LivePreviewHelper;
-  }[] = [];
-
-  for (let i = 0; i < data.length; i++) {
-    const component = data[i];
-    if (!component) {
-      continue;
-    }
-
-    const keys = Object.keys(component).filter((k) => k !== "__typename");
-    if (keys.length !== 1 || keys[0] === undefined) {
-      continue;
-    }
-
-    const [key] = keys;
-
-    const value = component[key];
-    const componentHelper = livePreviewHelper?.getNestedHelper(`${i}.${key}`);
-
-    if (Array.isArray(value)) {
-      for (let j = 0; j < value.length; j++) {
-        const item = value[j];
-        if (item != null) {
-          result.push({
-            componentHelper: componentHelper?.getNestedHelper(`${j}`),
-            data: item as DataWithTypename,
-          });
-        }
-      }
-    } else if (value != null) {
-      result.push({
-        componentHelper,
-        data: value as DataWithTypename,
-      });
-    }
-  }
-
-  return result;
-}
-
-function flattenComponentWithPath(
-  component: GraphQLComponent,
-  livePreviewHelper?: LivePreviewHelper
-): { data: DataWithTypename; componentHelper?: LivePreviewHelper } | null {
-  if (!component) {
-    return null;
-  }
-
-  const entries = Object.entries(component).filter(
-    ([k, v]) => k !== "__typename" && v != null
-  );
-
-  if (entries.length !== 1 || entries[0] === undefined) {
-    return {
-      componentHelper: livePreviewHelper,
-      data: component as DataWithTypename,
-    };
-  }
-
-  const [key, value] = entries[0];
-
-  if (typeof value === "object" && !Array.isArray(value)) {
-    return {
-      // oxlint-disable-next-line typescript/no-explicit-any -- Validated by component fragments.
-      data: value as any,
-      componentHelper: livePreviewHelper?.getNestedHelper(key),
-    };
-  }
-
-  return {
-    componentHelper: livePreviewHelper,
-    data: component as DataWithTypename,
-  };
-}
-
-/**
- * Renders a single or an array of components based on the data supplied.
- *
- * Supports the following data types:
- *  - Standalone component with supplied __typename mapped to a component.
- *  - Array of components with __typename mapped to a component.
- *  - Array of objects with a single key and value representing modular block objects
- *
- * @param data - The data to render.
- * @param livePreviewHelper - The live preview helper.
- * @param skipParentProps - Whether to skip rendering live preview props on the parent element.
- * @param dataType - The data type of the data.
- * @returns The rendered component.
- */
-export default function ComponentRenderer<
-  T extends DataWithTypename | DataWithTypename[] | GraphQLComponent[],
->({
-  data,
-  locale,
-  livePreviewHelper,
-  skipParentProps = false,
-  dataType = "standalone",
-}: {
-  data: T;
+type Block<K extends ComponentKey = ComponentKey> = {
+  [P in K]: DataMap[P] & { __typename: P };
+}[K];
+export type DataWithTypename = Block | null;
+type Page = NonNullable<
+  NonNullable<ResultOf<typeof landingPageQuery>["all_landing_page"]>["items"]
+>[number];
+type ModularBlock = NonNullable<NonNullable<Page>["components"]>[number];
+type Keys<T> = T extends object ? keyof T : never;
+type Field<T, K extends PropertyKey> = T extends object
+  ? K extends keyof T
+    ? T[K]
+    : never
+  : never;
+type ModularFields = {
+  [K in Exclude<Keys<ModularBlock>, "__typename">]?: Field<ModularBlock, K>;
+};
+type CommonProps = {
   locale: Locale;
   livePreviewHelper?: LivePreviewHelper;
   skipParentProps?: boolean;
-  dataType?: "modularBlocks" | "standalone" | "singleModularBlock";
-}) {
-  if (data === null) {
+};
+type Props = CommonProps &
+  (
+    | { dataType: "modularBlocks"; data: ModularBlock[] | null }
+    | { dataType: "singleModularBlock"; data: ModularBlock }
+    | { dataType?: "standalone"; data: DataWithTypename | DataWithTypename[] }
+  );
+const renderers: {
+  [K in ComponentKey]: (props: {
+    data: DataMap[K];
+    locale: Locale;
+    livePreviewHelper?: LivePreviewHelper;
+  }) => ReactNode;
+} = componentMap;
+
+function renderBlock<K extends ComponentKey>(
+  data: Block<K>,
+  props: CommonProps
+) {
+  if (!Object.hasOwn(renderers, data.__typename)) {
     return null;
   }
+  return createElement(renderers[data.__typename], {
+    data,
+    locale: props.locale,
+    livePreviewHelper: props.livePreviewHelper,
+  });
+}
 
-  // Show "add components" in Visual Builder if no components are present.
-  if (
-    Array.isArray(data) &&
-    data.length === 0 &&
-    dataType === "modularBlocks"
-  ) {
-    return (
-      <div
-        {...livePreviewHelper?.getParentProps()}
-        className={VB_EmptyBlockParentClass}
-      />
-    );
+function flattenFields(
+  fields: ModularFields,
+  livePreviewHelper?: LivePreviewHelper
+) {
+  return Object.entries(fields).flatMap(([field, data]) =>
+    data
+      ? [{ data, livePreviewHelper: livePreviewHelper?.getNestedHelper(field) }]
+      : []
+  );
+}
+
+function flattenModularBlock(
+  block: ModularBlock,
+  livePreviewHelper?: LivePreviewHelper
+) {
+  if (block === null || block === undefined) {
+    return [];
   }
+  const { __typename, ...fields } = block;
+  return flattenFields(fields, livePreviewHelper);
+}
 
-  // Handle modular blocks.
-  if (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    typeof data[0] === "object" &&
-    data[0] &&
-    "__typename" in data[0] &&
-    dataType === "modularBlocks"
-  ) {
-    const flattenedWithPaths = flattenComponentsWithPaths(
-      data as GraphQLComponent[],
-      livePreviewHelper
-    );
-
-    return (
-      <div {...livePreviewHelper?.getParentProps()}>
-        {flattenedWithPaths.map(
-          ({ data: itemData, componentHelper }, index) => {
-            if (itemData === null) {
-              return null;
-            }
-            if (isComponentKey(itemData.__typename)) {
-              return (
-                // oxlint-disable-next-line react/no-array-index-key -- This is fine for server-rendered content.
-                <div key={index} {...livePreviewHelper?.getProps(`${index}`)}>
-                  <ComponentRenderer
-                    locale={locale}
-                    data={itemData}
-                    livePreviewHelper={componentHelper}
-                    skipParentProps={true}
-                  />
-                </div>
-              );
-            }
-            return null;
-          }
-        )}
-      </div>
-    );
+/** Query-derived block data keeps the selected typename and fragment correlated. */
+export default function ComponentRenderer(props: Props) {
+  if (props.data === null || props.data === undefined) {
+    return null;
   }
-
-  // Handle single modular block using simple path flattening.
-  if (
-    typeof data === "object" &&
-    "__typename" in data &&
-    dataType === "singleModularBlock"
-  ) {
-    const flattened = flattenComponentWithPath(data, livePreviewHelper);
-
-    if (!flattened?.data) {
-      return null;
-    }
-
-    const { data: itemData, componentHelper } = flattened;
-
-    if (isComponentKey(itemData.__typename)) {
-      const Component = componentMap[itemData.__typename];
-
+  if (props.dataType === "modularBlocks") {
+    if (props.data.length === 0) {
       return (
-        <Component
-          /* oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects an accepted component prop. */
-          data={itemData as any}
-          locale={locale}
-          livePreviewHelper={componentHelper}
+        <div
+          {...props.livePreviewHelper?.getParentProps()}
+          className={VB_EmptyBlockParentClass}
         />
       );
     }
-  }
-
-  // If we have a regular array, we render each item in the array
-  if (Array.isArray(data)) {
-    return (
-      <>
-        {data.map((item, index) => {
-          if (item === null) {
-            return null;
-          }
-          if (isComponentKey(item.__typename)) {
-            return (
-              <ComponentRenderer
-                locale={locale}
-                // oxlint-disable-next-line react/no-array-index-key -- This is fine for server-rendered content.
-                key={index}
-                data={item}
-                livePreviewHelper={livePreviewHelper?.getNestedHelper(
-                  `${index}`
-                )}
-              />
-            );
-          }
-          return null;
-        })}
-      </>
+    const blocks = props.data.flatMap((block, index) =>
+      flattenModularBlock(
+        block,
+        props.livePreviewHelper?.getNestedHelper(`${index}`)
+      )
     );
-  }
-
-  if (isComponentKey(data.__typename)) {
-    const Component = componentMap[data.__typename];
-
     return (
-      <div
-        className="component-renderer-wrapper"
-        {...(skipParentProps ? {} : livePreviewHelper?.getParentProps())}
-      >
-        <Component
-          /* oxlint-disable-next-line typescript/no-explicit-any -- The typename guard selects an accepted component prop. */
-          data={data as any}
-          locale={locale}
-          livePreviewHelper={livePreviewHelper}
-        />
+      <div {...props.livePreviewHelper?.getParentProps()}>
+        {blocks.map((block, index) => (
+          <div
+            key={`${block.data.__typename}-${index}`}
+            {...props.livePreviewHelper?.getProps(`${index}`)}
+          >
+            <ComponentRenderer
+              data={block.data}
+              locale={props.locale}
+              livePreviewHelper={block.livePreviewHelper}
+              skipParentProps
+            />
+          </div>
+        ))}
       </div>
     );
   }
-
-  return null;
+  if (props.dataType === "singleModularBlock") {
+    const [block] = flattenModularBlock(props.data, props.livePreviewHelper);
+    return block
+      ? renderBlock(block.data, {
+          ...props,
+          livePreviewHelper: block.livePreviewHelper,
+        })
+      : null;
+  }
+  if (Array.isArray(props.data)) {
+    return props.data.map((data, index) =>
+      data ? (
+        <ComponentRenderer
+          key={`${data.__typename}-${index}`}
+          data={data}
+          locale={props.locale}
+          livePreviewHelper={props.livePreviewHelper?.getNestedHelper(
+            `${index}`
+          )}
+        />
+      ) : null
+    );
+  }
+  const content = renderBlock(props.data, props);
+  const parentProps = props.skipParentProps
+    ? undefined
+    : props.livePreviewHelper?.getParentProps();
+  return (
+    <div className="component-renderer-wrapper" {...parentProps}>
+      {content}
+    </div>
+  );
 }
 
-// Re-export all fragments.
-ComponentRenderer.fragments = [
-  HeroSection.fragment,
-  DynamicProductCollection.fragment,
-];
+ComponentRenderer.fragments = componentFragments;

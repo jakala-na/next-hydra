@@ -26,6 +26,10 @@ describe(loadE2EEnvironments, () => {
           );
           await mkdir(applicationDirectory, { recursive: true });
           await writeFile(
+            path.join(applicationDirectory, "package.json"),
+            "{}"
+          );
+          await writeFile(
             path.join(applicationDirectory, ".env"),
             `E2E_TEST_${application.toUpperCase()}_MARKER=${application}\n`
           );

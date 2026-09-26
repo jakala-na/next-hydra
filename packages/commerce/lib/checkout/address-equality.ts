@@ -1,10 +1,10 @@
 interface ComparableShippingAddress {
   readonly addressLine1: string;
-  readonly addressLine2?: string;
+  readonly addressLine2?: string | undefined;
   readonly city: string;
   readonly country: string;
   readonly postalCode: string;
-  readonly region?: string;
+  readonly region?: string | undefined;
 }
 
 export const shippingAddressesEqual = (

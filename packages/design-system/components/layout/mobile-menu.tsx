@@ -1,6 +1,5 @@
 "use client";
 
-import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import {
   Accordion,
   AccordionContent,
@@ -24,9 +23,11 @@ import type { NavigationItem } from "./navigation";
 
 type MobileMenuProps = {
   navigationItems: NavigationItem[];
+  Search?: React.ReactNode;
 };
 
-export function MobileMenu({ navigationItems }: MobileMenuProps) {
+export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
+  const hasSearch = Boolean(Search);
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -43,9 +44,7 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <div className="mt-8 flex flex-col gap-4 px-4 pb-6 sm:px-6">
-          <div className="border-b pb-4">
-            <SearchAutocomplete />
-          </div>
+          {hasSearch ? <div className="border-b pb-4">{Search}</div> : null}
           <div className="flex flex-col gap-2">
             {navigationItems.map((item, index) => {
               const hasChildren =
@@ -73,7 +72,10 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                         <div className="flex flex-col gap-1">
                           {item.href ? (
                             <Link
-                              href={item.href as Route}
+                              href={
+                                // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
+                                item.href as Route
+                              }
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 font-medium text-sm transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               <span className="text-primary">
@@ -85,7 +87,10 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                             <Link
                               // eslint-disable-next-line react/no-array-index-key
                               key={`child-${childIndex.toString()}`}
-                              href={child.href as Route}
+                              href={
+                                // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
+                                child.href as Route
+                              }
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               {child.icon ? (
@@ -120,7 +125,10 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
                   <Link
                     // eslint-disable-next-line react/no-array-index-key
                     key={`link-${index.toString()}`}
-                    href={item.href as Route}
+                    href={
+                      // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
+                      item.href as Route
+                    }
                     className="py-2 font-medium text-lg transition-colors hover:text-primary"
                   >
                     {item.title}

@@ -1,0 +1,206 @@
+{
+  "homepage": "https://example.com",
+  "name": "example",
+  "items": [
+    {
+      "name": "editorial",
+      "type": "registry:item",
+      "registryDependencies": ["web"],
+      "files": [
+        {
+          "path": "article.ts",
+          "target": "~/apps/web/article.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "example/cms/editorial",
+          "kind": "provider",
+          "slot": "cms",
+          "binding": {
+            "specifier": "workspace:@example/editorial@*"
+          },
+          "conditionalDependencies": [
+            {
+              "providers": ["commerce"],
+              "items": ["example/recipes/cms-commerce"]
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/blocks.ts",
+              "slot": "blocks",
+              "module": "./article",
+              "export": "article",
+              "order": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "web",
+      "type": "registry:item",
+      "meta": {
+        "composition": {
+          "templates": [
+            {
+              "source": "blocks.ts.template",
+              "target": "apps/web/blocks.ts",
+              "slots": {
+                "blocks": "members"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "shop",
+      "type": "registry:item",
+      "registryDependencies": ["commerce-core"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/commerce/shop",
+          "kind": "provider",
+          "slot": "commerce",
+          "binding": {
+            "specifier": "workspace:@example/shop@*"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/auth/identity",
+          "kind": "provider",
+          "slot": "auth",
+          "binding": {
+            "specifier": "workspace:@example/identity@*"
+          }
+        }
+      }
+    },
+    {
+      "name": "commerce-core",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/packages/commerce",
+          "kind": "package",
+          "providerSlots": {
+            "auth": "required"
+          }
+        }
+      }
+    },
+    {
+      "name": "cms-commerce",
+      "type": "registry:item",
+      "files": [
+        {
+          "path": "product-collection.ts",
+          "target": "~/apps/web/product-collection.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "example/recipes/cms-commerce",
+          "kind": "recipe",
+          "conditionalDependencies": [
+            {
+              "providers": ["cms", "auth"],
+              "items": ["account-catalog"]
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/blocks.ts",
+              "slot": "blocks",
+              "module": "./product-collection",
+              "export": "productCollection",
+              "order": 20
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "account-catalog",
+      "type": "registry:item",
+      "registryDependencies": ["cms-commerce"],
+      "files": [
+        {
+          "path": "account-catalog.ts",
+          "target": "~/apps/web/account-catalog.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "example/recipes/account-catalog",
+          "kind": "recipe"
+        }
+      }
+    },
+    {
+      "name": "public-mode",
+      "type": "registry:item",
+      "registryDependencies": ["public-session"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/public-mode",
+          "kind": "add-on"
+        }
+      }
+    },
+    {
+      "name": "public-session",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/recipes/public-session",
+          "kind": "recipe",
+          "providerSlots": {
+            "auth": "forbidden"
+          }
+        }
+      }
+    },
+    {
+      "name": "account-recommendations",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/account-recommendations",
+          "kind": "add-on",
+          "conditionalDependencies": [
+            {
+              "providers": ["auth", "commerce"],
+              "items": ["account-catalog"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/app/web",
+          "kind": "package"
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,4 @@
-import { CategoryId } from "@repo/commerce/product";
 import type { Locale } from "@repo/i18n";
-import { Schema } from "effect";
 
 import type { LivePreviewHelper } from "./lib/utils/live-preview-helper";
 
@@ -19,9 +17,3 @@ export type CMSLocale = Lowercase<Locale>;
 export type ComponentBaseProps = {
   livePreviewHelper?: LivePreviewHelper;
 };
-
-/** CMS custom field containing Commerce category references. */
-export const CommerceCategoryField = Schema.Struct({
-  data: Schema.Array(Schema.Struct({ id: CategoryId })),
-});
-export type CommerceCategoryField = typeof CommerceCategoryField.Type;

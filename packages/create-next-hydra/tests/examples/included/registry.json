@@ -1,0 +1,18 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "registryDependencies": ["article"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/app/web",
+          "kind": "package"
+        }
+      }
+    }
+  ],
+  "include": ["editorial/registry.json"]
+}

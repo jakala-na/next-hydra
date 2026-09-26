@@ -1,0 +1,8 @@
+{
+  "addOns": [],
+  "providers": {
+    "cms": "example/cms/editorial",
+    "commerce": "example/commerce/shop",
+    "auth": "example/auth/identity"
+  }
+}

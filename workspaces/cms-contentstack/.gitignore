@@ -1,0 +1,11 @@
+# Commit workspace settings only; Compose owns the materialized application.
+/*
+!/.gitignore
+!/next-hydra.json
+!/README.md
+!/apps/
+/apps/*
+!/apps/*/
+/apps/*/*
+!/apps/*/.gitignore
+!/apps/*/vercel.json

@@ -1,14 +1,20 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, relative, resolve, sep } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import nodePath from "node:path";
 
-type PackageManifest = {
-  readonly dependencies?: Readonly<Record<string, string>>;
-  readonly devDependencies?: Readonly<Record<string, string>>;
-  readonly exports?: Readonly<Record<string, string>>;
-  readonly optionalDependencies?: Readonly<Record<string, string>>;
-  readonly peerDependencies?: Readonly<Record<string, string>>;
-};
+import { Schema } from "effect";
+
+const dependencyEntries = Schema.Record(Schema.String, Schema.String);
+const PackageManifest = Schema.Struct({
+  dependencies: Schema.optional(dependencyEntries),
+  devDependencies: Schema.optional(dependencyEntries),
+  exports: Schema.optional(Schema.Record(Schema.String, Schema.Json)),
+  optionalDependencies: Schema.optional(dependencyEntries),
+  peerDependencies: Schema.optional(dependencyEntries),
+});
+type PackageManifest = typeof PackageManifest.Type;
+const decodeManifest = Schema.decodeUnknownSync(
+  Schema.fromJsonString(PackageManifest)
+);
 
 const sourceExtensions = new Set([
   ".cjs",
@@ -20,14 +26,14 @@ const sourceExtensions = new Set([
   ".ts",
   ".tsx",
 ]);
-const sourceExtensionPattern = /(?:\.[cm]?[jt]sx?)$/;
+const sourceExtensionPattern = /(?:\.[cm]?[jt]sx?)$/u;
 const providerTransportVocabularyPattern =
-  /commercetools|gql\.tada|@urql|wonka/i;
+  /commercetools|gql\.tada|@urql|wonka/iu;
 const providerFieldKindPattern =
-  /["'](?:text|ltext|number|boolean|enum|lenum|money|date|time|datetime|reference|set)["']/;
+  /["'](?:text|ltext|number|boolean|enum|lenum|money|date|time|datetime|reference|set)["']/u;
 const providerPackage = "@repo/commerce-commercetools";
 const corePackage = "@repo/commerce";
-const providerCategoryVocabularyPattern = /\bcommercetoolsCategory\w*\b/i;
+const providerCategoryVocabularyPattern = /\bcommercetoolsCategory\w*\b/iu;
 
 const forbiddenCoreDependencies = new Set([
   "@commercetools/platform-sdk",
@@ -66,7 +72,7 @@ const allowedProviderDependencies = new Set([
   "apps/web/package.json",
 ]);
 
-const posixPath = (path: string) => path.split(sep).join("/");
+const posixPath = (path: string) => path.split(nodePath.sep).join("/");
 
 const extension = (path: string) => {
   const match = sourceExtensionPattern.exec(path);
@@ -74,39 +80,50 @@ const extension = (path: string) => {
 };
 
 const readJson = (path: string): PackageManifest =>
-  JSON.parse(readFileSync(path, "utf-8")) as PackageManifest;
+  decodeManifest(readFileSync(path, "utf-8"));
 
-const repositoryFiles = (repoRoot: string): readonly string[] =>
-  execFileSync(
-    "git",
-    [
-      "ls-files",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "--",
-      "apps",
-      "packages",
-    ],
-    { cwd: repoRoot, encoding: "utf-8" }
-  )
-    .split("\n")
-    .filter((path) => path.length > 0)
-    .map((path) => resolve(repoRoot, path))
-    .filter(existsSync);
+const runtimeDirectories = new Set([
+  "node_modules",
+  "dist",
+  "coverage",
+  "playwright-report",
+  "test-results",
+]);
+
+// Inspect the actual composition, including materialized files in ignored
+// workspaces. Git's tracked-file inventory is empty for those workspaces.
+export const repositoryFiles = (repoRoot: string): readonly string[] => {
+  const walk = (directory: string): string[] =>
+    readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.name.startsWith(".") || runtimeDirectories.has(entry.name)) {
+        return [];
+      }
+      const filename = nodePath.resolve(directory, entry.name);
+      if (entry.isDirectory()) {
+        return walk(filename);
+      }
+      return entry.isFile() ||
+        (entry.isSymbolicLink() && statSync(filename).isFile())
+        ? [filename]
+        : [];
+    });
+  return ["apps", "packages"].flatMap((directory) =>
+    walk(nodePath.resolve(repoRoot, directory))
+  );
+};
 
 export const extractImportSpecifiers = (source: string): readonly string[] => {
   const specifiers = new Set<string>();
   const patterns = [
-    /\bfrom\s*["']([^"']+)["']/g,
-    /\bimport\s*["']([^"']+)["']/g,
-    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
-    /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /\bfrom\s*["'](?<specifier>[^"']+)["']/gu,
+    /\bimport\s*["'](?<specifier>[^"']+)["']/gu,
+    /\bimport\s*\(\s*["'](?<specifier>[^"']+)["']\s*\)/gu,
+    /\brequire\s*\(\s*["'](?<specifier>[^"']+)["']\s*\)/gu,
   ];
 
   for (const pattern of patterns) {
     for (const match of source.matchAll(pattern)) {
-      const specifier = match[1];
+      const specifier = match.groups?.specifier;
       if (specifier !== undefined) {
         specifiers.add(specifier);
       }
@@ -139,6 +156,11 @@ const checkExplicitExports = (
   }
 
   return Object.entries(exports).flatMap(([subpath, target]) => {
+    if (!Schema.is(Schema.String)(target)) {
+      return [
+        `${packageName} export ${subpath} must declare an explicit file path`,
+      ];
+    }
     const violations: string[] = [];
     if (subpath.includes("*") || target.includes("*")) {
       violations.push(
@@ -175,7 +197,7 @@ const checkImportedSubpaths = (
         !exports.has(packageSubpath(specifier, packageName))
       ) {
         violations.push(
-          `${posixPath(relative(repoRoot, file))} imports unsupported ${specifier}`
+          `${posixPath(nodePath.relative(repoRoot, file))} imports unsupported ${specifier}`
         );
       }
     }
@@ -197,10 +219,13 @@ export const checkGeneratedProductAttributesSource = (
     }
 
     if (specifier.startsWith(".")) {
-      const importedPath = resolve(dirname(artifactPath), specifier);
+      const importedPath = nodePath.resolve(
+        nodePath.dirname(artifactPath),
+        specifier
+      );
       if (
         importedPath === commerceRoot ||
-        importedPath.startsWith(`${commerceRoot}${sep}`)
+        importedPath.startsWith(`${commerceRoot}${nodePath.sep}`)
       ) {
         continue;
       }
@@ -229,7 +254,10 @@ export const checkGeneratedProductAttributesSource = (
 const checkGeneratedProductAttributes = (
   commerceRoot: string
 ): readonly string[] => {
-  const artifactPath = resolve(commerceRoot, "product/generated/attributes.ts");
+  const artifactPath = nodePath.resolve(
+    commerceRoot,
+    "product/generated/attributes.ts"
+  );
   return checkGeneratedProductAttributesSource(
     readFileSync(artifactPath, "utf-8"),
     artifactPath,
@@ -253,22 +281,30 @@ export const checkApplicationRuntimeBindingSource = (
 export const checkCommerceBoundaries = (
   repoRoot: string
 ): readonly string[] => {
-  const commerceRoot = resolve(repoRoot, "packages/commerce");
-  const providerRoot = resolve(repoRoot, "packages/commerce-commercetools");
+  const commerceRoot = nodePath.resolve(repoRoot, "packages/commerce");
+  const providerRoot = nodePath.resolve(
+    repoRoot,
+    "packages/commerce-commercetools"
+  );
   const cmsRoots = [
-    resolve(repoRoot, "packages/cms-contentstack"),
-    resolve(repoRoot, "packages/cms-drupal"),
+    nodePath.resolve(repoRoot, "packages/cms-contentstack"),
+    nodePath.resolve(repoRoot, "packages/cms-drupal"),
   ];
-  const commerceManifest = readJson(resolve(commerceRoot, "package.json"));
-  const providerManifest = readJson(resolve(providerRoot, "package.json"));
+  const commerceManifest = readJson(
+    nodePath.resolve(commerceRoot, "package.json")
+  );
+  const providerManifest = readJson(
+    nodePath.resolve(providerRoot, "package.json")
+  );
   const allRepositoryFiles = repositoryFiles(repoRoot);
   const commerceFiles = allRepositoryFiles.filter((file) =>
-    file.startsWith(`${commerceRoot}${sep}`)
+    file.startsWith(`${commerceRoot}${nodePath.sep}`)
   );
   const cmsSourceFiles = allRepositoryFiles.filter(
     (file) =>
-      cmsRoots.some((cmsRoot) => file.startsWith(`${cmsRoot}${sep}`)) &&
-      sourceExtensions.has(extension(file))
+      cmsRoots.some((cmsRoot) =>
+        file.startsWith(`${cmsRoot}${nodePath.sep}`)
+      ) && sourceExtensions.has(extension(file))
   );
   const allSourceFiles = allRepositoryFiles.filter((path) =>
     sourceExtensions.has(extension(path))
@@ -284,7 +320,7 @@ export const checkCommerceBoundaries = (
   }
 
   for (const file of commerceFiles) {
-    const corePath = posixPath(relative(commerceRoot, file));
+    const corePath = posixPath(nodePath.relative(commerceRoot, file));
     if (
       forbiddenCorePathPrefixes.some(
         (prefix) => corePath === prefix || corePath.startsWith(prefix)
@@ -300,23 +336,25 @@ export const checkCommerceBoundaries = (
     const source = readFileSync(file, "utf-8");
     if (providerCategoryVocabularyPattern.test(source)) {
       violations.push(
-        `${posixPath(relative(repoRoot, file))} names a provider Category representation`
+        `${posixPath(nodePath.relative(repoRoot, file))} names a provider Category representation`
       );
     }
   }
 
   for (const directory of ["apps", "packages"] as const) {
-    const root = resolve(repoRoot, directory);
+    const root = nodePath.resolve(repoRoot, directory);
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       if (!entry.isDirectory()) {
         continue;
       }
-      const manifestPath = resolve(root, entry.name, "package.json");
+      const manifestPath = nodePath.resolve(root, entry.name, "package.json");
       if (!existsSync(manifestPath)) {
         continue;
       }
       const manifest = readJson(manifestPath);
-      const manifestRepoPath = posixPath(relative(repoRoot, manifestPath));
+      const manifestRepoPath = posixPath(
+        nodePath.relative(repoRoot, manifestPath)
+      );
       if (
         dependencyNames(manifest).has(providerPackage) &&
         !allowedProviderDependencies.has(manifestRepoPath) &&
@@ -347,7 +385,7 @@ export const checkCommerceBoundaries = (
     ...checkGeneratedProductAttributes(commerceRoot),
     ...checkApplicationRuntimeBindingSource(
       readFileSync(
-        resolve(commerceRoot, "customer-account/actions.ts"),
+        nodePath.resolve(commerceRoot, "customer-account/actions.ts"),
         "utf-8"
       ),
       "packages/commerce/customer-account/actions.ts"

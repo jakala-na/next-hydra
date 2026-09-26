@@ -13,6 +13,19 @@ type GetApplication = (
 ) => Promise<{ readonly status: () => number }>;
 
 describe(assertE2EApplicationsAreRunning, () => {
+  it("does not require absent applications for a CMS project", async () => {
+    const get = vi.fn<GetApplication>(async () => {
+      const response = await Promise.resolve({ status: () => 200 });
+      return response;
+    });
+    await assertE2EApplicationsAreRunning({
+      get,
+      isCI: false,
+      urls: { web: urls.web },
+    });
+    expect(get.mock.calls).toEqual([[urls.web, { timeout: 10_000 }]]);
+  });
+
   it("checks each application through its public health URL", async () => {
     const get = vi.fn<GetApplication>(async () => {
       const response = await Promise.resolve({ status: () => 200 });

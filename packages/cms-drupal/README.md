@@ -21,11 +21,13 @@ The generated schema now exposes the Drupal-native Hydra structure:
 - `NodeLandingPage` with ordered `components`, display-title fields, and route alias.
 - `NodeArticle` with summary, image, processed Basic HTML body, and route alias.
 - `ParagraphHero` for tagline, heading, description, image, and actions.
-- `ParagraphDynamicProductCollection` with an optional external commerce category ID. Omitting it requests products without a category filter.
+- With Commerce selected, `ParagraphDynamicProductCollection` with an optional external commerce category ID. Omitting it requests products without a category filter.
 - `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
 - `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
 
-Drupal configuration for this model lives in `apps/drupal/recipes/next-hydra-starter/config`.
+Base configuration lives in `apps/drupal/recipes/next-hydra-base/config`. Commerce's Paragraph and Canvas configuration lives in `apps/drupal/recipes/next-hydra-commerce`, installed automatically with a Commerce provider. Its recipe adds product blocks and sample pages at `/catalog-example` and `/canvas-catalog-example`; the base homepages remain content-only.
+
+Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. It includes the `drupal-commerce` registry item, which installs the native `next-hydra-commerce` provisioning recipe.
 
 ## Site announcement
 
@@ -35,7 +37,7 @@ Edit and publish the Site template in Canvas to update the announcement across C
 
 ## Article content template
 
-The starter recipe enables `canvas.content_template.node.article.full` for every Article's full view. Drupal chooses this template by entity type, bundle, and view mode; authors do not assign it to individual articles.
+The base recipe enables `canvas.content_template.node.article.full` for every Article's full view. Drupal chooses this template by entity type, bundle, and view mode; authors do not assign it to individual articles.
 
 The template contains an Article component with a Rich text component in its body slot. Dynamic bindings supply the node's title, summary, creation date, media image, and processed body. Article content and translations remain in their existing Drupal fields. The template selects the shared `site` page template; the Next.js layout renders its global regions once around the article. Article listings and cards continue to use GraphQL.
 
@@ -59,13 +61,13 @@ NODE_OPTIONS=--use-system-ca pnpm --filter web dev
 
 The Drupal installer prints the prefixed previewer and viewer variables after creating the OAuth consumers. It also prints `CMS_REVALIDATION_SECRET` for the consuming web application. Keep those values out of version control.
 
-Run the installer through the provider-neutral workspace command:
+Run the installer through the provider-neutral command from the installed workspace root. pnpm runs it in `apps/cli`, so explicitly target the sibling Drupal application:
 
 ```bash
-pnpm cli cms provision
+pnpm --filter cli cli cms provision --app-directory ../drupal
 ```
 
-The command delegates to `ddev install` in `apps/drupal` by default and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. Pass `--app-directory` to target another DDEV project.
+This delegates to `ddev install` in `apps/drupal` and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. `--app-directory` resolves relative to the CLI process directory; use an absolute path to target a DDEV project elsewhere.
 
 ## Cache revalidation
 
@@ -105,7 +107,7 @@ Open the local URL printed by the command. Workbench discovers components from `
 
 Add a component in `canvas-components/<component-name>` with a default-exported `index.tsx` and a `component.yml`. Its built-in preview uses the examples in the component metadata. Add `mocks.json` beside those files when a realistic preview needs authored props or slot content. Workbench shows authored mocks in place of the generated Default preview. Components with content-entity-reference pickers retain Default so authenticated authors can select a real entity; their mock fixture remains available to type generation. Keep one representative preview unless another state adds clear review value.
 
-Composed examples live in `pages`, `content-templates`, and `page-templates`. The Article component's authored mock demonstrates a formatted body without Drupal; the content-template fixture records its Drupal field bindings. Examples may reuse the local recipe images served by the custom Workbench Vite config. Page and template synchronization is disabled in `canvas.config.json` and excluded from `canvas:push`, so component pushes preserve editor-authored content. The starter recipe seeds the Site and Article full templates on installation; subsequent template edits belong in Drupal Canvas.
+Composed examples live in `pages`, `content-templates`, and `page-templates`. The Article component's authored mock demonstrates a formatted body without Drupal; the content-template fixture records its Drupal field bindings. Examples may reuse the local recipe images served by the custom Workbench Vite config. Page and template synchronization is disabled in `canvas.config.json` and excluded from `canvas:push`, so component pushes preserve editor-authored content. The base recipe seeds the Site and Article full templates on installation; subsequent template edits belong in Drupal Canvas.
 
 ## GraphQL schema
 

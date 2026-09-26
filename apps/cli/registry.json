@@ -1,0 +1,70 @@
+{
+  "items": [
+    {
+      "name": "workspace-cli",
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "type": "registry:item",
+      "title": "Workspace administration CLI",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/workspace/cli",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "apps/cli", "slot": "cms", "section": "dependencies" }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "apps/cli/registry/templates/program.ts.template",
+              "target": "apps/cli/src/program.ts",
+              "slots": { "commands": "members" }
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/apps/cli/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/apps/cli/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/apps/cli/README.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "src/config-provider.test.ts",
+          "target": "~/apps/cli/src/config-provider.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "src/config-provider.ts",
+          "target": "~/apps/cli/src/config-provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "src/index.ts",
+          "target": "~/apps/cli/src/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/apps/cli/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/apps/cli/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "name": "example",
+  "homepage": "https://github.com/example/composition",
+  "items": [
+    {
+      "name": "editorial",
+      "type": "registry:item",
+      "registryDependencies": ["example/composition/web"],
+      "files": [
+        {
+          "path": "packages/editorial/package.json",
+          "target": "~/packages/editorial/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/editorial/index.ts",
+          "target": "~/packages/editorial/index.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "example/cms/editorial",
+          "kind": "provider",
+          "slot": "cms",
+          "binding": {
+            "specifier": "workspace:@example/editorial@*",
+            "sourcePath": "packages/editorial"
+          },
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "cms"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "archive",
+      "type": "registry:item",
+      "registryDependencies": ["web"],
+      "files": [
+        {
+          "path": "packages/archive/package.json",
+          "target": "~/packages/archive/package.json",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "example/cms/archive",
+          "kind": "provider",
+          "slot": "cms",
+          "binding": {
+            "specifier": "workspace:@example/archive@*",
+            "sourcePath": "packages/archive"
+          },
+          "providerDependencies": [
+            {
+              "cwd": "apps/web",
+              "section": "dependencies",
+              "slot": "cms"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "metrics",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/metrics",
+          "kind": "add-on",
+          "typeScriptAliases": [
+            {
+              "cwd": "apps/web",
+              "alias": "@metrics",
+              "sourcePath": "packages/metrics"
+            }
+          ],
+          "packages": [
+            {
+              "cwd": ".",
+              "section": "dependencies",
+              "name": "@example/metrics",
+              "specifier": "workspace:*"
+            },
+            {
+              "cwd": "apps/web",
+              "section": "devDependencies",
+              "name": "typescript",
+              "specifier": "catalog:"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "older-toolchain",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/older-toolchain",
+          "kind": "add-on",
+          "packages": [
+            {
+              "cwd": "apps/web",
+              "section": "devDependencies",
+              "name": "typescript",
+              "specifier": "5.9.3"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "search",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/search",
+          "kind": "add-on",
+          "packages": [
+            {
+              "cwd": ".",
+              "section": "optionalDependencies",
+              "name": "@example/search",
+              "specifier": "workspace:*"
+            },
+            {
+              "cwd": "packages/tokens",
+              "section": "dependencies",
+              "name": "@example/search",
+              "specifier": "workspace:*"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "web",
+      "type": "registry:item",
+      "files": [
+        {
+          "path": "apps/web/package.json",
+          "target": "~/apps/web/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "apps/web/tsconfig.json",
+          "target": "~/apps/web/tsconfig.json",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "registryDependencies": ["web"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/app/web",
+          "kind": "package"
+        }
+      }
+    },
+    {
+      "name": "conflicting-metrics",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/conflicting-metrics",
+          "kind": "add-on",
+          "typeScriptAliases": [
+            {
+              "cwd": "apps/web",
+              "alias": "@metrics",
+              "sourcePath": "packages/tokens"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

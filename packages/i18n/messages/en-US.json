@@ -290,6 +290,7 @@
       }
     },
     "checkout": {
+      "title": "Checkout",
       "paymentOptions": {
         "availableToSpend": "{amount} available to spend",
         "card": "Card",

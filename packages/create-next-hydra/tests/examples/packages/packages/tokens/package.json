@@ -1,0 +1,6 @@
+{
+  "name": "@example/tokens",
+  "dependencies": {
+    "@example/colors": "workspace:*"
+  }
+}

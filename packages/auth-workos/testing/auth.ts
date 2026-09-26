@@ -528,19 +528,19 @@ const workosAuthTestControlLayer = (names: WorkosAuthTestEnvironmentNames) =>
   Layer.effect(
     AuthTestControl,
     Effect.gen(function* () {
-      const apiKey = yield* Config.redacted(names.apiKey);
-      const clientId = yield* Config.string(names.clientId);
-      const cookieName = yield* Config.string(names.cookieName).pipe(
+      const apiKey = yield* Config.Redacted(names.apiKey);
+      const clientId = yield* Config.String(names.clientId);
+      const cookieName = yield* Config.String(names.cookieName).pipe(
         Config.withDefault("wos-session")
       );
-      const cookiePassword = yield* Config.redacted(names.cookiePassword);
+      const cookiePassword = yield* Config.Redacted(names.cookiePassword);
       const e2eApiUrl = Option.getOrUndefined(
-        yield* Config.option(Config.string("E2E_API_URL"))
+        yield* Config.option(Config.String("E2E_API_URL"))
       );
       const localE2EApiUrl = localE2EUrl(e2eApiUrl);
       const localWebhookSecret =
         names.webhookSecret !== undefined && localE2EApiUrl !== undefined
-          ? Redacted.value(yield* Config.redacted(names.webhookSecret))
+          ? Redacted.value(yield* Config.Redacted(names.webhookSecret))
           : undefined;
       const workos = new WorkOS({
         apiKey: Redacted.value(apiKey),

@@ -41,7 +41,7 @@ export async function CmsPageLayout({
     (!previewVariant && !findPageShell(page.content))
   ) {
     throw new Error(
-      "The Canvas site page template is missing. Install the starter recipe."
+      "The Canvas site page template is missing. Install the base recipe."
     );
   }
   function SiteShell({

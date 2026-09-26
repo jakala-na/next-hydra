@@ -13,9 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/design-system/components/ui/dropdown-menu";
+import { Link } from "@repo/i18n/navigation";
 import { LogOut, UserRound } from "lucide-react";
-import type { Route } from "next";
-import Link from "next/link";
 
 export type AccountMenuUser = {
   readonly email?: string | null;
@@ -50,13 +49,21 @@ function MenuLink({
   readonly children: React.ReactNode;
   readonly href: string;
 }) {
-  // SAFETY: Menu routes are server-authored application or provider paths.
+  // Auth endpoints and external providers need full navigation, without a locale prefix.
+  if (
+    !href.startsWith("/") ||
+    href.startsWith("//") ||
+    /^\/api(?:[/?#]|$)/u.test(href)
+  ) {
+    return (
+      <a href={href} style={{ textDecoration: "none" }}>
+        {children}
+      </a>
+    );
+  }
+
   return (
-    <Link
-      href={href as Route}
-      prefetch={false}
-      style={{ textDecoration: "none" }}
-    >
+    <Link href={href} prefetch={false} style={{ textDecoration: "none" }}>
       {children}
     </Link>
   );
