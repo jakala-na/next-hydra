@@ -243,14 +243,14 @@ export const accessTokenVerifierLayer = ({
   Layer.effect(
     AccessTokenVerifier,
     Effect.gen(function* () {
-      const clientId = yield* Config.string(
+      const clientId = yield* Config.String(
         configKey(configPrefix, "WORKOS_CLIENT_ID")
       );
       const apiHostname = yield* Config.option(
-        Config.string(configKey(configPrefix, "WORKOS_API_HOSTNAME"))
+        Config.String(configKey(configPrefix, "WORKOS_API_HOSTNAME"))
       ).pipe(Effect.map(Option.getOrUndefined));
       const configuredIssuer = yield* Config.option(
-        Config.string(configKey(configPrefix, "WORKOS_ACCESS_TOKEN_ISSUER"))
+        Config.String(configKey(configPrefix, "WORKOS_ACCESS_TOKEN_ISSUER"))
       ).pipe(Effect.map(Option.getOrUndefined));
       const defaultIssuer = `https://${apiHostname ?? DEFAULT_WORKOS_API_HOSTNAME}`;
       const expectedIssuers =

@@ -1,32 +1,13 @@
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 
-import { graphql, readFragment } from "../../graphql";
+import { readFragment } from "../../graphql";
 import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
 import ComponentRenderer from "../component-renderer";
+import { landingPageFragment } from "./landing-page-query";
 
-export const landingPageFragment = graphql(
-  `
-    fragment DrupalLandingPage on NodeLandingPage {
-      __typename
-      id
-      title
-      displayTitle
-      hideDisplayTitle
-      components {
-        __typename
-        ... on ParagraphInterface {
-          id
-        }
-        ...DrupalHeroSection
-        ...DrupalDynamicProductCollection
-        ...DrupalFeaturedArticles
-      }
-    }
-  `,
-  [...ComponentRenderer.fragments]
-);
+export { landingPageFragment } from "./landing-page-query";
 
 type LandingPageProps = {
   data: FragmentOf<typeof landingPageFragment>;

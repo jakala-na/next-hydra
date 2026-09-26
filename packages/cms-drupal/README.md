@@ -21,11 +21,13 @@ The generated schema now exposes the Drupal-native Hydra structure:
 - `NodeLandingPage` with ordered `components`, display-title fields, and route alias.
 - `NodeArticle` with summary, image, processed Basic HTML body, and route alias.
 - `ParagraphHero` for tagline, heading, description, image, and actions.
-- `ParagraphDynamicProductCollection` with an optional external commerce category ID. Omitting it requests products without a category filter.
+- With Commerce selected, `ParagraphDynamicProductCollection` with an optional external commerce category ID. Omitting it requests products without a category filter.
 - `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
 - `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
 
-Drupal configuration for this model lives in `apps/drupal/recipes/next-hydra-starter/config`.
+Base configuration lives in `apps/drupal/recipes/next-hydra-base/config`. Commerce's Paragraph and Canvas configuration lives in `apps/drupal/recipes/next-hydra-commerce`, installed automatically with a Commerce provider. Its recipe adds product blocks and sample pages at `/catalog-example` and `/canvas-catalog-example`; the base homepages remain content-only.
+
+Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. It includes the `drupal-commerce` registry item, which installs the native `next-hydra-commerce` provisioning recipe.
 
 ## Environment
 
@@ -41,13 +43,13 @@ NODE_OPTIONS=--use-system-ca pnpm --filter web dev
 
 The Drupal installer prints the prefixed previewer and viewer variables after creating the OAuth consumers. It also prints `CMS_REVALIDATION_SECRET` for the consuming web application. Keep those values out of version control.
 
-Run the installer through the provider-neutral workspace command:
+Run the installer through the provider-neutral command from the installed workspace root. pnpm runs it in `apps/cli`, so explicitly target the sibling Drupal application:
 
 ```bash
-pnpm cli cms provision
+pnpm --filter cli cli cms provision --app-directory ../drupal
 ```
 
-The command delegates to `ddev install` in `apps/drupal` by default and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. Pass `--app-directory` to target another DDEV project.
+This delegates to `ddev install` in `apps/drupal` and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. `--app-directory` resolves relative to the CLI process directory; use an absolute path to target a DDEV project elsewhere.
 
 ## Cache revalidation
 

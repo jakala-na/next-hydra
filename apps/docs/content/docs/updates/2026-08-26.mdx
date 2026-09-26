@@ -96,7 +96,7 @@ You can also apply a preset, select add-ons, or run `use --check` to verify that
 
 ## Add registry items to an existing project
 
-The new `add` command brings the ShadCN copy-and-own workflow to an existing Customer Workspace:
+The new `add` command brings the ShadCN copy-and-own workflow to an existing project:
 
 ```bash
 pnpm dlx create-next-hydra@latest add owner/repository/item#ref
@@ -110,4 +110,4 @@ Before installation, the CLI shows the files and package entries the item will a
 
 next-hydra copies the selected source into your workspace. Once created or installed, that code belongs to the project and can be changed like any other application code.
 
-Projects created before this update are not rewritten automatically. They can adopt additive registry items with `add`; provider changes in an existing customer-owned project still require manual reconciliation or a newly scaffolded composition.
+Projects created before this update are not rewritten automatically. They can adopt additive registry items with `add`; provider changes in an existing project still require manual reconciliation or a newly scaffolded composition.

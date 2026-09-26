@@ -8,26 +8,26 @@ import type {
 const DESTINATIONS = ["local", "vercel"] as const;
 
 export const runtimeEnvironmentDestinationFlags = () => ({
-  environment: Flag.string("environment").pipe(
+  environment: Flag.String("environment").pipe(
     Flag.withDescription(
       "Vercel production, preview, preview:<branch>, or custom environment; repeat as needed"
     ),
     Flag.atLeast(0)
   ),
-  output: Flag.string("output").pipe(
+  output: Flag.String("output").pipe(
     Flag.withDescription("New local dotenv file for runtime configuration"),
     Flag.withDefault(".env.local")
   ),
-  overwrite: Flag.boolean("overwrite").pipe(
+  overwrite: Flag.Boolean("overwrite").pipe(
     Flag.withDescription(
       "Replace exact provider-owned variables in selected Vercel environments"
     )
   ),
-  store: Flag.choice("store", DESTINATIONS).pipe(
+  store: Flag.Literals("store", DESTINATIONS).pipe(
     Flag.withDescription("Runtime configuration store"),
     Flag.withDefault("local")
   ),
-  yes: Flag.boolean("yes").pipe(
+  yes: Flag.Boolean("yes").pipe(
     Flag.withDescription("Skip the provisioning confirmation")
   ),
 });

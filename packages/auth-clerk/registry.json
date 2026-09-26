@@ -8,7 +8,7 @@
       "title": "Next Hydra Clerk Auth provider",
       "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
       "docs": "Configure separate Clerk applications for the customer web app and admin app. The admin app uses its own Clerk credentials and host-only cookies; the API uses ADMIN_CLERK_* credentials to verify reviewer tokens and resolve reviewer identities from that admin application. Configure CLERK_AUTHORIZED_PARTIES for the customer origin and ADMIN_CLERK_AUTHORIZED_PARTIES for the admin origin. Do not configure the admin subdomain as a Clerk satellite of the customer application. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output clerk-webhook.env` once with the customer CLERK_SECRET_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact managed endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignUp component consumes the invitation ticket.",
-      "registryDependencies": ["jakala-na/next-hydra/auth-contract"],
+      "registryDependencies": ["auth-contract", "auth-web"],
       "meta": {
         "nextHydra": {
           "id": "next-hydra/auth/clerk",
@@ -17,7 +17,10 @@
           "binding": {
             "specifier": "workspace:@repo/auth-clerk@*",
             "sourcePath": "packages/auth-clerk"
-          }
+          },
+          "conditionalDependencies": [
+            { "providers": ["commerce"], "items": ["auth-clerk-commerce"] }
+          ]
         }
       },
       "files": [
@@ -62,28 +65,8 @@
           "type": "registry:file"
         },
         {
-          "path": "identity-users.test.ts",
-          "target": "~/packages/auth-clerk/identity-users.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "identity-users.ts",
-          "target": "~/packages/auth-clerk/identity-users.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "invitation-metadata.ts",
-          "target": "~/packages/auth-clerk/invitation-metadata.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "invitations.test.ts",
-          "target": "~/packages/auth-clerk/invitations.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "invitations.ts",
-          "target": "~/packages/auth-clerk/invitations.ts",
+          "path": "keys.test.ts",
+          "target": "~/packages/auth-clerk/keys.test.ts",
           "type": "registry:file"
         },
         {
@@ -117,26 +100,6 @@
           "type": "registry:file"
         },
         {
-          "path": "registry/apps/admin/app/sign-in/page.tsx",
-          "target": "~/apps/admin/app/sign-in/page.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/admin/app/sign-out/page.tsx",
-          "target": "~/apps/admin/app/sign-out/page.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/api/app/api/webhooks/clerk/route.ts",
-          "target": "~/apps/api/app/api/webhooks/clerk/route.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "registry/apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
-          "target": "~/apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
-          "type": "registry:file"
-        },
-        {
           "path": "registry/apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx",
           "target": "~/apps/web/app/[locale]/sign-in/[[...sign-in]]/page.tsx",
           "type": "registry:file"
@@ -144,16 +107,6 @@
         {
           "path": "registry/apps/web/app/[locale]/sign-out/page.tsx",
           "target": "~/apps/web/app/[locale]/sign-out/page.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "routes/webhooks/auth/route.test.ts",
-          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "routes/webhooks/auth/route.ts",
-          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.ts",
           "type": "registry:file"
         },
         {
@@ -214,6 +167,108 @@
         {
           "path": "tsconfig.web.json",
           "target": "~/packages/auth-clerk/tsconfig.web.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/auth-clerk/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-clerk-commerce",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/auth-clerk-commerce",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/auth-clerk",
+              "name": "@repo/registration",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        }
+      },
+      "title": "Clerk Commerce identity recipe",
+      "files": [
+        {
+          "path": "identity-users.test.ts",
+          "target": "~/packages/auth-clerk/identity-users.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "identity-users.ts",
+          "target": "~/packages/auth-clerk/identity-users.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitation-metadata.ts",
+          "target": "~/packages/auth-clerk/invitation-metadata.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.test.ts",
+          "target": "~/packages/auth-clerk/invitations.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "invitations.ts",
+          "target": "~/packages/auth-clerk/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "testing/customer-account.test.ts",
+          "target": "~/packages/auth-clerk/testing/customer-account.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/api/app/api/webhooks/clerk/route.ts",
+          "target": "~/apps/api/app/api/webhooks/clerk/route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
+          "target": "~/apps/web/app/[locale]/accept-invitation/[[...accept-invitation]]/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/webhooks/auth/route.test.ts",
+          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "routes/webhooks/auth/route.ts",
+          "target": "~/packages/auth-clerk/routes/webhooks/auth/route.ts",
+          "type": "registry:file"
+        }
+      ],
+      "registryDependencies": ["auth-clerk-admin"]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "auth-clerk-admin",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/auth-clerk-admin",
+          "kind": "recipe"
+        }
+      },
+      "title": "Admin authentication routes",
+      "files": [
+        {
+          "path": "registry/apps/admin/app/sign-in/page.tsx",
+          "target": "~/apps/admin/app/sign-in/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "registry/apps/admin/app/sign-out/page.tsx",
+          "target": "~/apps/admin/app/sign-out/page.tsx",
           "type": "registry:file"
         }
       ]

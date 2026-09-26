@@ -35,8 +35,8 @@ export type SiteHeaderProps = {
   Search?: React.ReactNode;
   BusinessUnitSwitcher?: React.ReactNode;
   MobileMenuSlot?: React.ReactNode;
-  CartSlot: React.ReactNode;
-  AccountSlot: React.ReactNode;
+  CartSlot?: React.ReactNode;
+  AccountSlot?: React.ReactNode;
 };
 
 export function SiteHeader({

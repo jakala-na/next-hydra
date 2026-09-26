@@ -18,7 +18,7 @@ import { Actions } from "./actions";
 import { AppRuntime, CommerceApp } from "./app-runtime";
 import { nextCommerceRequest } from "./commerce-request";
 import type { NextCommerceRequestOptions } from "./commerce-request";
-import type { CurrentAuth } from "./current-auth";
+import type { CurrentAuth } from "./current-auth-api";
 import type { NextRequestApi } from "./next-request";
 
 export { CommerceApp } from "./app-runtime";

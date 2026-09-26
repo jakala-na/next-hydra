@@ -3,9 +3,9 @@
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import { AccountMenu } from "@repo/design-system/components/layout/account-menu";
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
-import { useLocale, useTranslations } from "@repo/i18n";
+import { useTranslations } from "@repo/i18n";
 
-import { localizeAuthHref } from "./auth-href";
+import { accountLinks } from "./account-links";
 
 type AccountMenuClientProps = {
   readonly signInHref: string;
@@ -18,7 +18,6 @@ export function AccountMenuClient({
   signOutHref,
   user,
 }: AccountMenuClientProps) {
-  const locale = useLocale();
   const t = useTranslations("web.header");
 
   return (
@@ -33,7 +32,7 @@ export function AccountMenuClient({
       sourceLabel="Next.js application"
     >
       <AccountMenu
-        accountHref={`/${locale}/account`}
+        {...accountLinks()}
         labels={{
           account: t("account"),
           signIn: t("signIn"),
@@ -41,9 +40,8 @@ export function AccountMenuClient({
           signUp: t("signUp"),
           user: t("user"),
         }}
-        signInHref={localizeAuthHref(signInHref, locale)}
-        signOutHref={localizeAuthHref(signOutHref, locale)}
-        signUpHref={`/${locale}/register`}
+        signInHref={signInHref}
+        signOutHref={signOutHref}
         user={user}
       />
     </ArchitectureBoundary>

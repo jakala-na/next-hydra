@@ -1,0 +1,4 @@
+packages:
+  - ./modules/**/
+  - "!./modules/excluded/"
+  - workspaces/*/packages/*

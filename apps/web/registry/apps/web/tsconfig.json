@@ -1,0 +1,21 @@
+{
+  "extends": [
+    "@repo/typescript-config/effect-nextjs.json",
+    "@repo/cms/typescript-config.json"
+  ],
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@repo/cms": ["../../packages/cms-contentstack"],
+      "@repo/cms/*": ["../../packages/cms-contentstack/*"],
+      "@repo/*": ["../../packages/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "next.config.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ]
+}

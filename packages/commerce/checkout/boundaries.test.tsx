@@ -95,7 +95,6 @@ const checkoutState: CheckoutState = {
 };
 
 const checkoutPageMessages = {
-  activeStep: "Active",
   attention: "Attention",
   card: "Card",
   cartItems: (count: number) => `${count} items`,
@@ -104,7 +103,6 @@ const checkoutPageMessages = {
   cartViolations: "Cart issues",
   delivery: (number: number) => `Delivery ${number}`,
   edit: "Edit",
-  editingStep: "Editing",
   netTerms: (days: number) => `Net ${days}`,
   paymentMethod: "Payment method",
   stepLabels: {
@@ -114,11 +112,8 @@ const checkoutPageMessages = {
     reviewOrder: "Review order",
     shippingOptions: "Shipping options",
   },
-  stepStatuses: {
-    complete: "Complete",
-    incomplete: "Incomplete",
-  },
   subtotal: "Subtotal",
+  title: "Checkout",
   violation: () => "Violation",
 } satisfies CheckoutPageMessages;
 
@@ -304,7 +299,9 @@ describe("Checkout boundaries", () => {
         messages={checkoutPageMessages}
         renderedStep="reviewOrder"
         state={state}
-      />
+      >
+        <button type="button">Place order</button>
+      </CheckoutSteps>
     );
 
     expect(markup).toContain('action="/en-US/checkout" method="get"');
@@ -316,7 +313,15 @@ describe("Checkout boundaries", () => {
         'value="paymentOptions" name="edit"',
       ].every((attribute) => markup.includes(attribute))
     ).toBeTruthy();
-    expect(markup).not.toContain('aria-label="Edit Review order"');
+    expect({
+      editsReview: markup.includes('aria-label="Edit Review order"'),
+      expandedSteps: markup.match(/data-checkout-step-content="[^"]+"/gu),
+      statusLabels: /Active step|Incomplete|Complete|Editing/u.test(markup),
+    }).toStrictEqual({
+      editsReview: false,
+      expandedSteps: ['data-checkout-step-content="reviewOrder"'],
+      statusLabels: false,
+    });
 
     const editMarkup = renderToStaticMarkup(
       <CheckoutSteps
@@ -325,7 +330,9 @@ describe("Checkout boundaries", () => {
         messages={checkoutPageMessages}
         renderedStep="deliveryDetails"
         state={state}
-      />
+      >
+        <button type="button">Save delivery details</button>
+      </CheckoutSteps>
     );
     expect({
       editingLabel: editMarkup.includes("Editing"),
@@ -334,11 +341,13 @@ describe("Checkout boundaries", () => {
       ),
       editsContact: editMarkup.includes('aria-label="Edit Contact"'),
       editsPayment: editMarkup.includes('aria-label="Edit Payment options"'),
+      expandedSteps: editMarkup.match(/data-checkout-step-content="[^"]+"/gu),
     }).toStrictEqual({
-      editingLabel: true,
+      editingLabel: false,
       editingState: true,
       editsContact: true,
       editsPayment: false,
+      expandedSteps: ['data-checkout-step-content="deliveryDetails"'],
     });
   });
 

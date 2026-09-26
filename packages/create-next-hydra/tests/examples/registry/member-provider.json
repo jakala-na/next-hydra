@@ -1,0 +1,12 @@
+{
+  "name": "member-provider",
+  "type": "registry:item",
+  "meta": {
+    "nextHydra": {
+      "id": "example/auth/member",
+      "kind": "provider",
+      "slot": "auth",
+      "binding": { "specifier": "workspace:@example/member-auth@*" }
+    }
+  }
+}

@@ -1,17 +1,10 @@
-import path from "node:path";
-
 import { defineConfig } from "vitest/config";
 
-const packagesRoot = path.resolve(import.meta.dirname, "..");
-
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@repo": packagesRoot,
-      "server-only": path.join(packagesRoot, "testing/shims/server-only.js"),
-    },
-  },
   test: {
     environment: "node",
+    // CLI integration tests launch Git, Node workers and package managers.
+    // This is a hang guard, not a five-second performance contract.
+    testTimeout: 30_000,
   },
 });

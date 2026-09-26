@@ -1,0 +1,232 @@
+{
+  "items": [
+    {
+      "name": "commerce-admin",
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "type": "registry:item",
+      "title": "Commerce administration application",
+      "description": "An administration application for reviewing, approving, and rejecting company registrations, included with Commerce.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/commerce/admin",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "apps/admin", "slot": "auth", "section": "dependencies" }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/apps/admin/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": ".gitignore",
+          "target": "~/apps/admin/.gitignore",
+          "type": "registry:file"
+        },
+        {
+          "path": "AGENTS.md",
+          "target": "~/apps/admin/AGENTS.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/(workspace)/layout.tsx",
+          "target": "~/apps/admin/app/(workspace)/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/(workspace)/page.tsx",
+          "target": "~/apps/admin/app/(workspace)/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/(workspace)/registration-approvals/page.tsx",
+          "target": "~/apps/admin/app/(workspace)/registration-approvals/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/(workspace)/user-impersonation/page.tsx",
+          "target": "~/apps/admin/app/(workspace)/user-impersonation/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/forbidden.tsx",
+          "target": "~/apps/admin/app/forbidden.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/global-error.tsx",
+          "target": "~/apps/admin/app/global-error.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/layout.tsx",
+          "target": "~/apps/admin/app/layout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "app/styles.css",
+          "target": "~/apps/admin/app/styles.css",
+          "type": "registry:file"
+        },
+        {
+          "path": "CLAUDE.md",
+          "target": "~/apps/admin/CLAUDE.md",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/admin/admin-shell.tsx",
+          "target": "~/apps/admin/components/admin/admin-shell.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "env.ts",
+          "target": "~/apps/admin/env.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "global.d.ts",
+          "target": "~/apps/admin/global.d.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instrumentation-client.ts",
+          "target": "~/apps/admin/instrumentation-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instrumentation.ts",
+          "target": "~/apps/admin/instrumentation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/actions.ts",
+          "target": "~/apps/admin/lib/actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-auth.ts",
+          "target": "~/apps/admin/lib/admin-auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration-actions.test.ts",
+          "target": "~/apps/admin/lib/admin-registration-actions.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration-actions.ts",
+          "target": "~/apps/admin/lib/admin-registration-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration-decide.ts",
+          "target": "~/apps/admin/lib/admin-registration-decide.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration-procedures.ts",
+          "target": "~/apps/admin/lib/admin-registration-procedures.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration.test.ts",
+          "target": "~/apps/admin/lib/admin-registration.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/admin-registration.ts",
+          "target": "~/apps/admin/lib/admin-registration.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/app-runtime.ts",
+          "target": "~/apps/admin/lib/app-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-auth-api.ts",
+          "target": "~/apps/admin/lib/current-auth-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/current-auth.ts",
+          "target": "~/apps/admin/lib/current-auth.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/next-server.ts",
+          "target": "~/apps/admin/lib/next-server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-http-response-error.ts",
+          "target": "~/apps/admin/lib/registration-http-response-error.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-rest-client.ts",
+          "target": "~/apps/admin/lib/registration-rest-client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-reviewers-api.ts",
+          "target": "~/apps/admin/lib/registration-reviewers-api.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/registration-reviewers.ts",
+          "target": "~/apps/admin/lib/registration-reviewers.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/session-actions.ts",
+          "target": "~/apps/admin/lib/session-actions.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "next.config.ts",
+          "target": "~/apps/admin/next.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/apps/admin/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "postcss.config.mjs",
+          "target": "~/apps/admin/postcss.config.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "proxy.ts",
+          "target": "~/apps/admin/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/skip-ci.mjs",
+          "target": "~/apps/admin/scripts/skip-ci.mjs",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/apps/admin/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vercel.json",
+          "target": "~/apps/admin/vercel.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/apps/admin/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

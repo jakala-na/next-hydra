@@ -30,6 +30,7 @@
     "next": "catalog:"
   },
   "devDependencies": {
+    "@repo/testing": "workspace:*",
     "@clerk/backend": "^3.16.10",
     "@clerk/shared": "^4.30.2",
     "@clerk/testing": "^2.2.23",

@@ -1,0 +1,45 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "dependencies": ["@example/tokens@workspace:*"],
+      "meta": {
+        "composition": {
+          "templates": [
+            {
+              "source": "tokens.ts.template",
+              "target": "packages/tokens/index.ts",
+              "slots": {}
+            }
+          ]
+        },
+        "nextHydra": {
+          "id": "example/app/web",
+          "kind": "package"
+        }
+      }
+    },
+    {
+      "name": "optional-tokens",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": {
+          "id": "example/add-ons/optional-tokens",
+          "kind": "add-on"
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "absent.ts.template",
+              "target": "packages/tokens/optional.ts",
+              "slots": {}
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "example-source",
+  "dependencies": {
+    "@example/tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "portless": "0.15.6",
+    "turbo": "2.10.13"
+  }
+}

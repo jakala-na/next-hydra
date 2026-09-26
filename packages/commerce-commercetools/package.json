@@ -10,6 +10,7 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/commerce-commercetools/tsconfig.json"
   },
   "exports": {
+    "./next-config": "./next-config.ts",
     "./provider": "./provider.ts",
     "./cart": "./cart/index.ts",
     "./delivery-planning": "./delivery-planning/index.ts",
@@ -54,6 +55,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "effect": "catalog:",
+    "next": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

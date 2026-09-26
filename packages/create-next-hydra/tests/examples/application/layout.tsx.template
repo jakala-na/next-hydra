@@ -1,0 +1,5 @@
+{{imports}}
+
+export function Layout() {
+  return {{providers.open}}<main>{{#account}}<header>{{account}}</header>{{/account}}Hello</main>{{providers.close}};
+}

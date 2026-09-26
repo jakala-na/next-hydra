@@ -294,6 +294,7 @@
       }
     },
     "checkout": {
+      "title": "Afrekenen",
       "paymentOptions": {
         "availableToSpend": "{amount} available to spend",
         "card": "Card",

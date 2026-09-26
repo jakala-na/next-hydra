@@ -37,7 +37,43 @@
               "path": "patches/@contentstack__cli-migration@2.0.0.patch"
             }
           ],
-          "packages": []
+          "packages": [],
+          "conditionalDependencies": [
+            {
+              "providers": ["commerce"],
+              "items": ["cms-contentstack-commerce"]
+            }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "packages/cms-contentstack/registry/templates/component-registry.ts.template",
+              "target": "packages/cms-contentstack/components/component-registry.ts",
+              "slots": { "blocks": "members" }
+            },
+            {
+              "source": "packages/cms-contentstack/registry/templates/landing-page-query.ts.template",
+              "target": "packages/cms-contentstack/components/pages/landing-page-query.ts",
+              "slots": { "pageBlocks": "graphql" }
+            }
+          ],
+          "slotBindings": [
+            {
+              "target": "packages/cms-contentstack/components/component-registry.ts",
+              "slot": "blocks",
+              "module": "./blocks/hero-section",
+              "export": "HeroSection",
+              "order": 0
+            },
+            {
+              "target": "packages/cms-contentstack/components/pages/landing-page-query.ts",
+              "slot": "pageBlocks",
+              "module": "../blocks/hero-section",
+              "export": "HeroSectionBlock",
+              "order": 0
+            }
+          ]
         }
       },
       "files": [
@@ -89,6 +125,11 @@
         {
           "path": "cli/migrations/model.ts",
           "target": "~/packages/cms-contentstack/cli/migrations/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/block-recipes.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/block-recipes.ts",
           "type": "registry:file"
         },
         {
@@ -154,11 +195,6 @@
         {
           "path": "client.ts",
           "target": "~/packages/cms-contentstack/client.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "components/blocks/dynamic-product-collection.tsx",
-          "target": "~/packages/cms-contentstack/components/blocks/dynamic-product-collection.tsx",
           "type": "registry:file"
         },
         {
@@ -234,16 +270,6 @@
         {
           "path": "layout.tsx",
           "target": "~/packages/cms-contentstack/layout.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/commerce-category.test.ts",
-          "target": "~/packages/cms-contentstack/lib/commerce-category.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/commerce-category.ts",
-          "target": "~/packages/cms-contentstack/lib/commerce-category.ts",
           "type": "registry:file"
         },
         {
@@ -394,6 +420,78 @@
         {
           "path": "typescript-config.json",
           "target": "~/packages/cms-contentstack/typescript-config.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/cms-contentstack/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "cms-contentstack-commerce",
+      "type": "registry:item",
+      "title": "Contentstack Commerce integration",
+      "description": "Connects Contentstack to Commerce core, including product-collection mapping and CMS provisioning files. Installed automatically when both are selected.",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/cms-contentstack-commerce",
+          "kind": "recipe",
+          "compatibility": { "requires": ["next-hydra/cms/contentstack"] },
+          "packages": [
+            {
+              "cwd": "packages/cms-contentstack",
+              "section": "dependencies",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*"
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "packages/cms-contentstack/components/component-registry.ts",
+              "slot": "blocks",
+              "module": "./blocks/dynamic-product-collection",
+              "export": "DynamicProductCollection",
+              "order": 10
+            },
+            {
+              "target": "packages/cms-contentstack/components/pages/landing-page-query.ts",
+              "slot": "pageBlocks",
+              "module": "../blocks/dynamic-product-collection",
+              "export": "ProductCollectionBlock",
+              "order": 10
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "cli/provisioning/block-recipes.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provisioning/block-recipes.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "components/blocks/dynamic-product-collection.tsx",
+          "target": "~/packages/cms-contentstack/components/blocks/dynamic-product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.test.ts",
+          "target": "~/packages/cms-contentstack/lib/commerce-category.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-category.ts",
+          "target": "~/packages/cms-contentstack/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/recipes/product-collection.json",
+          "target": "~/packages/cms-contentstack/recipe/recipes/product-collection.json",
           "type": "registry:file"
         }
       ]

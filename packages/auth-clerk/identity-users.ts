@@ -216,7 +216,7 @@ export const identityUsersLayerFromConfig = ({
   Layer.effect(
     IdentityUsers,
     Effect.gen(function* identityUsersLayerFromConfigEffect() {
-      const secretKey = yield* Config.redacted(
+      const secretKey = yield* Config.Redacted(
         configKey(configPrefix, "CLERK_SECRET_KEY")
       );
       const client = createClerkClient({

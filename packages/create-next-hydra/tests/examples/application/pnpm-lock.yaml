@@ -1,0 +1,20 @@
+lockfileVersion: '9.0'
+settings:
+  autoInstallPeers: true
+importers:
+  .:
+    devDependencies:
+      turbo: { specifier: 2.10.13, version: 2.10.13 }
+  apps/web:
+    dependencies:
+      next: { specifier: 'catalog:', version: 16.3.1 }
+  apps/other:
+    dependencies:
+      unused: { specifier: ^1.0.0, version: 1.0.1 }
+packages:
+  next@16.3.1: { resolution: { integrity: example-integrity } }
+snapshots:
+  next@16.3.1: {}
+patchedDependencies:
+  example-client@1.0.0: { hash: retained-resolution, path: patches/client.patch }
+  unselected@1.0.0: { hash: example, path: patches/unselected.patch }

@@ -1,7 +1,7 @@
 {
   "name": "create-next-hydra",
   "version": "0.3.0",
-  "description": "CLI to scaffold a new next-hydra project",
+  "description": "CLI to compose applications from the Next Hydra registry",
   "keywords": [
     "cli",
     "create-next-app",
@@ -23,6 +23,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./reference-workspace": {
+      "types": "./dist/reference-workspace-bindings.d.ts",
+      "import": "./dist/reference-workspace-bindings.js"
+    },
     "./cli": {
       "import": "./dist/cli.js"
     }
@@ -38,32 +42,33 @@
   ],
   "scripts": {
     "prebuild": "node scripts/clean-dist.js",
-    "build": "tsc -p tsconfig.json",
-    "pack": "npm pack",
+    "build": "tsc6 -p tsconfig.json",
+    "compose": "pnpm --workspace-root exec turbo run build --filter=create-next-hydra && node dist/cli.js compose",
+    "pack": "pnpm pack",
     "prepublishOnly": "pnpm run build",
-    "publish:dry-run": "npm publish --access public --dry-run",
-    "publish:public": "npm publish --access public",
+    "publish:dry-run": "pnpm publish --access public --dry-run",
+    "publish:public": "pnpm publish --access public",
     "test": "NODE_ENV=test vitest run --exclude 'tests/e2e/**'",
+    "pretest:e2e": "pnpm run build",
     "test:e2e": "NODE_ENV=test vitest run tests/e2e",
-    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/create-next-hydra/tsconfig.json"
+    "typecheck": "tsc6 --noEmit -p tsconfig.json && tsc6 -p tsconfig.tests.json",
+    "workspace:test": "node dist/test-reference-workspace.js",
+    "workspace:lint": "node dist/lint-workspaces.js",
+    "lint:staged": "pnpm run build && node dist/lint-workspaces.js --staged"
   },
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "commander": "^14.0.0",
+    "@effect/platform-node": "catalog:",
+    "@parcel/watcher": "^2.6.0",
+    "effect": "catalog:",
     "jsonc-parser": "^3.3.1",
+    "oxfmt": "0.61.0",
     "shadcn": "^4.16.2",
-    "yaml": "^2.9.0",
-    "zod": "^3.25.28"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@repo/actions": "workspace:*",
-    "@repo/auth-clerk": "workspace:*",
-    "@repo/auth-workos": "workspace:*",
-    "@repo/commerce": "workspace:*",
-    "@repo/registration": "workspace:*",
+    "@effect/vitest": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
-    "effect": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

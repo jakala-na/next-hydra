@@ -4,6 +4,78 @@
   "homepage": "https://github.com/jakala-na/next-hydra",
   "items": [
     {
+      "name": "commerce-design-system",
+      "type": "registry:item",
+      "title": "Commerce design components",
+      "files": [
+        {
+          "path": "packages/design-system/components/commerce/blocks/cart-flyout.tsx",
+          "target": "~/packages/design-system/components/commerce/blocks/cart-flyout.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/blocks/product-collection.tsx",
+          "target": "~/packages/design-system/components/commerce/blocks/product-collection.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/blocks/product-detail-skeleton.tsx",
+          "target": "~/packages/design-system/components/commerce/blocks/product-detail-skeleton.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/blocks/product-detail.tsx",
+          "target": "~/packages/design-system/components/commerce/blocks/product-detail.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/blocks/product-variants.tsx",
+          "target": "~/packages/design-system/components/commerce/blocks/product-variants.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/image-viewer-basic.tsx",
+          "target": "~/packages/design-system/components/commerce/image-viewer-basic.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/price-format-sale.tsx",
+          "target": "~/packages/design-system/components/commerce/price-format-sale.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/product-card.tsx",
+          "target": "~/packages/design-system/components/commerce/product-card.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/providers/cart-context.tsx",
+          "target": "~/packages/design-system/components/commerce/providers/cart-context.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/quantity-input-basic.tsx",
+          "target": "~/packages/design-system/components/commerce/quantity-input-basic.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/star-rating-fractions.tsx",
+          "target": "~/packages/design-system/components/commerce/star-rating-fractions.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/commerce/variant-selector-basic.tsx",
+          "target": "~/packages/design-system/components/commerce/variant-selector-basic.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "packages/design-system/components/layout/cart-button.tsx",
+          "target": "~/packages/design-system/components/layout/cart-button.tsx",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
       "name": "next-hydra-standard",
       "type": "registry:item",
@@ -12,7 +84,9 @@
       "registryDependencies": [
         "jakala-na/next-hydra/auth-workos",
         "jakala-na/next-hydra/cms-contentstack",
-        "jakala-na/next-hydra/commerce-commercetools"
+        "jakala-na/next-hydra/commerce-commercetools",
+        "app-web",
+        "app-web-navigation-search"
       ],
       "meta": {
         "nextHydra": {
@@ -24,19 +98,25 @@
               "cms": "contentstack",
               "commerce": "commercetools"
             },
-            "addOns": []
+            "addOns": ["app-web-navigation-search"]
           }
         }
       }
     }
   ],
   "include": [
+    "apps/api/registry.json",
+    "apps/web/registry.json",
     "packages/auth-clerk/registry.json",
     "packages/auth-contract/registry.json",
     "packages/auth-workos/registry.json",
     "packages/cms-contentstack/registry.json",
     "packages/cms-drupal/registry.json",
     "packages/commerce-commercetools/registry.json",
-    "apps/drupal/registry.json"
+    "apps/drupal/registry.json",
+    "packages/commerce/registry.json",
+    "apps/admin/registry.json",
+    "apps/cli/registry.json",
+    "tests/e2e/registry.json"
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "name": "campaign-banner",
+  "type": "registry:item",
+  "docs": "Configure the campaign URL before publishing the banner.",
+  "files": [
+    {
+      "path": "remote/banner.ts",
+      "target": "~/apps/web/banner.ts",
+      "type": "registry:file",
+      "content": "export const banner = 'Campaign';\n"
+    }
+  ],
+  "meta": {
+    "nextHydra": {
+      "id": "example/add-on/banner",
+      "kind": "add-on"
+    }
+  }
+}

@@ -1,6 +1,5 @@
 "use client";
 
-import { SearchAutocomplete } from "@repo/design-system/components/layout/search-autocomplete";
 import {
   Accordion,
   AccordionContent,
@@ -24,9 +23,10 @@ import type { NavigationItem } from "./navigation";
 
 type MobileMenuProps = {
   navigationItems: NavigationItem[];
+  Search?: React.ReactNode;
 };
 
-export function MobileMenu({ navigationItems }: MobileMenuProps) {
+export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -43,9 +43,7 @@ export function MobileMenu({ navigationItems }: MobileMenuProps) {
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <div className="mt-8 flex flex-col gap-4 px-4 pb-6 sm:px-6">
-          <div className="border-b pb-4">
-            <SearchAutocomplete />
-          </div>
+          {Search ? <div className="border-b pb-4">{Search}</div> : null}
           <div className="flex flex-col gap-2">
             {navigationItems.map((item, index) => {
               const hasChildren =

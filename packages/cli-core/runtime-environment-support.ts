@@ -41,7 +41,7 @@ export const confirmRuntimeEnvironmentPublication = Effect.fn(
     return yield* Effect.void;
   }
   const confirmed = yield* Prompt.run(
-    Prompt.confirm({ initial: false, message })
+    Prompt.Confirm({ initial: false, message })
   ).pipe(
     Effect.provideService(FileSystem.FileSystem, fileSystem),
     Effect.provideService(Path.Path, path),

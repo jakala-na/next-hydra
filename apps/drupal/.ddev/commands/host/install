@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Description: Installs the Next Hydra Drupal starter.
+# Description: Installs Drupal with the selected base or Commerce recipe.
 
 set -euo pipefail
 
@@ -13,8 +13,12 @@ ddev composer install
 ## Install Drupal
 ddev drush site:install minimal --verbose -y
 
-## Apply the starter recipe
-ddev drush recipe ../recipes/next-hydra-starter -v
+## Apply the selected recipe (Commerce includes the base recipe)
+site_recipe=../recipes/next-hydra-base
+if [[ -f recipes/next-hydra-commerce/recipe.yml ]]; then
+  site_recipe=../recipes/next-hydra-commerce
+fi
+ddev drush recipe "$site_recipe" -v
 ddev drush cr
 
 ### Generate scopes

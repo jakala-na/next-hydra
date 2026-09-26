@@ -18,7 +18,7 @@ Collocate feature files, step bindings, browser drivers, scenario state, and dom
 
 Provision scenario resources through live domain programs and provider adapters. WorkOS and Clerk may use different setup mechanics, but both implement the same provider-independent auth test control so generic steps such as `I log in as` do not depend on either provider. Test contexts track the exact identities, Registrations, Business Units, Customers, invitations, and other ephemeral resources they create and clean them up after the scenario in an order that remains safe after partial failure. Shared environment prerequisites, such as a product catalog needed for checkout, are seeded or repaired separately and are not destroyed by individual scenarios.
 
-Locally, reuse the long-lived `pnpm dev` composition and each application's normal environment files. Portless resolves the worktree-specific Web, API, and Admin origins. In CI, Playwright may own fresh application processes, but each process still receives the environment belonging to that application; Admin and customer identity credentials remain isolated as required by ADR-0008.
+Locally, reuse the long-lived `pnpm dev` process inside the composed workspace and each application's normal environment files. Portless resolves the worktree-specific Web, API, and Admin origins. In CI, Playwright may own fresh application processes, but each process still receives the environment belonging to that application; Admin and customer identity credentials remain isolated as required by ADR-0008.
 
 Treat domain scope and provider composition as separate dimensions. Tags such as `@auth`, `@registration`, `@commerce`, and `@cms` select behavior owned by a context. A CI composition row selects a complete provider combination supported by the workspace lockfile. Do not generate every possible provider combination, and do not run features for applications or services absent from the selected composition. Workspace dependencies from the runner to applications, domains, and selected providers allow Turbo to decide when the suite is affected.
 
@@ -39,3 +39,7 @@ The browser suite is intentionally closer to end-to-end testing than to a fast m
 The suite does not promise coverage of every theoretical composition. A provider combination becomes a CI row only when the repository can install, configure, and operate that complete composition. Domain features remain reusable across those rows because provider divergence stays behind test-control contracts and concrete Layers.
 
 This decision extends ADR-0002 and ADR-0003: test adapters remain thin and invoke domain programs through live Layers. It also preserves the Admin/customer identity isolation established by ADR-0008.
+
+## Workspace ownership
+
+The shared constructor installs the workspace-level runner in customer and named Development Workspaces through the same registry graph. Selected recipes supply fixture composition and dependencies; scenarios requiring commerce are included with commerce. The runner resolves scenarios, provider modules and applications inside that workspace. Maintainers compose named workspaces explicitly, then run their project commands directly. Source freshness and deployment revision policies stay outside the customer runner.

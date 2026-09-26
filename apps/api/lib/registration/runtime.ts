@@ -12,8 +12,7 @@ import { RegistrationMarketPolicy } from "@repo/registration/services/registrati
 import { VatValidator } from "@repo/registration/services/vat-validator";
 import { Layer } from "effect";
 
-import { env } from "@/env";
-
+import { env } from "../../env";
 import {
   REGISTRATION_CONTAINER,
   registrationRepositoryLayer,

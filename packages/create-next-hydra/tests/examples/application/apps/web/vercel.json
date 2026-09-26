@@ -1,0 +1,3 @@
+{
+  "buildCommand": "pnpm --filter web build"
+}

@@ -1,5 +1,5 @@
 // This file is auto-generated. Do not edit manually.
-// Run `pnpm cli commerce types generate` to regenerate.
+// Run `pnpm --filter cli cli commerce types generate` from the workspace root to regenerate.
 
 import { Schema } from "effect";
 

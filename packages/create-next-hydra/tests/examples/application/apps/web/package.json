@@ -1,0 +1,16 @@
+{
+  "name": "web",
+  "private": true,
+  "scripts": {
+    "dev": "portless",
+    "dev:next": "next dev",
+    "build": "next build"
+  },
+  "portless": {
+    "name": "web",
+    "script": "dev:next"
+  },
+  "dependencies": {
+    "next": "catalog:"
+  }
+}

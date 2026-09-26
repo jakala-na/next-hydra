@@ -1,0 +1,8 @@
+{
+  "providers": {
+    "cms": "drupal",
+    "auth": "workos",
+    "commerce": "commercetools"
+  },
+  "addOns": ["app-web-navigation-search"]
+}

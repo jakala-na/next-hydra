@@ -60,3 +60,10 @@ export function HeroSection(props: HeroSectionProps) {
 }
 
 HeroSection.fragment = heroSectionFragment;
+
+export const DrupalHeroSection = heroSectionFragment;
+export const ParagraphHero = {
+  Component: HeroSection,
+  fragment: heroSectionFragment,
+  getCacheTags: (): string[] => [],
+};

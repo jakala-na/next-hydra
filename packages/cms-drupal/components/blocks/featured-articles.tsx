@@ -62,3 +62,10 @@ FeaturedArticles.getCacheTags = (data: FeaturedArticlesProps["data"]) => {
     article.__typename === "NodeArticle" ? [getNodeCacheTag(article)] : []
   );
 };
+
+export const DrupalFeaturedArticles = featuredArticlesFragment;
+export const ParagraphFeaturedArticle = {
+  Component: FeaturedArticles,
+  fragment: featuredArticlesFragment,
+  getCacheTags: FeaturedArticles.getCacheTags,
+};

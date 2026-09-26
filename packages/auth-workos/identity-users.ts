@@ -185,11 +185,11 @@ export const identityUsersLayerFromConfig = ({
   Layer.effect(
     IdentityUsers,
     Effect.gen(function* identityUsersLayerEffect() {
-      const apiKey = yield* Config.redacted(
+      const apiKey = yield* Config.Redacted(
         configKey(configPrefix, "WORKOS_API_KEY")
       );
       const clientId = yield* Config.option(
-        Config.string(configKey(configPrefix, "WORKOS_CLIENT_ID"))
+        Config.String(configKey(configPrefix, "WORKOS_CLIENT_ID"))
       );
       const clientIdValue = Option.getOrUndefined(clientId);
       const workos = new WorkOS(
