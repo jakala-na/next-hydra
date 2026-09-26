@@ -4,9 +4,7 @@ import type {
   ContentSearchProjectionFactory,
 } from "@repo/search/content-search-projection";
 import type {
-  ContentSearchHit,
-  ProductFacet,
-  ProductSearchHit,
+  SearchHit,
   QuerySuggestionSearchHit,
   SearchAudience,
   SearchBatch,
@@ -19,7 +17,6 @@ import {
   decodeQuerySuggestionSearchHit,
   decodeContentSearchHit,
 } from "@repo/search/contract";
-import { PRODUCT_FACETS, isProductFacet } from "@repo/search/product-discovery";
 import { algoliasearch } from "algoliasearch";
 import type {
   Algoliasearch,
@@ -29,22 +26,8 @@ import type {
 import { Schema } from "effect";
 
 import { createAlgoliaAnalyticsTags } from "./analytics-tags";
-import {
-  algoliaConnectorCurrency,
-  algoliaConnectorLocale,
-} from "./connector/commercetools/generated-product";
 import { contentIndexName, createAlgoliaSearchIndices } from "./index-graph";
 import { keys } from "./keys";
-import {
-  parsePriceCustomerGroupIds,
-  resolvePriceAudienceIds,
-} from "./price-audience";
-import {
-  algoliaProductFacetFields,
-  algoliaProductFieldPath,
-} from "./product-facet-fields";
-import type { AlgoliaProductFacetFields } from "./product-facet-fields";
-import { defaultAlgoliaProductHitMapping } from "./product-hit";
 import { AlgoliaSearchRecord } from "./search-record";
 
 export type { AlgoliaSearchRecord } from "./search-record";
@@ -52,9 +35,6 @@ export type { AlgoliaSearchRecord } from "./search-record";
 export type AlgoliaSearchIndexResolver = (audience: SearchAudience) => string;
 
 export interface AlgoliaSearchIndices {
-  readonly products: AlgoliaSearchIndexResolver;
-  readonly priceAscending: AlgoliaSearchIndexResolver;
-  readonly priceDescending: AlgoliaSearchIndexResolver;
   readonly querySuggestions: AlgoliaSearchIndexResolver;
 }
 
@@ -62,27 +42,12 @@ export interface AlgoliaSearchProviderOptions {
   readonly client: Pick<Algoliasearch, "search">;
   readonly contentProjection: ContentSearchProjection;
   readonly indices: AlgoliaSearchIndices;
-  readonly priceCustomerGroupIds: readonly string[];
+  readonly additionalStrategies?: Readonly<
+    Record<string, AlgoliaIndexStrategy>
+  >;
   readonly analyticsTags?: AlgoliaAnalyticsTagsResolver;
-  readonly productFacetFields?: AlgoliaProductFacetFieldsResolver;
-  readonly productHitMapping?: AlgoliaProductHitMapping;
   readonly querySuggestionHitMapping?: AlgoliaQuerySuggestionHitMapping;
 }
-
-export interface AlgoliaProductHitMapping {
-  readonly attributesToRetrieve: readonly string[];
-  readonly restrictSearchableAttributes?: (
-    audience: SearchAudience
-  ) => readonly string[];
-  readonly toProductSearchHit: (
-    record: AlgoliaSearchRecord,
-    audience: SearchAudience
-  ) => ProductSearchHit;
-}
-
-export type AlgoliaProductFacetFieldsResolver = (
-  audience: SearchAudience
-) => AlgoliaProductFacetFields<string>;
 
 export type AlgoliaAnalyticsTagsResolver = (
   audience: SearchAudience
@@ -122,35 +87,8 @@ const decodeAlgoliaSearchResponse = Schema.decodeUnknownSync(
 const escapeFilterValue = (value: string): string =>
   value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 
-const filterValue = (attribute: string, value: string): string =>
+export const filterValue = (attribute: string, value: string): string =>
   `${attribute}:"${escapeFilterValue(value)}"`;
-
-const filterValues = (attribute: string, values: readonly string[]): string => {
-  const effectiveValues = values.length === 0 ? ["public"] : values;
-
-  return effectiveValues.length === 1
-    ? filterValue(attribute, effectiveValues[0] ?? "public")
-    : `(${effectiveValues.map((value) => filterValue(attribute, value)).join(" OR ")})`;
-};
-
-const productAudience = (audience: SearchAudience) => {
-  if (audience.product === undefined) {
-    throw new Error("Product search requires a Product audience");
-  }
-  return audience.product;
-};
-
-const audienceFilter = (
-  audience: SearchAudience,
-  priceCustomerGroupIds: readonly string[]
-): string => {
-  const product = productAudience(audience);
-
-  return filterValues(
-    algoliaProductFieldPath("priceAudienceIds"),
-    resolvePriceAudienceIds(product.priceAudienceIds, priceCustomerGroupIds)
-  );
-};
 
 export const contentAudienceFilter = (
   audience: SearchAudience,
@@ -169,12 +107,9 @@ export const contentAudienceFilter = (
     .join(" AND ");
 };
 
-type NormalizedSearchHit =
-  | ContentSearchHit
-  | ProductSearchHit
-  | QuerySuggestionSearchHit;
+type NormalizedSearchHit = SearchHit;
 
-interface AlgoliaIndexStrategy {
+export interface AlgoliaIndexStrategy {
   readonly analyticsTags?: AlgoliaAnalyticsTagsResolver;
   readonly attributesToRetrieve: readonly string[];
   readonly audienceFilter?: (audience: SearchAudience) => string | undefined;
@@ -183,7 +118,9 @@ interface AlgoliaIndexStrategy {
     audience: SearchAudience
   ) => NormalizedSearchHit;
   readonly physicalIndex: AlgoliaSearchIndexResolver;
-  readonly productFacetFields?: AlgoliaProductFacetFieldsResolver;
+  readonly productFacetFields?: (
+    audience: SearchAudience
+  ) => Readonly<Record<string, string>>;
   readonly restrictSearchableAttributes?: (
     audience: SearchAudience
   ) => readonly string[];
@@ -194,26 +131,10 @@ type AlgoliaIndexStrategies = Record<SearchIndexAlias, AlgoliaIndexStrategy>;
 const createIndexStrategies = (
   indices: AlgoliaSearchIndices,
   analyticsTags: AlgoliaAnalyticsTagsResolver | undefined,
-  productFacetFields: AlgoliaProductFacetFieldsResolver,
-  productHitMapping: AlgoliaProductHitMapping,
   contentProjection: ContentSearchProjection,
   querySuggestionHitMapping: AlgoliaQuerySuggestionHitMapping,
-  priceCustomerGroupIds: readonly string[]
+  additionalStrategies: Readonly<Record<string, AlgoliaIndexStrategy>>
 ) => {
-  const productStrategy = (
-    physicalIndex: AlgoliaSearchIndexResolver
-  ): AlgoliaIndexStrategy => ({
-    analyticsTags,
-    attributesToRetrieve: productHitMapping.attributesToRetrieve,
-    audienceFilter: (audience) =>
-      audienceFilter(audience, priceCustomerGroupIds),
-    normalizeHit: (hit, audience) =>
-      productHitMapping.toProductSearchHit(hit, audience),
-    physicalIndex,
-    productFacetFields,
-    restrictSearchableAttributes:
-      productHitMapping.restrictSearchableAttributes,
-  });
   const contentStrategy = {
     analyticsTags,
     attributesToRetrieve: contentProjection.attributesToRetrieve,
@@ -241,9 +162,7 @@ const createIndexStrategies = (
 
   return {
     content: contentStrategy,
-    products: productStrategy(indices.products),
-    "products@price-asc": productStrategy(indices.priceAscending),
-    "products@price-desc": productStrategy(indices.priceDescending),
+    ...additionalStrategies,
     "query-suggestions": querySuggestionStrategy,
   } satisfies AlgoliaIndexStrategies;
 };
@@ -255,17 +174,18 @@ const facetFilterField = (filter: string): string => {
 
 const translateFacet = (
   facet: string,
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): string => {
-  if (!isProductFacet(facet)) {
+  const field = fields[facet];
+  if (field === undefined) {
     throw new Error(`Unsupported logical Product facet: ${facet}`);
   }
-  return fields[facet];
+  return field;
 };
 
 const translateFacetFilter = (
   filter: string,
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): string => {
   const logicalField = facetFilterField(filter);
   return `${translateFacet(logicalField, fields)}${filter.slice(logicalField.length)}`;
@@ -276,7 +196,7 @@ const numericFilterPattern =
 
 const translateNumericFilter = (
   filter: string,
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): string => {
   const match = numericFilterPattern.exec(filter);
   const facet = match?.groups?.facet;
@@ -290,7 +210,7 @@ const translateNumericFilter = (
 
 const translateFacetFilters = (
   filters: FacetFilters,
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): FacetFilters =>
   Array.isArray(filters)
     ? filters.map((filter) => translateFacetFilters(filter, fields))
@@ -298,7 +218,7 @@ const translateFacetFilters = (
 
 const translateNumericFilters = (
   filters: NumericFilters,
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): NumericFilters =>
   Array.isArray(filters)
     ? filters.map((filter) => translateNumericFilters(filter, fields))
@@ -306,7 +226,7 @@ const translateNumericFilters = (
 
 const translateProductParams = (
   params: SearchBatch[number]["params"],
-  fields: AlgoliaProductFacetFields<string>
+  fields: Readonly<Record<string, string>>
 ): SearchBatch[number]["params"] => {
   const translated = { ...params };
   if (params.facetFilters !== undefined) {
@@ -330,11 +250,10 @@ const translateProductParams = (
 };
 
 const logicalFieldsByPhysicalField = (
-  fields: AlgoliaProductFacetFields<string>
-): ReadonlyMap<string, ProductFacet> => {
-  const logicalFields = new Map<string, ProductFacet>();
-  for (const logicalField of PRODUCT_FACETS) {
-    const physicalField = fields[logicalField];
+  fields: Readonly<Record<string, string>>
+): ReadonlyMap<string, string> => {
+  const logicalFields = new Map<string, string>();
+  for (const [logicalField, physicalField] of Object.entries(fields)) {
     if (logicalFields.has(physicalField)) {
       throw new Error(
         `Algolia Product facets must use distinct physical fields: ${physicalField}`
@@ -347,9 +266,9 @@ const logicalFieldsByPhysicalField = (
 
 const normalizeFacetFields = <Value>(
   facets: Readonly<Record<string, Value>>,
-  logicalFields: ReadonlyMap<string, ProductFacet>
+  logicalFields: ReadonlyMap<string, string>
 ) => {
-  const normalized = new Map<ProductFacet, Value>();
+  const normalized = new Map<string, Value>();
   for (const [physicalField, value] of Object.entries(facets)) {
     const logicalField = logicalFields.get(physicalField);
     if (logicalField !== undefined) {
@@ -366,6 +285,9 @@ const mapBatch = (
 ) =>
   batch.map(({ indexName, params }) => {
     const strategy = strategies[indexName];
+    if (strategy === undefined) {
+      throw new Error(`Search index ${indexName} is not installed`);
+    }
     const filters = strategy.audienceFilter?.(audience);
     const productFacetFields = strategy.productFacetFields?.(audience);
     const providerParams =
@@ -412,23 +334,15 @@ export const createAlgoliaSearchProvider = ({
   client,
   contentProjection,
   indices,
-  priceCustomerGroupIds,
-  productFacetFields = (audience) =>
-    algoliaProductFacetFields(
-      algoliaConnectorLocale(audience.locale),
-      algoliaConnectorCurrency(productAudience(audience).currency)
-    ),
-  productHitMapping = defaultAlgoliaProductHitMapping,
+  additionalStrategies = {},
   querySuggestionHitMapping = defaultQuerySuggestionHitMapping,
 }: AlgoliaSearchProviderOptions): SearchProvider => {
-  const strategies = createIndexStrategies(
+  const strategies: AlgoliaIndexStrategies = createIndexStrategies(
     indices,
     analyticsTags,
-    productFacetFields,
-    productHitMapping,
     contentProjection,
     querySuggestionHitMapping,
-    priceCustomerGroupIds
+    additionalStrategies
   );
   return {
     search: async (batch, audience) => {
@@ -451,6 +365,9 @@ export const createAlgoliaSearchProvider = ({
         }
 
         const strategy = strategies[request.indexName];
+        if (strategy === undefined) {
+          throw new Error(`Search index ${request.indexName} is not installed`);
+        }
         const productFields = strategy.productFacetFields?.(audience);
         const logicalFacetFields =
           productFields === undefined
@@ -480,6 +397,9 @@ export const createAlgoliaSearchProvider = ({
 
 export interface AlgoliaEnvironmentSearchProviderOptions {
   readonly contentProjection: ContentSearchProjectionFactory;
+  readonly additionalStrategies?: (
+    prefix: string | undefined
+  ) => Readonly<Record<string, AlgoliaIndexStrategy>>;
 }
 
 export const createAlgoliaSearchProviderFromEnvironment = (
@@ -497,6 +417,9 @@ export const createAlgoliaSearchProviderFromEnvironment = (
       contentIndexName(config.ALGOLIA_INDEX_PREFIX)
     );
     configuredProvider = createAlgoliaSearchProvider({
+      additionalStrategies: options.additionalStrategies?.(
+        config.ALGOLIA_INDEX_PREFIX
+      ),
       analyticsTags: createAlgoliaAnalyticsTags(config.ALGOLIA_INDEX_PREFIX),
       client: algoliasearch(
         config.ALGOLIA_APPLICATION_ID,
@@ -504,9 +427,6 @@ export const createAlgoliaSearchProviderFromEnvironment = (
       ),
       contentProjection,
       indices: createAlgoliaSearchIndices(config.ALGOLIA_INDEX_PREFIX),
-      priceCustomerGroupIds: parsePriceCustomerGroupIds(
-        config.ALGOLIA_PRICE_CUSTOMER_GROUP_IDS
-      ),
     });
     return configuredProvider;
   };

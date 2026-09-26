@@ -22,9 +22,9 @@ import {
   useStats,
 } from "react-instantsearch";
 
-import type { ProductSearchHit } from "./contract";
 import { humanizeSearchValue } from "./presentation";
 import { SearchProductCard } from "./product-card";
+import type { ProductSearchHit } from "./product-contract";
 import type { ProductRefinementFacet } from "./product-discovery";
 import {
   PRODUCT_LISTING_CONFIGURE,

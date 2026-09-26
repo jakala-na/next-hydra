@@ -20,7 +20,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "",
         ["en-US"],
-        createCanonicalContentSearchProjection("content")
+        createCanonicalContentSearchProjection("content"),
+        storeConfiguration
       )
     );
 
@@ -48,7 +49,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "development",
         storeConfiguration.map(({ locale }) => locale),
-        contentProjection("development")
+        contentProjection("development"),
+        storeConfiguration
       )
     );
     const storeKeys = new Set(
@@ -103,7 +105,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "preview",
         [storefront.locale],
-        contentProjection("preview")
+        contentProjection("preview"),
+        storeConfiguration
       )
     );
     const audience = {
@@ -138,7 +141,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "demo",
         ["en-US", "de-DE"],
-        contentProjection("demo")
+        contentProjection("demo"),
+        storeConfiguration
       )
     );
 
@@ -155,7 +159,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "demo",
         ["en-US", "de-DE"],
-        localeSpecificProjection
+        localeSpecificProjection,
+        storeConfiguration
       )
     );
 
@@ -185,7 +190,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "development",
         [storefront.locale, storefront.locale],
-        contentProjection("development")
+        contentProjection("development"),
+        storeConfiguration
       ).pipe(Effect.flip)
     );
     expect(error).toMatchObject({ reason: "duplicate-locale" });
@@ -196,7 +202,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "invalid--prefix",
         ["en-US"],
-        contentProjection("invalid")
+        contentProjection("invalid"),
+        storeConfiguration
       ).pipe(Effect.flip)
     );
 
@@ -228,7 +235,8 @@ describe(createAlgoliaIndexGraph, () => {
       createAlgoliaIndexGraph(
         "development",
         ["fr-CA"],
-        contentProjection("development")
+        contentProjection("development"),
+        storeConfiguration
       )
     );
 

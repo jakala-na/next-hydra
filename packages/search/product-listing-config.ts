@@ -1,4 +1,4 @@
-import { PRODUCT_HIT_ATTRIBUTES } from "./contract";
+import { PRODUCT_HIT_ATTRIBUTES } from "./product-contract";
 import { PRODUCT_DISCOVERY } from "./product-discovery";
 import type { ProductRefinementFacet } from "./product-discovery";
 import { PRODUCT_SORTS } from "./product-listing-routing";

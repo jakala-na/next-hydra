@@ -1,6 +1,6 @@
 import type { IndexUiState, StateMapping, UiState } from "instantsearch.js";
 
-import type { ProductIndexAlias } from "./contract";
+import type { ProductIndexAlias } from "./product-contract";
 import { PRODUCT_DISCOVERY } from "./product-discovery";
 import type { ProductFacetRoute } from "./product-discovery";
 

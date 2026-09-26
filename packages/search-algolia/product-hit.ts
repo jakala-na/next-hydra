@@ -1,8 +1,9 @@
+import type { SearchAudience } from "@repo/search/contract";
 import {
   decodeProductSearchHit,
   PRODUCT_HIT_ATTRIBUTES,
-} from "@repo/search/contract";
-import type { ProductSearchHit, SearchAudience } from "@repo/search/contract";
+} from "@repo/search/product-contract";
+import type { ProductSearchHit } from "@repo/search/product-contract";
 import { Schema } from "effect";
 
 import {

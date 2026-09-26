@@ -110,6 +110,8 @@ Passing the gate describes files on disk. Confirm the resolved server URL belong
 
 ## Run and verify the composition
 
+Search is optional for CMS sites and required for Commerce. `cms-search-contentstack` and `cms-search-drupal` exercise Content-only Search; the storefront workspaces add Product search. Search's collection/card registries, provider strategy and CLI contribution are composed from the same selection. Without Commerce, Product pages, cards, connector transformations, type generation and pricing credentials are omitted. Drupal's Algolia recipe is likewise installed only with Search.
+
 Packages own their environment schemas in `keys.ts`; applications aggregate the selected packages' validators in `env.ts`. The Commerce API's `next.config.ts` imports `env.ts`, validating Auth (including admin and webhook settings), Commerce, Email, Payments and registration settings when Next loads the application configuration. Provider aliases determine which credentials are required: a WorkOS composition does not require Clerk credentials. Lazy service validation provides additional checks when services initialize; there is no separate environment-validation startup hook.
 
 The root checkout is source-only, not a runnable storefront. Compose a named workspace, then run its own application commands. Root `pnpm test` separates three responsibilities:

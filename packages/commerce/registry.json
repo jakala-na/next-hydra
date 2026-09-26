@@ -9,7 +9,7 @@
         "nextHydra": {
           "id": "next-hydra/commerce/core",
           "kind": "package",
-          "providerSlots": { "auth": "required" },
+          "providerSlots": { "auth": "required", "search": "required" },
           "providerDependencies": [
             {
               "cwd": "apps/web",

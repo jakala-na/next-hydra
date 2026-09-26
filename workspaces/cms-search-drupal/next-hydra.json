@@ -1,0 +1,8 @@
+{
+  "providers": {
+    "cms": "drupal",
+    "search": "algolia"
+  },
+  "addOns": [],
+  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"]
+}

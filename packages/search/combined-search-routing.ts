@@ -1,8 +1,12 @@
 import type { IndexUiState, StateMapping, UiState } from "instantsearch.js";
 
+import { searchCollections } from "./collections";
 import type { SearchIndexAlias } from "./contract";
 
-export const COMBINED_SEARCH_TABS = ["all", "products", "resources"] as const;
+export const COMBINED_SEARCH_TABS = [
+  "all",
+  ...searchCollections.map(({ id }) => id),
+];
 export type CombinedSearchTab = (typeof COMBINED_SEARCH_TABS)[number];
 type RouteValue = string | number | string[] | undefined;
 
@@ -29,14 +33,17 @@ const firstString = (value: RouteValue): string | undefined => {
 
 export const combinedSearchTab = (value: RouteValue): CombinedSearchTab => {
   const candidate = firstString(value);
-  return candidate === "products" || candidate === "resources"
+  return candidate !== undefined &&
+    searchCollections.some(({ id }) => id === candidate)
     ? candidate
     : "all";
 };
 
 export const combinedSearchRootIndex = (
   tab: CombinedSearchTab
-): SearchIndexAlias => (tab === "resources" ? "content" : "products");
+): SearchIndexAlias =>
+  (searchCollections.find(({ id }) => id === tab) ?? searchCollections[0])
+    .indexName;
 
 const routePageToUiPage = (value: RouteValue): number | undefined => {
   const parsed = Number(firstString(value));
@@ -48,7 +55,10 @@ export const createCombinedSearchStateMapping = (
 ): StateMapping<UiState, CombinedSearchRouteState> => ({
   routeToState: (routeState) => {
     const query = firstString(routeState.q)?.trim();
-    const page = tab === "all" ? undefined : routePageToUiPage(routeState.page);
+    const page =
+      tab === "all" && searchCollections.length > 1
+        ? undefined
+        : routePageToUiPage(routeState.page);
     const indexState: IndexUiState = {};
     if (query !== undefined && query.length > 0) {
       indexState.query = query;
@@ -65,7 +75,7 @@ export const createCombinedSearchStateMapping = (
     if (query !== undefined && query.length > 0) {
       routeState.q = query;
     }
-    if (tab !== "all") {
+    if (tab !== "all" || searchCollections.length === 1) {
       routeState.tab = tab;
       if (state.page !== undefined && state.page > 1) {
         routeState.page = state.page;
@@ -86,10 +96,10 @@ export function createCombinedSearchUrl(
   if (query !== undefined && query.length > 0) {
     searchParams.set("q", query);
   }
-  if (tab !== "all") {
+  if (tab !== "all" || searchCollections.length === 1) {
     searchParams.set("tab", tab);
   }
-  if (tab !== "all" && page !== undefined) {
+  if ((tab !== "all" || searchCollections.length === 1) && page !== undefined) {
     searchParams.set("page", page);
   }
 
@@ -130,10 +140,14 @@ export const combinedSearchPageHref = (
   if (normalizedQuery.length > 0) {
     searchParams.set("q", normalizedQuery);
   }
-  if (tab !== "all") {
+  if (tab !== "all" || searchCollections.length === 1) {
     searchParams.set("tab", tab);
   }
-  if (tab !== "all" && Number.isInteger(page) && page > 1) {
+  if (
+    (tab !== "all" || searchCollections.length === 1) &&
+    Number.isInteger(page) &&
+    page > 1
+  ) {
     searchParams.set("page", String(page));
   }
   const queryString = searchParams.toString();

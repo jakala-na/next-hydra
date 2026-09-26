@@ -29,6 +29,7 @@ export const runtimeEnvironmentDestinationFlags = () => ({
     Flag.withDefault("local")
   ),
   yes: Flag.Boolean("yes").pipe(
+    Flag.withDefault(false),
     Flag.withDescription("Skip the provisioning confirmation")
   ),
 });

@@ -1,20 +1,12 @@
-import { ProductCard } from "@repo/commerce/product";
 import { Schema } from "effect";
 import type { SearchClient } from "instantsearch.js";
 
-export { PRODUCT_FACETS } from "./product-discovery";
-export type {
-  ProductFacet,
-  ProductFacetFieldMapping,
-} from "./product-discovery";
-
-export const PRODUCT_INDEX_ALIASES = [
-  "products",
-  "products@price-asc",
-  "products@price-desc",
-] as const;
-
-export type ProductIndexAlias = (typeof PRODUCT_INDEX_ALIASES)[number];
+/** Collection-specific payloads are decoded by the installed card adapters. */
+export const SearchHit = Schema.StructWithRest(
+  Schema.Struct({ objectID: Schema.String }),
+  [Schema.Record(Schema.String, Schema.Unknown)]
+);
+export type SearchHit = typeof SearchHit.Type;
 
 export const CONTENT_INDEX_ALIASES = ["content"] as const;
 export type ContentIndexAlias = (typeof CONTENT_INDEX_ALIASES)[number];
@@ -23,18 +15,7 @@ export const QUERY_SUGGESTION_INDEX_ALIASES = ["query-suggestions"] as const;
 export type QuerySuggestionIndexAlias =
   (typeof QUERY_SUGGESTION_INDEX_ALIASES)[number];
 
-export const SEARCH_INDEX_ALIASES = [
-  ...PRODUCT_INDEX_ALIASES,
-  ...CONTENT_INDEX_ALIASES,
-  ...QUERY_SUGGESTION_INDEX_ALIASES,
-] as const;
-export type SearchIndexAlias = (typeof SEARCH_INDEX_ALIASES)[number];
-
-export const PRODUCT_HIT_ATTRIBUTES = [
-  "objectID",
-  "productCard",
-  "categories",
-] as const;
+export type SearchIndexAlias = string;
 
 export const CONTENT_HIT_ATTRIBUTES = ["objectID", "contentCard"] as const;
 export const QUERY_SUGGESTION_HIT_ATTRIBUTES = [
@@ -43,27 +24,6 @@ export const QUERY_SUGGESTION_HIT_ATTRIBUTES = [
   "popularity",
   "nb_words",
 ] as const;
-export const SEARCH_HIT_ATTRIBUTES = [
-  ...PRODUCT_HIT_ATTRIBUTES,
-  ...CONTENT_HIT_ATTRIBUTES,
-  ...QUERY_SUGGESTION_HIT_ATTRIBUTES,
-] as const;
-
-export const ProductSearchCategory = Schema.Struct({
-  key: Schema.NonEmptyString,
-  label: Schema.NonEmptyString,
-});
-export type ProductSearchCategory = typeof ProductSearchCategory.Type;
-
-export const ProductSearchHit = Schema.Struct({
-  categories: Schema.Array(ProductSearchCategory),
-  objectID: Schema.NonEmptyString,
-  productCard: ProductCard,
-});
-export type ProductSearchHit = typeof ProductSearchHit.Type;
-
-export const decodeProductSearchHit =
-  Schema.decodeUnknownSync(ProductSearchHit);
 
 export const ContentSearchImage = Schema.Struct({
   altText: Schema.String,
@@ -140,38 +100,11 @@ export interface SearchProvider {
   ) => Promise<SearchBatchResult>;
 }
 
-/**
- * Logical Product discovery document shared by search providers. A provider
- * may store a richer physical projection and localize it into this contract
- * before returning an InstantSearch response.
- */
-export interface ProductSearchDocument extends ProductSearchHit {
-  /** Provider index projection derived from Product Card availability. */
-  readonly availability: "in-stock" | "out-of-stock";
-  /** Provider index projection of ProductSearchHit.categories[].key. */
-  readonly category: readonly string[];
-  /** Provider index projection in major currency units for range and sort. */
-  readonly price?: number;
-  /** Provider projection IDs; the public fallback is represented as `public`. */
-  readonly priceAudienceIds: readonly string[];
-}
-
 /** Canonical Content document projected from the selected CMS indexer. */
 export interface ContentSearchDocument extends ContentSearchHit {
   readonly locales: readonly string[];
 }
 
-export const isProductIndexAlias = (
-  indexName: SearchIndexAlias
-): indexName is ProductIndexAlias =>
-  PRODUCT_INDEX_ALIASES.some((candidate) => candidate === indexName);
-
-/** Indices whose physical destination depends on the active commerce Store. */
-export const requiresProductSearchAudience = (
-  indexName: SearchIndexAlias
-): boolean =>
-  isProductIndexAlias(indexName) || indexName === "query-suggestions";
-
 export const isContentIndexAlias = (
-  indexName: SearchIndexAlias
+  indexName: string
 ): indexName is ContentIndexAlias => indexName === "content";

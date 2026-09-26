@@ -1,10 +1,7 @@
-import { fileURLToPath } from "node:url";
-
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
-import { storeConfiguration } from "@repo/commerce/store";
 import type { InstalledContentSearchApp } from "@repo/search/content-search-app";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import type { ConfigProvider, Effect as EffectType } from "effect";
@@ -12,26 +9,28 @@ import { Console, Effect, Option } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 
 import { contentIndexName } from "../index-graph";
+import type { StoreConfiguration } from "../index-graph";
 import type { ContentIndexingHandoff } from "./content-indexing-handoff";
 import { formatContentIndexingHandoff } from "./content-indexing-handoff";
 import type { ContentSearchAppHook } from "./content-search-app-hook";
 import { requireContentSearchAppHook } from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { createSearchProvisioningLayer } from "./layer";
-import type { AlgoliaCommerceConnectorSource } from "./provisioning/commerce-connector-source";
 import type { AlgoliaProvisioningReceipt } from "./provisioning/model";
-import { AlgoliaProvisioningError } from "./provisioning/model";
 import { formatAlgoliaProvisioningPlan } from "./provisioning/plan";
+import type { ProvisionAlgoliaOptions } from "./provisioning/provision";
 import { provisionAlgolia } from "./provisioning/provision";
-import { generateAlgoliaCommercetoolsTransformation } from "./transform-generator";
-import { generateAlgoliaCommercetoolsProductTypes } from "./typegen";
 
 export interface SearchCliComposition<CommerceError, ContentError> {
-  readonly commerce: {
-    readonly create: (
-      configProvider: EffectType.Effect<ConfigProvider.ConfigProvider>
-    ) => EffectType.Effect<AlgoliaCommerceConnectorSource, CommerceError>;
-    readonly productTypeSchemaDirectory: string;
+  readonly products?: {
+    readonly storefronts: StoreConfiguration;
+    readonly prepare: (
+      provider: EffectType.Effect<ConfigProvider.ConfigProvider>
+    ) => EffectType.Effect<
+      NonNullable<ProvisionAlgoliaOptions["products"]>,
+      CommerceError
+    >;
+    readonly generateTypes: () => EffectType.Effect<void, CommerceError>;
   };
   readonly content: {
     readonly createIndexingHandoff: (
@@ -50,16 +49,6 @@ export interface SearchCliComposition<CommerceError, ContentError> {
   };
 }
 
-const GENERATED_CONNECTOR_PRODUCT_FILE = fileURLToPath(
-  new URL("../connector/commercetools/generated-product.ts", import.meta.url)
-);
-const CONNECTOR_TRANSFORMATION_SOURCE_FILE = fileURLToPath(
-  new URL("../connector/commercetools/transform.ts", import.meta.url)
-);
-const GENERATED_CONNECTOR_TRANSFORMATION_FILE = fileURLToPath(
-  new URL("../connector/commercetools/generated-transform.ts", import.meta.url)
-);
-
 const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
   effect.pipe(Effect.catchCause((cause) => Effect.fail(searchCliError(cause))));
 
@@ -76,8 +65,9 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
     "provision",
     {
       dryRun: Flag.Boolean("dry-run").pipe(
+        Flag.withDefault(false),
         Flag.withDescription(
-          "Print the complete Store and locale resource graph without changing Algolia"
+          "Print the selected locale search resources without changing Algolia"
         )
       ),
       indexPrefix: Flag.String("index-prefix").pipe(
@@ -87,13 +77,14 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
         Flag.optional
       ),
       installContentSearchApp: Flag.Boolean("install-content-search-app").pipe(
+        Flag.withDefault(false),
         Flag.withDescription(
           "Install and configure the composed CMS provider's content search app for the provisioned Content index (Contentstack only)"
         )
       ),
       locales: Flag.String("locale").pipe(
         Flag.withDescription(
-          "Commerce locale to provision; repeat for every deployment locale"
+          "Locale to provision; repeat for every deployment locale"
         ),
         Flag.atLeast(1)
       ),
@@ -107,6 +98,11 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
       ...destinationFlags
     }) => {
       const provisionProgram = Effect.gen(function* () {
+        if (installContentSearchApp) {
+          yield* requireContentSearchAppHook(
+            composition.content.installContentSearchApp
+          );
+        }
         const requestedIndexPrefix = Option.getOrUndefined(indexPrefix);
         const resolvedConfigProvider = yield* configProvider;
         const resolvedConfigProviderEffect = Effect.succeed(
@@ -121,7 +117,8 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
           const plan = yield* formatAlgoliaProvisioningPlan(
             requestedIndexPrefix,
             locales,
-            contentProjection
+            contentProjection,
+            composition.products?.storefronts
           );
           yield* Console.log(plan);
           if (installContentSearchApp) {
@@ -138,15 +135,16 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
         const provisioningLayer = createSearchProvisioningLayer(
           resolvedConfigProviderEffect
         );
-        const commerceConnectorSource = yield* composition.commerce.create(
-          resolvedConfigProviderEffect
-        );
+        const products =
+          composition.products === undefined
+            ? undefined
+            : yield* composition.products.prepare(resolvedConfigProviderEffect);
         const receipt = yield* provisionAlgolia({
-          commerceConnectorSource,
           contentProjection,
           destination: runtimeEnvironmentDestinationFromFlags(destinationFlags),
           indexPrefix: requestedIndexPrefix,
           locales,
+          products,
         }).pipe(Effect.provide(provisioningLayer));
 
         if (!installContentSearchApp) {
@@ -180,9 +178,11 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
                   )
                 ),
                 Effect.andThen(
-                  Console.log(
-                    `  Products: ${receipt.productPrimaries} primaries, ${receipt.productReplicas} replicas`
-                  )
+                  composition.products === undefined
+                    ? Effect.void
+                    : Console.log(
+                        `  Products: ${receipt.productPrimaries} primaries, ${receipt.productReplicas} replicas`
+                      )
                 ),
                 Effect.andThen(
                   Console.log(`  Content: ${receipt.contentIndices} indices`)
@@ -193,9 +193,11 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
                   )
                 ),
                 Effect.andThen(
-                  Console.log(
-                    `  Commerce connectors: ${receipt.connectors} configured, ${receipt.initialReindexes} initial reindexes completed`
-                  )
+                  composition.products === undefined
+                    ? Effect.void
+                    : Console.log(
+                        `  Commerce connectors: ${receipt.connectors} configured, ${receipt.initialReindexes} initial reindexes completed`
+                      )
                 ),
                 Effect.andThen(
                   contentSearchApp === undefined
@@ -216,57 +218,35 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
     }
   ).pipe(
     Command.withDescription(
-      "Provision Store and locale search resources and runtime credentials"
+      "Provision selected search resources and runtime credentials"
     )
   );
 
-  const generateTypes = Command.make("generate", {}, () =>
-    asUserError(
-      Effect.tryPromise({
-        catch: (cause) =>
-          new AlgoliaProvisioningError({
-            cause,
-            message: "Algolia connector type generation failed",
-            operation: "connector type generation",
-          }),
-        try: async () => {
-          await Promise.all([
-            generateAlgoliaCommercetoolsProductTypes({
-              currencies: [
-                ...new Set(storeConfiguration.map(({ currency }) => currency)),
-              ],
-              locales: [
-                ...new Set(storeConfiguration.map(({ locale }) => locale)),
-              ],
-              outputFile: GENERATED_CONNECTOR_PRODUCT_FILE,
-              schemaDirectory: composition.commerce.productTypeSchemaDirectory,
-            }),
-            generateAlgoliaCommercetoolsTransformation({
-              outputFile: GENERATED_CONNECTOR_TRANSFORMATION_FILE,
-              sourceFile: CONNECTOR_TRANSFORMATION_SOURCE_FILE,
-            }),
-          ]);
-        },
-      })
-    ).pipe(
-      Effect.andThen(
-        Console.log(
-          "Generated schema-backed Algolia commercetools Product types and transformation"
-        )
-      )
-    )
-  ).pipe(
-    Command.withDescription(
-      "Generate Algolia connector types from commerce Product Type schemas"
-    )
-  );
-  const types = Command.make("types", {}, () => Effect.void).pipe(
-    Command.withDescription("Search connector type-generation commands"),
-    Command.withSubcommands([generateTypes])
-  );
+  const generate = composition.products?.generateTypes;
+  const additionalCommands =
+    generate === undefined
+      ? []
+      : [
+          Command.make("types", {}, () => Effect.void).pipe(
+            Command.withDescription(
+              "Search connector type-generation commands"
+            ),
+            Command.withSubcommands([
+              Command.make("generate", {}, () =>
+                asUserError(generate()).pipe(
+                  Effect.andThen(
+                    Console.log(
+                      "Generated schema-backed Product types and transformation"
+                    )
+                  )
+                )
+              ),
+            ])
+          ),
+        ];
 
   return Command.make("search", {}, () => Effect.void).pipe(
     Command.withDescription("Search provider administration commands"),
-    Command.withSubcommands([provision, types])
+    Command.withSubcommands([provision, ...additionalCommands])
   );
 };

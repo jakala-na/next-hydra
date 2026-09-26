@@ -1,4 +1,4 @@
-import { PRODUCT_HIT_ATTRIBUTES } from "@repo/search/contract";
+import { PRODUCT_HIT_ATTRIBUTES } from "@repo/search/product-contract";
 import { PRODUCT_DISCOVERY } from "@repo/search/product-discovery";
 import type { IndexSettings } from "algoliasearch";
 

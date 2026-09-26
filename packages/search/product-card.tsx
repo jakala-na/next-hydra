@@ -5,7 +5,9 @@ import type { ProductCardProps } from "@repo/design-system/components/commerce/p
 import type { Locale } from "@repo/i18n";
 import type { ReactElement } from "react";
 
-import type { ProductSearchHit } from "./contract";
+import type { ProductSearchHit } from "./product-contract";
+import { decodeProductSearchHit } from "./product-contract";
+import type { SearchHit } from "./search-collection";
 
 interface SearchProductCardProps {
   readonly headingLevel?: ProductCardProps["headingLevel"];
@@ -50,3 +52,17 @@ export function SearchProductCard({
 }
 
 export type { SearchProductCardProps };
+
+export const ProductResultCard = ({
+  hit,
+  locale,
+}: {
+  readonly hit: SearchHit;
+  readonly locale: Locale;
+}) => (
+  <SearchProductCard
+    hit={decodeProductSearchHit(hit)}
+    locale={locale}
+    headingLevel="h3"
+  />
+);

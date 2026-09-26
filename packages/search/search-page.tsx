@@ -5,11 +5,13 @@ import { searchRuntime } from "@repo/search/runtime";
 import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
+import { searchCollections } from "./collections";
 import { CombinedSearch } from "./combined-search";
 import type { CombinedSearchRouteState } from "./combined-search-routing";
 import {
   combinedSearchTab,
   createCombinedSearchUrl,
+  combinedSearchRootIndex,
 } from "./combined-search-routing";
 import { getCombinedSearchServerState } from "./combined-search-server";
 import { CombinedSearchSkeleton } from "./combined-search-skeleton";
@@ -41,9 +43,13 @@ const combinedSearchAudience = async (
   locale: Locale,
   tab: ReturnType<typeof combinedSearchTab>
 ): Promise<SearchAudience> =>
-  tab === "resources"
-    ? { locale }
-    : await searchRuntime.resolveProductAudience(locale);
+  await searchRuntime.resolveAudience(
+    locale,
+    (tab === "all"
+      ? searchCollections.map(({ indexName }) => indexName)
+      : [combinedSearchRootIndex(tab)]
+    ).map((indexName) => ({ indexName, params: {} }))
+  );
 
 async function CombinedSearchResults({
   locale,
@@ -104,10 +110,10 @@ export function SearchPage({ locale, searchParams }: SearchPageProps) {
             Search
           </p>
           <h1 className="font-semibold text-4xl tracking-tight">
-            Products and Resources
+            {searchCollections.map(({ label }) => label).join(" and ")}
           </h1>
           <p className="mt-3 text-base text-muted-foreground">
-            Find products and useful content in one place.
+            Find what you are looking for in one place.
           </p>
         </div>
         <Suspense fallback={<CombinedSearchSkeleton />}>

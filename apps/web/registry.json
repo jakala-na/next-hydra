@@ -612,7 +612,6 @@
           "id": "next-hydra/search/web",
           "kind": "recipe",
           "providerSlots": {
-            "commerce": "required",
             "search": "required"
           },
           "providerDependencies": [
@@ -635,6 +634,12 @@
               "cwd": "apps/web",
               "alias": "@repo/search/runtime",
               "sourcePath": "apps/web/lib/search-runtime.ts"
+            }
+          ],
+          "conditionalDependencies": [
+            {
+              "providers": ["commerce"],
+              "items": ["commerce-search-web"]
             }
           ]
         },
@@ -661,15 +666,20 @@
               "export": "withSearchRuntime",
               "order": 1
             }
+          ],
+          "templates": [
+            {
+              "source": "apps/web/registry/templates/search-runtime.ts.template",
+              "target": "apps/web/lib/search-runtime.ts",
+              "slots": {
+                "productRoutes": "members",
+                "productAudience": "members"
+              }
+            }
           ]
         }
       },
       "files": [
-        {
-          "path": "app/[locale]/products/page.tsx",
-          "target": "~/apps/web/app/[locale]/products/page.tsx",
-          "type": "registry:file"
-        },
         {
           "path": "app/[locale]/search/page.tsx",
           "target": "~/apps/web/app/[locale]/search/page.tsx",
@@ -678,11 +688,6 @@
         {
           "path": "app/api/search/[locale]/route.ts",
           "target": "~/apps/web/app/api/search/[locale]/route.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "lib/search-runtime.ts",
-          "target": "~/apps/web/lib/search-runtime.ts",
           "type": "registry:file"
         },
         {
@@ -697,6 +702,56 @@
         }
       ],
       "registryDependencies": ["search-cli"]
+    },
+    {
+      "name": "commerce-search-web",
+      "type": "registry:item",
+      "title": "commerce-search-web",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/commerce-web",
+          "kind": "recipe"
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/web/lib/search-runtime.ts",
+              "slot": "productRoutes",
+              "module": "./commerce-search",
+              "export": "commerceSearchRoutes",
+              "order": 0
+            },
+            {
+              "target": "apps/web/lib/search-runtime.ts",
+              "slot": "productAudience",
+              "module": "@repo/search/product-search-audience",
+              "export": "resolveProductSearchAudience",
+              "order": 0
+            },
+            {
+              "target": "apps/web/env.ts",
+              "slot": "environment",
+              "module": "@repo/search-provider/product-keys",
+              "export": "keys",
+              "order": 51,
+              "as": "productSearch"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "app/[locale]/products/page.tsx",
+          "target": "~/apps/web/app/[locale]/products/page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/commerce-search.ts",
+          "target": "~/apps/web/lib/commerce-search.ts",
+          "type": "registry:file"
+        }
+      ],
+      "registryDependencies": ["commerce-search-cli"]
     }
   ]
 }

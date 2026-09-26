@@ -56,7 +56,7 @@ Given("a visitor searches for {string}", async ({ page }, query: string) => {
     page.getByRole("heading", { level: 1, name: "Products and Resources" })
   ).toBeVisible();
   await expect(
-    page.getByRole("searchbox", { name: "Search Products and Resources" })
+    page.getByRole("searchbox", { exact: true, name: "Search" })
   ).toHaveValue(query);
 });
 

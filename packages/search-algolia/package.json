@@ -6,9 +6,11 @@
   "exports": {
     ".": "./index.ts",
     "./cli": "./cli/index.ts",
+    "./cli/commerce": "./cli/commerce.ts",
     "./composition": "./composition.ts",
     "./content-mapping": "./content-mapping.ts",
     "./keys": "./keys.ts",
+    "./product-keys": "./product-keys.ts",
     "./provider": "./provider.ts"
   },
   "scripts": {
@@ -19,7 +21,6 @@
   "dependencies": {
     "@algolia/ingestion": "^1.57.0",
     "@repo/cli-core": "workspace:*",
-    "@repo/commerce": "workspace:*",
     "@repo/search": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "algoliasearch": "^5.57.0",

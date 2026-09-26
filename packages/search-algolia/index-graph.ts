@@ -1,10 +1,15 @@
-import { storeConfiguration } from "@repo/commerce/store";
-import type { StoreConfiguration } from "@repo/commerce/store";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import type { SearchAudience } from "@repo/search/contract";
 import { Effect, Schema } from "effect";
 
 import { algoliaSearchAnalyticsTags } from "./analytics-tags";
+
+export type StoreConfiguration = readonly {
+  readonly storeKey: string;
+  readonly locale: string;
+  readonly currency: string;
+  readonly isDefault?: boolean;
+}[];
 
 export const ALGOLIA_PRODUCT_REPLICA_SORTS = [
   "price-asc",
@@ -52,7 +57,7 @@ export interface AlgoliaQuerySuggestionsDefinition {
     AlgoliaQuerySuggestionsSourceDefinition,
     ...AlgoliaQuerySuggestionsSourceDefinition[],
   ];
-  readonly storeKey: string;
+  readonly storeKey?: string;
 }
 
 export interface AlgoliaIndexGraph {
@@ -147,9 +152,15 @@ export const productReplicaIndexName = (
 
 export const querySuggestionsIndexName = (
   prefix: string | undefined,
-  storeKey: string,
+  storeKey: string | undefined,
   locale: string
-): string => algoliaIndexName(prefix, "query-suggestions", storeKey, locale);
+): string =>
+  algoliaIndexName(
+    prefix,
+    "query-suggestions",
+    ...(storeKey === undefined ? [] : [storeKey]),
+    locale
+  );
 
 const productAudience = (audience: SearchAudience) => {
   if (audience.product === undefined) {
@@ -178,7 +189,7 @@ export const createAlgoliaSearchIndices = (prefix: string | undefined) => ({
   querySuggestions: (audience: SearchAudience) =>
     querySuggestionsIndexName(
       prefix,
-      productAudience(audience).storeKey,
+      audience.product?.storeKey,
       audience.locale
     ),
 });
@@ -188,7 +199,7 @@ export const createAlgoliaIndexGraph = Effect.fn("AlgoliaIndexGraph.create")(
     prefix: string | undefined,
     locales: readonly string[],
     contentProjection: ContentSearchProjection,
-    configuration: StoreConfiguration = storeConfiguration
+    configuration: StoreConfiguration = []
   ) {
     const normalizedPrefix = yield* indexPrefix(prefix);
     const stores = new Map<string, AlgoliaProductPrimaryDefinition>();
@@ -228,6 +239,27 @@ export const createAlgoliaIndexGraph = Effect.fn("AlgoliaIndexGraph.create")(
         );
       }
       requestedLocales.add(locale);
+      if (configuration.length === 0) {
+        querySuggestions.push({
+          indexName: querySuggestionsIndexName(
+            normalizedPrefix,
+            undefined,
+            locale
+          ),
+          language: locale.split("-")[0] ?? locale,
+          locale,
+          sources: [
+            {
+              analyticsTags: algoliaSearchAnalyticsTags(
+                normalizedPrefix,
+                locale
+              ),
+              indexName: contentProjection.indexName({ locale }),
+            },
+          ],
+        });
+        continue;
+      }
       const matching = configuration.filter(
         (configuredStore) => configuredStore.locale === locale
       );

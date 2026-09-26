@@ -5,41 +5,36 @@ import { autocomplete, getAlgoliaResults } from "@algolia/autocomplete-js";
 import type { HTMLTemplate } from "@algolia/autocomplete-js";
 import { createQuerySuggestionsPlugin } from "@algolia/autocomplete-plugin-query-suggestions";
 import { useRouter } from "@repo/i18n/navigation";
+import { Array as EffectArray, Order } from "effect";
 import type { Route } from "next";
 import { useEffect, useMemo, useRef } from "react";
 
-import {
-  autocompleteProductHref,
-  autocompleteContentHref,
-  autocompleteSearchHref,
-} from "./autocomplete-routing";
+import { autocompleteSearchHref } from "./autocomplete-routing";
 import type { SearchAutocompleteRoutes } from "./autocomplete-routing";
 import { createAutocompleteProxySearchClient } from "./client";
-import type {
-  ContentSearchHit,
-  ProductSearchHit,
-  QuerySuggestionSearchHit,
-} from "./contract";
-import { CONTENT_HIT_ATTRIBUTES, PRODUCT_HIT_ATTRIBUTES } from "./contract";
+import { searchCollections } from "./collections";
+import type { QuerySuggestionSearchHit } from "./contract";
+import { decodeQuerySuggestionSearchHit } from "./contract";
+import type { SearchCollection, SearchHit } from "./search-collection";
 
 import styles from "./autocomplete.module.css";
 import fieldStyles from "./search-field.module.css";
 
-const CONTENT_SOURCE_ID = "content";
-const PRODUCT_SOURCE_ID = "products";
 const QUERY_SUGGESTIONS_SOURCE_ID = "querySuggestionsPlugin";
 const DIRECT_RESULT_LIMIT = 3;
 const QUERY_SUGGESTION_LIMIT = 4;
+const autocompleteCollections = EffectArray.sort(
+  searchCollections,
+  (left: SearchCollection, right: SearchCollection) =>
+    Order.Number(left.autocompleteOrder, right.autocompleteOrder)
+);
 
 type KeywordSearchHit = QuerySuggestionSearchHit & {
   readonly __autocomplete_qsCategory?: string;
   readonly __exactQuery?: true;
 };
 
-type SearchAutocompleteItem =
-  | ContentSearchHit
-  | ProductSearchHit
-  | KeywordSearchHit;
+type SearchAutocompleteItem = SearchHit | KeywordSearchHit;
 
 type AutocompleteRequesterClient = Parameters<
   typeof getAlgoliaResults<SearchAutocompleteItem>
@@ -70,24 +65,7 @@ const keywordLabel = (
 ): string =>
   item.__exactQuery === true ? `Search for "${item.query}"` : item.query;
 
-const requireProductHit = (item: SearchAutocompleteItem): ProductSearchHit => {
-  if ("productCard" in item) {
-    return item;
-  }
-  throw new Error("The Products autocomplete source returned an invalid hit");
-};
-
-const requireContentHit = (item: SearchAutocompleteItem): ContentSearchHit => {
-  if ("contentCard" in item) {
-    return item;
-  }
-  throw new Error("The Content autocomplete source returned an invalid hit");
-};
-
-const sectionHeading = (
-  label: "Content" | "Search results" | "Products",
-  html: HTMLTemplate
-) => html`<h2
+const sectionHeading = (label: string, html: HTMLTemplate) => html`<h2
   class="${styles.sectionHeading}"
   data-autocomplete-section="${label}"
 >
@@ -173,122 +151,53 @@ export function SearchAutocomplete({
           return [];
         }
 
-        return [
-          {
-            getItemUrl: ({ item }) =>
-              autocompleteContentHref(requireContentHit(item), routes),
-            getItems: () =>
-              getAlgoliaResults<SearchAutocompleteItem>({
-                queries: [
-                  {
-                    indexName: "content",
-                    params: {
-                      analytics: false,
-                      attributesToRetrieve: [...CONTENT_HIT_ATTRIBUTES],
-                      clickAnalytics: false,
-                      hitsPerPage: DIRECT_RESULT_LIMIT,
-                      query: normalizedQuery,
-                    },
+        return autocompleteCollections.map((collection) => ({
+          getItemUrl: ({ item }: { item: SearchAutocompleteItem }) =>
+            collection.autocomplete(item, routes).href,
+          getItems: () =>
+            getAlgoliaResults<SearchAutocompleteItem>({
+              queries: [
+                {
+                  indexName: collection.indexName,
+                  params: {
+                    analytics: false,
+                    attributesToRetrieve: [...collection.attributes],
+                    clickAnalytics: false,
+                    hitsPerPage: DIRECT_RESULT_LIMIT,
+                    query: normalizedQuery,
                   },
-                ],
-                searchClient: requesterClient,
-              }),
-            sourceId: CONTENT_SOURCE_ID,
-            templates: {
-              header: ({ html }) => sectionHeading("Content", html),
-              item: ({ html, item }) => {
-                const content = requireContentHit(item);
-                const { image } = content.contentCard;
-                return html`<a
-                  class="${styles.resultLink}"
-                  data-autocomplete-result-section="Content"
-                  href="${autocompleteContentHref(content, routes)}"
-                >
-                  ${
-                    image === undefined
-                      ? html`<span
-                          class="${styles.resultIcon}"
-                          aria-hidden="true"
-                          >§</span
-                        >`
-                      : html`<img
-                          alt="${image.altText}"
-                          class="${styles.resultImage}"
-                          height="40"
-                          src="${image.url}"
-                          width="40"
-                        />`
-                  }
-                  <span class="${styles.resultBody}">
-                    <span class="${styles.resultTitle}"
-                      >${content.contentCard.title}</span
-                    >
-                    <span class="${styles.resultMeta}"
-                      >${content.contentCard.summary}</span
-                    >
-                  </span>
-                </a>`;
-              },
+                },
+              ],
+              searchClient: requesterClient,
+            }),
+          sourceId: collection.indexName,
+          templates: {
+            header: ({ html }: { html: HTMLTemplate }) =>
+              sectionHeading(collection.autocompleteLabel, html),
+            item: ({
+              html,
+              item,
+            }: {
+              html: HTMLTemplate;
+              item: SearchAutocompleteItem;
+            }) => {
+              const result = collection.autocomplete(item, routes);
+              return html`<a
+                class="${styles.resultLink}"
+                data-autocomplete-result-section="${collection.autocompleteLabel}"
+                href="${result.href}"
+              >
+                ${result.image === undefined ? html`<span class="${styles.resultIcon}" aria-hidden="true">${collection.fallbackSymbol}</span>` : html`<img alt="${result.image.altText ?? ""}" class="${styles.resultImage}" height="40" src="${result.image.url}" width="40" />`}
+                <span class="${styles.resultBody}">
+                  <span class="${styles.resultTitle}">${result.title}</span>
+                  <span class="${styles.resultMeta}"
+                    >${result.description}</span
+                  >
+                </span>
+              </a>`;
             },
           },
-          {
-            getItemUrl: ({ item }) =>
-              autocompleteProductHref(requireProductHit(item), routes),
-            getItems: () =>
-              getAlgoliaResults<SearchAutocompleteItem>({
-                queries: [
-                  {
-                    indexName: "products",
-                    params: {
-                      analytics: false,
-                      attributesToRetrieve: [...PRODUCT_HIT_ATTRIBUTES],
-                      clickAnalytics: false,
-                      hitsPerPage: DIRECT_RESULT_LIMIT,
-                      query: normalizedQuery,
-                    },
-                  },
-                ],
-                searchClient: requesterClient,
-              }),
-            sourceId: PRODUCT_SOURCE_ID,
-            templates: {
-              header: ({ html }) => sectionHeading("Products", html),
-              item: ({ html, item }) => {
-                const product = requireProductHit(item);
-                const image = product.productCard.featuredImage;
-                return html`<a
-                  class="${styles.resultLink}"
-                  data-autocomplete-result-section="Products"
-                  href="${autocompleteProductHref(product, routes)}"
-                >
-                  ${
-                    image === undefined
-                      ? html`<span
-                          class="${styles.resultIcon}"
-                          aria-hidden="true"
-                          >◇</span
-                        >`
-                      : html`<img
-                          alt="${image.altText ?? ""}"
-                          class="${styles.resultImage}"
-                          height="40"
-                          src="${image.url}"
-                          width="40"
-                        />`
-                  }
-                  <span class="${styles.resultBody}">
-                    <span class="${styles.resultTitle}"
-                      >${product.productCard.title}</span
-                    >
-                    <span class="${styles.resultMeta}"
-                      >${product.categories[0]?.label ?? "Product"}</span
-                    >
-                  </span>
-                </a>`;
-              },
-            },
-          },
-        ];
+        }));
       },
       insights: false,
       navigator: {
@@ -305,17 +214,15 @@ export function SearchAutocomplete({
         }
       },
       panelPlacement: "input-wrapper-width",
-      placeholder: "Search products and resources",
+      placeholder: "Search",
       plugins: [querySuggestionsPlugin],
       // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- `reshape` is the public Autocomplete.js source-ordering API.
       reshape: ({ sourcesBySourceId, state }) => {
-        const content = sourcesBySourceId[CONTENT_SOURCE_ID];
-        const products = sourcesBySourceId[PRODUCT_SOURCE_ID];
         const keywords = sourcesBySourceId[QUERY_SUGGESTIONS_SOURCE_ID];
         const query = state.query.trim();
-        const ordered = [content, products].filter(
-          (source) => source !== undefined
-        );
+        const ordered = autocompleteCollections
+          .map(({ indexName }) => sourcesBySourceId[indexName])
+          .filter((source) => source !== undefined);
         if (keywords === undefined || query.length === 0) {
           return ordered;
         }
@@ -324,8 +231,9 @@ export function SearchAutocomplete({
           .filter(
             (item) =>
               !(
-                "query" in item &&
-                item.query.toLocaleLowerCase() === query.toLocaleLowerCase()
+                decodeQuerySuggestionSearchHit(
+                  item
+                ).query.toLocaleLowerCase() === query.toLocaleLowerCase()
               )
           );
         return [

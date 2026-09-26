@@ -46,6 +46,9 @@ async function ProductListingResults({
 }: ProductListingPageProps) {
   const { endpoint, productListingPath } =
     searchRuntime.getClientConfiguration(locale);
+  if (productListingPath === undefined) {
+    throw new Error("Product listing route is not configured");
+  }
   const routeState = productListingRouteState(await searchParams);
   const serverUrl = createProductListingUrl(
     createServerSearchLocation(productListingPath),

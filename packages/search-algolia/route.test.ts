@@ -4,7 +4,7 @@ import type { SearchRouteDependencies } from "@repo/search/server";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import { createAlgoliaSearchProvider } from "./provider";
+import { createAlgoliaSearchProvider } from "./product-provider";
 import type { AlgoliaSearchProviderOptions } from "./provider";
 
 const audience = {

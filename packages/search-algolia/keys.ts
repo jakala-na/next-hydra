@@ -8,8 +8,6 @@ export const keys = () =>
       ALGOLIA_ADMIN_API_KEY: process.env.ALGOLIA_ADMIN_API_KEY,
       ALGOLIA_APPLICATION_ID: process.env.ALGOLIA_APPLICATION_ID,
       ALGOLIA_INDEX_PREFIX: process.env.ALGOLIA_INDEX_PREFIX,
-      ALGOLIA_PRICE_CUSTOMER_GROUP_IDS:
-        process.env.ALGOLIA_PRICE_CUSTOMER_GROUP_IDS,
       ALGOLIA_REGION: process.env.ALGOLIA_REGION,
       ALGOLIA_SEARCH_API_KEY: process.env.ALGOLIA_SEARCH_API_KEY,
     },
@@ -25,7 +23,6 @@ export const keys = () =>
         })
         .optional(),
       ALGOLIA_REGION: z.enum(["eu", "us"]).optional(),
-      ALGOLIA_PRICE_CUSTOMER_GROUP_IDS: z.string().trim().optional(),
       ALGOLIA_SEARCH_API_KEY: z.string().trim().min(1),
     },
   });

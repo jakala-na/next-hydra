@@ -2,16 +2,16 @@ import {
   createCanonicalContentSearchProjection,
   defineContentSearchProjection,
 } from "@repo/search/content-search-projection";
+import { CONTENT_HIT_ATTRIBUTES } from "@repo/search/contract";
 import {
   decodeProductSearchHit,
   PRODUCT_HIT_ATTRIBUTES,
-  CONTENT_HIT_ATTRIBUTES,
-} from "@repo/search/contract";
+} from "@repo/search/product-contract";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { defineAlgoliaProductFacetFields } from "./product-facet-fields";
-import { createAlgoliaSearchProvider } from "./provider";
+import { createAlgoliaSearchProvider } from "./product-provider";
 import type { AlgoliaSearchProviderOptions } from "./provider";
 
 const audience = {

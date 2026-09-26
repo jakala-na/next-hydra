@@ -2053,9 +2053,6 @@ importers:
       '@algolia/autocomplete-theme-classic':
         specifier: ^1.19.9
         version: 1.19.9
-      '@repo/commerce':
-        specifier: workspace:*
-        version: link:../commerce
       '@repo/design-system':
         specifier: workspace:*
         version: link:../design-system
@@ -2117,9 +2114,6 @@ importers:
       '@repo/cli-core':
         specifier: workspace:*
         version: link:../cli-core
-      '@repo/commerce':
-        specifier: workspace:*
-        version: link:../commerce
       '@repo/search':
         specifier: workspace:*
         version: link:../search

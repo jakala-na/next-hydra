@@ -75,8 +75,7 @@
           "id": "next-hydra/search/cli",
           "kind": "recipe",
           "providerDependencies": [
-            { "cwd": "apps/cli", "slot": "search", "section": "dependencies" },
-            { "cwd": "apps/cli", "slot": "commerce", "section": "dependencies" }
+            { "cwd": "apps/cli", "slot": "search", "section": "dependencies" }
           ],
           "packages": [
             {
@@ -92,7 +91,7 @@
             {
               "source": "apps/cli/registry/templates/search-command.ts.template",
               "target": "apps/cli/src/search-command.ts",
-              "slots": { "contentSearchApp": "members" }
+              "slots": { "contentSearchApp": "members", "products": "members" }
             }
           ],
           "slotBindings": [
@@ -107,6 +106,38 @@
         }
       },
       "files": []
+    },
+    {
+      "name": "commerce-search-cli",
+      "type": "registry:item",
+      "title": "commerce-search-cli",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/commerce-cli",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "apps/cli", "slot": "commerce", "section": "dependencies" }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/cli/src/search-command.ts",
+              "slot": "products",
+              "module": "./commerce-search",
+              "export": "commerceSearch",
+              "order": 0
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "src/commerce-search.ts",
+          "target": "~/apps/cli/src/commerce-search.ts",
+          "type": "registry:file"
+        }
+      ]
     }
   ]
 }

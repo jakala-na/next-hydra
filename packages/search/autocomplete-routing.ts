@@ -1,14 +1,14 @@
 import type { Route } from "next";
 
-import type { ContentSearchHit, ProductSearchHit } from "./contract";
+import type { ContentSearchHit } from "./contract";
 
 export interface SearchAutocompleteRoutes {
-  readonly productPathPrefix: string;
+  readonly productPathPrefix?: string;
   readonly contentPathPrefix: string;
   readonly searchPath: string;
 }
 
-const appendPath = (prefix: string, path: string): Route => {
+export const appendSearchPath = (prefix: string, path: string): Route => {
   const normalizedPrefix = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
@@ -17,15 +17,10 @@ const appendPath = (prefix: string, path: string): Route => {
   return `${normalizedPrefix}${normalizedPath}` as Route;
 };
 
-export const autocompleteProductHref = (
-  hit: ProductSearchHit,
-  routes: SearchAutocompleteRoutes
-): Route => appendPath(routes.productPathPrefix, hit.productCard.slug);
-
 export const autocompleteContentHref = (
   hit: ContentSearchHit,
   routes: SearchAutocompleteRoutes
-): Route => appendPath(routes.contentPathPrefix, hit.contentCard.path);
+): Route => appendSearchPath(routes.contentPathPrefix, hit.contentCard.path);
 
 export const autocompleteSearchHref = (
   query: string,

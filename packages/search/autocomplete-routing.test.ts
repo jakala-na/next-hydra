@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  autocompleteProductHref,
+  appendSearchPath,
   autocompleteContentHref,
   autocompleteSearchHref,
 } from "./autocomplete-routing";
 import type { SearchAutocompleteRoutes } from "./autocomplete-routing";
-import { decodeContentSearchHit, decodeProductSearchHit } from "./contract";
+import { decodeContentSearchHit } from "./contract";
+import { decodeProductSearchHit } from "./product-contract";
 
 const routes = {
   contentPathPrefix: "/fr-FR",
@@ -36,9 +37,9 @@ describe("autocomplete routing", () => {
       objectID: "resource-1",
     });
 
-    expect(autocompleteProductHref(product, routes)).toBe(
-      "/fr-FR/catalogue/compact-excavator"
-    );
+    expect(
+      appendSearchPath(routes.productPathPrefix, product.productCard.slug)
+    ).toBe("/fr-FR/catalogue/compact-excavator");
     expect(autocompleteContentHref(content, routes)).toBe(
       "/fr-FR/guides/compact-excavator"
     );

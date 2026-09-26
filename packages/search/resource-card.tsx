@@ -7,6 +7,8 @@ import type { Route } from "next";
 import type { ReactElement } from "react";
 
 import type { ContentSearchHit } from "./contract";
+import { decodeContentSearchHit } from "./contract";
+import type { SearchHit } from "./search-collection";
 
 export interface SearchResourceCardProps {
   readonly hit: ContentSearchHit;
@@ -57,3 +59,17 @@ export function SearchResourceCard({
     </ArchitectureBoundary>
   );
 }
+
+export const ContentResultCard = ({
+  hit,
+  locale,
+}: {
+  readonly hit: SearchHit;
+  readonly locale: Locale;
+}) => (
+  <SearchResourceCard
+    hit={decodeContentSearchHit(hit)}
+    locale={locale}
+    layout="row"
+  />
+);

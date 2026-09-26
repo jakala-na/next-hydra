@@ -17,6 +17,7 @@ import { AlgoliaAdministration } from "./administration";
 import type { AlgoliaCommerceConnectorSource } from "./commerce-connector-source";
 import { AlgoliaProvisioningConfig } from "./config";
 import { provisionAlgolia } from "./provision";
+import { provisionAlgoliaProducts } from "./provision-products";
 import {
   searchRuntimeEnvironment,
   searchRuntimeEnvironmentManifest,
@@ -165,7 +166,12 @@ describe(provisionAlgolia, () => {
       searchableAttributes: contentSearchableAttributes,
     };
     const graph = Effect.runSync(
-      createAlgoliaIndexGraph("acceptance", locales, contentProjection)
+      createAlgoliaIndexGraph(
+        "acceptance",
+        locales,
+        contentProjection,
+        storeConfiguration
+      )
     );
     const TestLayer = Layer.mergeAll(
       AlgoliaAdministration.layerFrom({
@@ -184,7 +190,6 @@ describe(provisionAlgolia, () => {
         AlgoliaProvisioningConfig.of({
           adminApiKey: Redacted.make("admin-key"),
           applicationId: "application-id",
-          priceCustomerGroupIds: ["contractors-id"],
           region: "us",
         })
       ),
@@ -194,7 +199,6 @@ describe(provisionAlgolia, () => {
 
     const { progressLines, receipt } = await Effect.gen(function* () {
       const provisioningReceipt = yield* provisionAlgolia({
-        commerceConnectorSource,
         contentProjection,
         destination: {
           destination: "local",
@@ -204,6 +208,14 @@ describe(provisionAlgolia, () => {
         },
         indexPrefix: "acceptance",
         locales,
+        products: {
+          priceCustomerGroupIds: ["contractors-id"],
+          provision: (graph) =>
+            provisionAlgoliaProducts(graph, commerceConnectorSource, [
+              "contractors-id",
+            ]),
+          storefronts: storeConfiguration,
+        },
       });
       const capturedProgressLines = yield* testConsoleLogLines;
       return {
@@ -296,7 +308,6 @@ describe(provisionAlgolia, () => {
     );
 
     const repeatedReceipt = await provisionAlgolia({
-      commerceConnectorSource,
       contentProjection,
       destination: {
         destination: "local",
@@ -306,10 +317,17 @@ describe(provisionAlgolia, () => {
       },
       indexPrefix: "acceptance",
       locales,
+      products: {
+        priceCustomerGroupIds: ["contractors-id"],
+        provision: (graph) =>
+          provisionAlgoliaProducts(graph, commerceConnectorSource, [
+            "contractors-id",
+          ]),
+        storefronts: storeConfiguration,
+      },
     }).pipe(Effect.provide(ProvisionTestLayer), Effect.runPromise);
 
     const reconciledReceipt = await provisionAlgolia({
-      commerceConnectorSource,
       contentProjection,
       destination: {
         destination: "local",
@@ -319,6 +337,14 @@ describe(provisionAlgolia, () => {
       },
       indexPrefix: "acceptance",
       locales,
+      products: {
+        priceCustomerGroupIds: ["contractors-id"],
+        provision: (graph) =>
+          provisionAlgoliaProducts(graph, commerceConnectorSource, [
+            "contractors-id",
+          ]),
+        storefronts: storeConfiguration,
+      },
     }).pipe(Effect.provide(ProvisionTestLayer), Effect.runPromise);
 
     expect({

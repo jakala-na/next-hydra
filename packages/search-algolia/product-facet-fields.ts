@@ -1,5 +1,5 @@
 import type { FieldPath } from "@repo/commerce/product";
-import type { ProductFacetFieldMapping } from "@repo/search/contract";
+import type { ProductFacetFieldMapping } from "@repo/search/product-contract";
 
 import { algoliaProductFieldPath } from "./connector/commercetools/generated-product";
 import type {

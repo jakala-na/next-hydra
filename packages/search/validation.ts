@@ -1,16 +1,36 @@
 import { z } from "zod";
 
+import { searchCollections } from "./collections";
 import type { SearchBatch } from "./contract";
-import {
-  SEARCH_HIT_ATTRIBUTES,
-  SEARCH_INDEX_ALIASES,
-  isProductIndexAlias,
-} from "./contract";
-import {
-  isProductFacet,
-  isProductRangeFacet,
-  isProductRefinementFacet,
-} from "./product-discovery";
+import { QUERY_SUGGESTION_HIT_ATTRIBUTES } from "./contract";
+
+const SEARCH_INDEX_ALIASES: [string, ...string[]] = [
+  "query-suggestions",
+  ...searchCollections.flatMap(({ aliases }) => aliases),
+];
+const SEARCH_HIT_ATTRIBUTES: [string, ...string[]] = [
+  "objectID",
+  ...QUERY_SUGGESTION_HIT_ATTRIBUTES,
+  ...searchCollections.flatMap(({ attributes }) => attributes),
+];
+const installedFacets = searchCollections.flatMap(
+  (collection) => collection.facets
+);
+const isFacet = (value: string) =>
+  installedFacets.some(({ id }) => id === value);
+const isRefinementFacet = (value: string) =>
+  installedFacets.some(
+    ({ id, control }) => id === value && control === "refinement-list"
+  );
+const isRangeFacet = (value: string) =>
+  installedFacets.some(
+    ({ id, control }) => id === value && control === "range"
+  );
+const supportsFacets = (value: string) =>
+  searchCollections.some(
+    (collection) =>
+      collection.facets.length > 0 && collection.aliases.includes(value)
+  );
 
 const MAX_BATCH_SIZE = 8;
 const MAX_HITS_PER_PAGE = 48;
@@ -19,9 +39,7 @@ const MAX_VALUES_PER_FACET = 100;
 const facetFilterValueSchema = z.string().refine(
   (filter) => {
     const separator = filter.indexOf(":");
-    return (
-      separator > 0 && isProductRefinementFacet(filter.slice(0, separator))
-    );
+    return separator > 0 && isRefinementFacet(filter.slice(0, separator));
   },
   { message: "facetFilters contains an unsupported facet" }
 );
@@ -32,15 +50,15 @@ const numericFilterPattern =
 const numericFilterValueSchema = z.string().refine((filter) => {
   const match = numericFilterPattern.exec(filter);
   const facet = match?.groups?.facet;
-  return facet !== undefined && isProductRangeFacet(facet);
+  return facet !== undefined && isRangeFacet(facet);
 }, "numericFilters contains an unsupported filter");
 
-const productFacetSchema = z.string().refine(isProductFacet, {
-  message: "unsupported Product facet",
+const facetSchema = z.string().refine(isFacet, {
+  message: "unsupported search facet",
 });
 
 const facetsSchema = z
-  .union([productFacetSchema, z.array(productFacetSchema)])
+  .union([facetSchema, z.array(facetSchema)])
   .transform((facets) => (Array.isArray(facets) ? facets : [facets]));
 
 const searchParametersSchema = z
@@ -91,7 +109,7 @@ const searchBatchSchema = z
           .strict()
           .superRefine(({ indexName, params }, context) => {
             if (
-              !isProductIndexAlias(indexName) &&
+              !supportsFacets(indexName) &&
               (params.facetFilters !== undefined ||
                 params.facets !== undefined ||
                 params.numericFilters !== undefined)

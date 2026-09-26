@@ -5,13 +5,8 @@
       "name": "search-contract",
       "type": "registry:item",
       "title": "Search contract",
-      "description": "Installs the provider-neutral InstantSearch contract and Product listing UI.",
+      "description": "Provider-neutral search transport, Content results, and composed search collections.",
       "files": [
-        {
-          "path": "autocomplete-routing.test.ts",
-          "target": "~/packages/search/autocomplete-routing.test.ts",
-          "type": "registry:file"
-        },
         {
           "path": "autocomplete-routing.ts",
           "target": "~/packages/search/autocomplete-routing.ts",
@@ -28,13 +23,13 @@
           "type": "registry:file"
         },
         {
-          "path": "client.test.ts",
-          "target": "~/packages/search/client.test.ts",
+          "path": "client.ts",
+          "target": "~/packages/search/client.ts",
           "type": "registry:file"
         },
         {
-          "path": "client.ts",
-          "target": "~/packages/search/client.ts",
+          "path": "collections.test.tsx",
+          "target": "~/packages/search/collections.test.tsx",
           "type": "registry:file"
         },
         {
@@ -48,18 +43,8 @@
           "type": "registry:file"
         },
         {
-          "path": "combined-search-routing.test.ts",
-          "target": "~/packages/search/combined-search-routing.test.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "combined-search-routing.ts",
           "target": "~/packages/search/combined-search-routing.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "combined-search-server.test.tsx",
-          "target": "~/packages/search/combined-search-server.test.tsx",
           "type": "registry:file"
         },
         {
@@ -83,6 +68,11 @@
           "type": "registry:file"
         },
         {
+          "path": "content-collection.ts",
+          "target": "~/packages/search/content-collection.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "content-search-app.ts",
           "target": "~/packages/search/content-search-app.ts",
           "type": "registry:file"
@@ -95,41 +85,6 @@
         {
           "path": "contract.ts",
           "target": "~/packages/search/contract.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/combined-search.feature",
-          "target": "~/packages/search/e2e/@search/combined-search.feature",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/combined-search.steps.ts",
-          "target": "~/packages/search/e2e/@search/combined-search.steps.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/product-search.feature",
-          "target": "~/packages/search/e2e/@search/product-search.feature",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/product-search.steps.ts",
-          "target": "~/packages/search/e2e/@search/product-search.steps.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/search-autocomplete.feature",
-          "target": "~/packages/search/e2e/@search/search-autocomplete.feature",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/search-autocomplete.steps.ts",
-          "target": "~/packages/search/e2e/@search/search-autocomplete.steps.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@search/search-context.ts",
-          "target": "~/packages/search/e2e/@search/search-context.ts",
           "type": "registry:file"
         },
         {
@@ -175,6 +130,204 @@
         {
           "path": "presentation.ts",
           "target": "~/packages/search/presentation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "resource-card.tsx",
+          "target": "~/packages/search/resource-card.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime.ts",
+          "target": "~/packages/search/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-search-runtime.ts",
+          "target": "~/packages/search/runtime/make-search-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-collection.ts",
+          "target": "~/packages/search/search-collection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-field.module.css",
+          "target": "~/packages/search/search-field.module.css",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-page.tsx",
+          "target": "~/packages/search/search-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-pagination.tsx",
+          "target": "~/packages/search/search-pagination.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-query.tsx",
+          "target": "~/packages/search/search-query.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-route.ts",
+          "target": "~/packages/search/search-route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.ts",
+          "target": "~/packages/search/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/search/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "validation.ts",
+          "target": "~/packages/search/validation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/search/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/core",
+          "kind": "package",
+          "conditionalDependencies": [
+            { "providers": ["commerce"], "items": ["search-commerce"] }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "packages/search/registry/templates/collections.ts.template",
+              "target": "packages/search/collections.ts",
+              "slots": { "collections": "members" }
+            },
+            {
+              "source": "packages/search/registry/templates/cards.ts.template",
+              "target": "packages/search/cards.ts",
+              "slots": { "cards": "members" }
+            }
+          ],
+          "slotBindings": [
+            {
+              "target": "packages/search/collections.ts",
+              "slot": "collections",
+              "module": "./content-collection",
+              "export": "contentCollection",
+              "order": 20
+            },
+            {
+              "target": "packages/search/cards.ts",
+              "slot": "cards",
+              "module": "./resource-card",
+              "export": "ContentResultCard",
+              "as": "content"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "search-commerce",
+      "type": "registry:item",
+      "title": "search-commerce",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/commerce",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/search",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "packages/search/collections.ts",
+              "slot": "collections",
+              "module": "./product-collection",
+              "export": "productCollection",
+              "order": 10
+            },
+            {
+              "target": "packages/search/cards.ts",
+              "slot": "cards",
+              "module": "./product-card",
+              "export": "ProductResultCard",
+              "as": "products"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "autocomplete-routing.test.ts",
+          "target": "~/packages/search/autocomplete-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.test.ts",
+          "target": "~/packages/search/client.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-routing.test.ts",
+          "target": "~/packages/search/combined-search-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-server.test.tsx",
+          "target": "~/packages/search/combined-search-server.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/combined-search.feature",
+          "target": "~/packages/search/e2e/@search/combined-search.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/combined-search.steps.ts",
+          "target": "~/packages/search/e2e/@search/combined-search.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/product-search.feature",
+          "target": "~/packages/search/e2e/@search/product-search.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/product-search.steps.ts",
+          "target": "~/packages/search/e2e/@search/product-search.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-autocomplete.feature",
+          "target": "~/packages/search/e2e/@search/search-autocomplete.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-autocomplete.steps.ts",
+          "target": "~/packages/search/e2e/@search/search-autocomplete.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-context.ts",
+          "target": "~/packages/search/e2e/@search/search-context.ts",
           "type": "registry:file"
         },
         {
@@ -243,48 +396,8 @@
           "type": "registry:file"
         },
         {
-          "path": "resource-card.tsx",
-          "target": "~/packages/search/resource-card.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "runtime.ts",
-          "target": "~/packages/search/runtime.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "runtime/make-search-runtime.test.ts",
           "target": "~/packages/search/runtime/make-search-runtime.test.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "runtime/make-search-runtime.ts",
-          "target": "~/packages/search/runtime/make-search-runtime.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "search-field.module.css",
-          "target": "~/packages/search/search-field.module.css",
-          "type": "registry:file"
-        },
-        {
-          "path": "search-page.tsx",
-          "target": "~/packages/search/search-page.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "search-pagination.tsx",
-          "target": "~/packages/search/search-pagination.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "search-query.tsx",
-          "target": "~/packages/search/search-query.tsx",
-          "type": "registry:file"
-        },
-        {
-          "path": "search-route.ts",
-          "target": "~/packages/search/search-route.ts",
           "type": "registry:file"
         },
         {
@@ -293,28 +406,18 @@
           "type": "registry:file"
         },
         {
-          "path": "server.ts",
-          "target": "~/packages/search/server.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "tsconfig.json",
-          "target": "~/packages/search/tsconfig.json",
-          "type": "registry:file"
-        },
-        {
           "path": "validation.test.ts",
           "target": "~/packages/search/validation.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "validation.ts",
-          "target": "~/packages/search/validation.ts",
+          "path": "product-contract.ts",
+          "target": "~/packages/search/product-contract.ts",
           "type": "registry:file"
         },
         {
-          "path": "vitest.config.ts",
-          "target": "~/packages/search/vitest.config.ts",
+          "path": "product-collection.ts",
+          "target": "~/packages/search/product-collection.ts",
           "type": "registry:file"
         }
       ]

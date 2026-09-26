@@ -1,0 +1,7 @@
+{
+  "providers": {
+    "cms": "contentstack",
+    "search": "algolia"
+  },
+  "addOns": []
+}

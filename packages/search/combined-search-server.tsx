@@ -10,10 +10,8 @@ import {
 import index from "instantsearch.js/es/widgets/index/index";
 import type { InstantSearchServerState } from "react-instantsearch";
 
-import {
-  combinedProductSearchConfigure,
-  combinedContentSearchConfigure,
-} from "./combined-search-config";
+import { searchCollections } from "./collections";
+import { combinedSearchConfigure } from "./combined-search-config";
 import type {
   CombinedSearchRouteState,
   CombinedSearchTab,
@@ -44,22 +42,20 @@ const resultWidgets = (withPagination: boolean): ServerWidget[] => [
 const createCombinedSearchServerWidgets = (
   tab: CombinedSearchTab
 ): ServerWidget[] => {
-  const rootIsResource = tab === "resources";
+  const indexName = combinedSearchRootIndex(tab);
   const widgets: ServerWidget[] = [
     connectConfigure(renderNothing)({
-      searchParameters: rootIsResource
-        ? combinedContentSearchConfigure(tab)
-        : combinedProductSearchConfigure(tab),
+      searchParameters: combinedSearchConfigure(indexName, tab),
     }),
     connectSearchBox(renderNothing)({}),
-    ...resultWidgets(tab !== "all"),
+    ...resultWidgets(tab !== "all" || searchCollections.length === 1),
   ];
 
-  if (tab === "all") {
-    const content = index({ indexName: "content" });
+  for (const collection of tab === "all" ? searchCollections.slice(1) : []) {
+    const content = index({ indexName: collection.indexName });
     content.addWidgets([
       connectConfigure(renderNothing)({
-        searchParameters: combinedContentSearchConfigure(tab),
+        searchParameters: combinedSearchConfigure(collection.indexName, tab),
       }),
       ...resultWidgets(false),
     ]);

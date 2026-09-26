@@ -2,13 +2,20 @@ import type { ContentSearchProjection } from "@repo/search/content-search-projec
 import { Effect } from "effect";
 
 import { createAlgoliaIndexGraph } from "../../index-graph";
+import type { StoreConfiguration } from "../../index-graph";
 
 export const formatAlgoliaProvisioningPlan = (
   indexPrefix: string | undefined,
   locales: readonly string[],
-  contentProjection: ContentSearchProjection
+  contentProjection: ContentSearchProjection,
+  storefronts?: StoreConfiguration
 ) =>
-  createAlgoliaIndexGraph(indexPrefix, locales, contentProjection).pipe(
+  createAlgoliaIndexGraph(
+    indexPrefix,
+    locales,
+    contentProjection,
+    storefronts
+  ).pipe(
     Effect.map((graph) => {
       const lines = [
         graph.prefix === undefined
@@ -38,11 +45,15 @@ export const formatAlgoliaProvisioningPlan = (
         );
       }
       lines.push(
-        `  Restricted runtime key: ${graph.queryableIndexNames.length} queryable indices`,
-        `  Restricted connector key: ${graph.productPrimaries.length} Product primaries`,
-        "  Managed commerce API Client: connector read and subscription scopes",
-        `  Initial full reindexes: ${graph.productPrimaries.length} Store connectors`
+        `  Restricted runtime key: ${graph.queryableIndexNames.length} queryable indices`
       );
+      if (graph.productPrimaries.length > 0) {
+        lines.push(
+          `  Restricted connector key: ${graph.productPrimaries.length} Product primaries`,
+          "  Managed commerce API Client: connector read and subscription scopes",
+          `  Initial full reindexes: ${graph.productPrimaries.length} Store connectors`
+        );
+      }
 
       return lines.join("\n");
     })
