@@ -20,7 +20,7 @@ for (const target of [".git", ".gitignore", "apps/web/vercel.json"]) {
           name: "configured-site",
           sourceRoot: "/source",
         });
-        expect(yield* workspace.check().pipe(Effect.flip)).toMatchObject({
+        expect(yield* workspace.check.pipe(Effect.flip)).toMatchObject({
           _tag: "DestinationNotEmpty",
         });
         expect(

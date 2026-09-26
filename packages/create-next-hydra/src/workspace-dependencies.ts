@@ -416,7 +416,7 @@ export class WorkspaceDependencies extends Context.Service<
           Config.withDefault("development"),
           Effect.mapError(failure)
         );
-        // Check verifies recorded installation, not the executable a future install
+        // Inspection verifies recorded installation, not the executable a future install
         // might select. Never bootstrap a package manager during read-only inspection.
         if (
           !previous.toolchain.startsWith(

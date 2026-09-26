@@ -138,8 +138,6 @@ export interface CheckReport {
   readonly initialized: boolean;
   readonly ready: boolean;
   readonly changes: readonly FileChange[];
-  readonly dependencies: "pending" | "current";
-  readonly dependencyReasons: readonly string[];
 }
 
 export interface DiffReport {

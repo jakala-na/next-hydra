@@ -73,8 +73,7 @@ describe("dependency synchronization", () => {
             configuration,
             "//registry.npmjs.org/:_authToken=rotated-test-token\n"
           );
-          expect(yield* (yield* named).check()).toMatchObject({
-            dependencies: "current",
+          expect(yield* (yield* named).check).toMatchObject({
             ready: true,
           });
           expect(
@@ -85,9 +84,8 @@ describe("dependency synchronization", () => {
             configuration,
             "//registry.npmjs.org/:_authToken=rotated-test-token\nregistry=https://registry.example.test\n"
           );
-          expect(yield* (yield* named).check()).toMatchObject({
-            dependencies: "pending",
-            ready: false,
+          expect(yield* (yield* named).check).toMatchObject({
+            ready: true,
           });
           const failedInstaller = Layer.effect(
             ChildProcessSpawner.ChildProcessSpawner,
@@ -108,7 +106,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "keeps CLI Check current with unrelated local files but rejects missing dependencies",
+    "keeps CLI Check current with unrelated local files and missing dependencies",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", { processes });
@@ -145,16 +143,14 @@ describe("dependency synchronization", () => {
           const manifest = `${root}/apps/web/node_modules/next/package.json`;
           yield* fs.remove(manifest);
           yield* fs.makeDirectory(manifest);
-          expect(yield* check.pipe(Effect.flip)).toMatchObject({
-            _tag: "WorkspaceNotCurrent",
-          });
+          yield* check;
           expect((yield* fs.stat(manifest)).type).toBe("Directory");
         }).pipe(Effect.provide([layer, TestConsole.layer]));
       })
   );
 
   it.effect(
-    "recognizes pnpm normalization but requires installation for a new dependency declaration",
+    "recognizes pnpm normalization but reports a new dependency declaration as a file update",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", {
@@ -177,13 +173,12 @@ describe("dependency synchronization", () => {
           const fs = yield* FileSystem.FileSystem;
           yield* (yield* named).sync({});
           const check = named.pipe(
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices())
           );
           const lock = yield* fs.readFile(`${root}/pnpm-lock.yaml`);
           expect(yield* check).toMatchObject({
             changes: [],
-            dependencies: "current",
             ready: true,
           });
           const manifest = yield* fs.readFileString(
@@ -194,10 +189,7 @@ describe("dependency synchronization", () => {
             manifest.replace('"next": "catalog:"', '"next": "16.3.2"')
           );
           const changed = yield* check;
-          expect(changed.dependencies).toBe("pending");
-          expect(changed.dependencyReasons).toContain(
-            "Installation inputs changed"
-          );
+          expect(changed.ready).toBeFalsy();
           expect(changed.changes).toContainEqual({
             kind: "update",
             target: "apps/web/package.json",
@@ -208,7 +200,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "checks recorded installation without launching pnpm and keeps component freshness separate",
+    "checks component freshness independently of installed dependencies",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", { processes });
@@ -216,12 +208,11 @@ describe("dependency synchronization", () => {
           const fs = yield* FileSystem.FileSystem;
           yield* (yield* named).sync({});
           const check = named.pipe(
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices())
           );
           expect(yield* check).toMatchObject({
             changes: [],
-            dependencies: "current",
             ready: true,
           });
           const template = yield* fs.readFileString(
@@ -233,15 +224,14 @@ describe("dependency synchronization", () => {
           );
           expect(yield* check).toMatchObject({
             changes: [{ kind: "update", target: "apps/web/layout.tsx" }],
-            dependencies: "current",
             ready: false,
           });
           yield* fs.remove(`${root}/apps/web/node_modules/next/package.json`);
           const missing = yield* check;
-          expect(missing.dependencies).toBe("pending");
-          expect(missing.dependencyReasons).toContain(
-            "Installed dependency missing: apps/web/node_modules/next/package.json"
-          );
+          expect(missing.changes).toEqual([
+            { kind: "update", target: "apps/web/layout.tsx" },
+          ]);
+          expect(missing.ready).toBeFalsy();
         }).pipe(Effect.provide(layer));
       })
   );
@@ -319,7 +309,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "retries a stopped installation in another invocation without treating a skip as readiness",
+    "checks files after a stopped installation and leaves dependency retry to synchronization",
     () =>
       Effect.gen(function* () {
         const entered = yield* Deferred.make<undefined>();
@@ -344,23 +334,25 @@ describe("dependency synchronization", () => {
             .sync({ offline: true })
             .pipe(Effect.forkChild);
           yield* Deferred.await(entered);
+          expect(yield* workspace.check.pipe(Effect.flip)).toMatchObject({
+            _tag: "WorkspaceBusy",
+          });
           yield* Fiber.interrupt(running);
-          expect(yield* workspace.check().pipe(Effect.flip)).toMatchObject({
-            _tag: "WorkspaceRecoveryRequired",
+          expect(yield* workspace.check).toMatchObject({
+            changes: [],
+            ready: true,
           });
           const next = named.pipe(
             Effect.provide(memoryWorkspaceServices([], processes))
           );
           const skipped = yield* (yield* next).sync({ install: "skip" });
           expect(skipped.dependencies).toBe("pending");
-          expect(yield* (yield* next).check()).toMatchObject({
-            dependencies: "pending",
-            ready: false,
+          expect(yield* (yield* next).check).toMatchObject({
+            ready: true,
           });
           expect(yield* (yield* next).sync({})).toMatchObject({
             dependencies: "current",
           });
-          expect(yield* (yield* next).check()).toMatchObject({ ready: true });
         }).pipe(Effect.provide(layer));
       })
   );
@@ -390,6 +382,10 @@ describe("dependency synchronization", () => {
               "unfinished changes\n"
             );
             yield* Fiber.interrupt(running);
+            expect(yield* workspace.check).toMatchObject({
+              changes: [{ kind: "conflict", target }],
+              ready: false,
+            });
             const retry = named.pipe(
               Effect.flatMap((next) => next.sync({})),
               Effect.provide(memoryWorkspaceServices([], processes))

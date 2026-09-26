@@ -66,11 +66,11 @@ it.effect(
           "/source/layout.tsx.template",
           template.replace("Hello", "Welcome")
         );
-        expect((yield* workspace.check()).changes).toEqual([
+        expect((yield* workspace.check).changes).toEqual([
           { kind: "update", target: "apps/web/layout.tsx" },
         ]);
         yield* workspace.sync({ install: "skip" });
-        expect((yield* workspace.check()).changes).toEqual([]);
+        expect((yield* workspace.check).changes).toEqual([]);
         expect(
           yield* fs.readFileString(`${root}/apps/web/layout.tsx`)
         ).toContain("Welcome");
@@ -288,7 +288,7 @@ for (const kind of ["file", "directory", "parent"] as const) {
             name: "configured-site",
             sourceRoot: "/source",
           });
-          const check = yield* workspace.check();
+          const check = yield* workspace.check;
           expect(check.ready).toBeFalsy();
           expect(check.changes).toContainEqual({
             kind: kind === "file" ? "unregistered" : "conflict",
@@ -419,7 +419,7 @@ it.effect(
             Effect.flatMap((api) =>
               api.named({ name: "configured-site", sourceRoot: "/source" })
             ),
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices()),
             Effect.flip
           )

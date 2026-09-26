@@ -68,7 +68,7 @@ For agent-driven editing, use the known canonical path or search source first. W
 
 These snapshots are local inspection history, not a backup of unregistered work. They are never included in newly scaffolded projects. `--check` still answers whether the current definition and source require refresh; `--diff` answers what changed locally since the last composition snapshot.
 
-`--check` reports stale output, missing workspace ignore files, modified/deleted managed files, collisions at intended output paths and pending dependency installation, and exits nonzero if any need attention. Unrelated local files do not make a workspace stale. `--diff` can list eligible unowned files as informational; its exclusions are not a requirement for refresh. `--all` processes each named definition independently and reports failures without preventing the others from updating. Definitions must be direct children of `workspaces/` and visible to Git (tracked or new); explicitly ignored definitions and nested scratch definitions are not discovered.
+`--check` reports stale output, missing workspace ignore files, modified/deleted managed files and collisions at intended output paths, and exits nonzero if any need attention. It does not inspect package-manager configuration or installed dependencies. Unrelated local files do not make a workspace stale. `--diff` can list eligible unowned files as informational; its exclusions are not a requirement for refresh. `--all` processes each named definition independently and reports failures without preventing the others from updating. Definitions must be direct children of `workspaces/` and visible to Git (tracked or new); explicitly ignored definitions and nested scratch definitions are not discovered.
 
 ### Freshness before application verification
 
@@ -77,7 +77,7 @@ These checks answer different questions:
 | Command | What it establishes |
 | --- | --- |
 | `compose <name> --explain <file>` | Which canonical source or template owns an application file. |
-| `compose <name> --check` | Whether the selected workspace needs refresh, reconciliation or dependency installation against the current definition and source. This is the application freshness gate. |
+| `compose <name> --check` | Whether composed files need refresh or reconciliation against the current definition and source. This checks file freshness, not dependency installation. |
 | `compose <name> --diff` | Which workspace files changed locally since the last composition snapshot. It prints diagnostics and patches; a successful exit or an empty diff does not certify source freshness. |
 
 After editing canonical source, refresh the workspace and check immediately before running application tests or inspecting its browser UI. For example, from the repository root:
@@ -90,7 +90,7 @@ pnpm --dir workspaces/storefront-contentstack --filter web test
 
 If refresh or check reports local changes, inspect `compose storefront-contentstack --diff` and use the source mappings to reconcile them before retrying. Preserve unregistered work. A clean snapshot diff can coexist with stale application copies when only canonical source changed. Newly added source files must also be covered by registry ownership; use `pnpm registry:check` when changing that inventory.
 
-Application commands do not refresh source. Refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts or pending installation, so its presence does not replace the gate. `--no-install` is only appropriate when the workspace dependencies are already current.
+Application commands do not refresh source. Refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts, so its presence does not replace the gate. Use `--no-install` to manage installation yourself, and run pnpm in the workspace when needed. A passing Check does not establish dependency readiness.
 
 Passing the gate describes files on disk. Confirm the resolved server URL belongs to that workspace and allow development compilation to finish. Restart or rebuild when needed for configuration, dependency or runtime changes. If relevant source or output changes during verification, refresh and repeat affected checks; a previous pass does not cover later edits. See the [E2E guide](../docs/agents/e2e.md#freshness-before-application-verification) for the browser-suite workflow and the limits of current enforcement.
 

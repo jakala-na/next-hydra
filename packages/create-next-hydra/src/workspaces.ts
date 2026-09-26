@@ -31,6 +31,7 @@ import {
   MaterializationFailed,
   SourceChanged,
   SnapshotUnavailable,
+  WorkspaceRecoveryRequired,
   WorkspaceUninitialized,
 } from "./errors.ts";
 import type { EnvironmentInitializationFailed } from "./errors.ts";
@@ -119,14 +120,11 @@ export interface NamedWorkspace {
     | SourceChanged
     | WorkspaceUninitialized
   >;
-  readonly check: (
-    options?: Pick<DependencyOptions, "offline">
-  ) => Effect.Effect<
+  readonly check: Effect.Effect<
     CheckReport,
     | PreparationError
     | WorkspaceFileError
     | WorkspaceStateError
-    | DependencyError
     | DestinationNotEmpty
   >;
   readonly explain: (
@@ -319,13 +317,20 @@ export class Workspaces extends Context.Service<
           };
         });
         const operations = {
-          check: Effect.fn("NamedWorkspace.check")(function* (
-            options: Pick<DependencyOptions, "offline"> = {}
-          ) {
-            return yield* state.withRead(
+          check: state
+            .withRead(
               { directory: destination, sourceRoot },
               (observation) =>
                 Effect.gen(function* () {
+                  if (
+                    observation.pending !== null &&
+                    (observation.pending.kind !== "installation" ||
+                      !observation.pending.stopped)
+                  ) {
+                    return yield* new WorkspaceRecoveryRequired({
+                      directory: destination,
+                    });
+                  }
                   const { definition, port, selection } = yield* readDefinition;
                   const prepared = yield* sources.use(
                     { kind: "working-tree", root: sourceRoot },
@@ -349,11 +354,6 @@ export class Workspaces extends Context.Service<
                   if (!preserved.has(".gitignore")) {
                     changes.push({ kind: "setting", target: ".gitignore" });
                   }
-                  const dependencyState = yield* dependencies.inspect(
-                    observation,
-                    files,
-                    options
-                  );
                   if (
                     (yield* fs.readFileString(definitionPath)) !== definition
                   ) {
@@ -362,21 +362,18 @@ export class Workspaces extends Context.Service<
                     });
                   }
                   return {
-                    ...dependencyState,
                     changes,
                     destination,
                     initialized: observation.initialized,
-                    ready:
-                      observation.initialized &&
-                      changes.length === 0 &&
-                      dependencyState.dependencies === "current",
+                    ready: observation.initialized && changes.length === 0,
                   };
                 }).pipe(
                   Effect.provideService(FileSystem.FileSystem, fs),
                   Effect.provideService(Path.Path, path)
-                )
-            );
-          }),
+                ),
+              { allowIncomplete: true }
+            )
+            .pipe(Effect.withSpan("NamedWorkspace.check")),
           diff: state
             .withRead(
               { directory: destination, sourceRoot },
