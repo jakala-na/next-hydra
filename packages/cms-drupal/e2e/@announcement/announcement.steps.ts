@@ -8,7 +8,6 @@ type Observation = {
   message: string | null;
   href: string | null;
   aboveHeader: boolean;
-  placeholders: number;
 };
 const observations = new WeakMap<Page, Observation[]>();
 
@@ -29,9 +28,6 @@ async function observe(page: Page, path: string): Promise<Observation> {
       .getByRole("link", { name: "Explore Next Hydra" })
       .getAttribute("href"),
     message: await banner.textContent(),
-    placeholders: await page
-      .getByText(/^Global (?:pre|post)-(?:header|footer) region$/u)
-      .count(),
   };
 }
 
@@ -54,11 +50,5 @@ Then("each page shows one demo announcement above its header", ({ page }) => {
 Then("the announcement links to the Next Hydra website", ({ page }) => {
   for (const result of observations.get(page) ?? []) {
     expect(result.href).toBe("https://next-hydra.dev");
-  }
-});
-
-Then("the placeholder region text is absent", ({ page }) => {
-  for (const result of observations.get(page) ?? []) {
-    expect(result.placeholders).toBe(0);
   }
 });

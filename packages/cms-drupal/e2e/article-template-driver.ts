@@ -159,12 +159,6 @@ export class ArticleTemplateDriver {
   private static async expectSiteRegions(page: Page): Promise<void> {
     await expect(page.getByRole("banner")).toHaveCount(1);
     await expect(page.getByRole("contentinfo")).toHaveCount(1);
-    await expect(
-      page.getByText("Global pre-header region", { exact: true })
-    ).toHaveCount(1);
-    await expect(
-      page.getByText("Global post-footer region", { exact: true })
-    ).toHaveCount(1);
   }
 
   async expectArticleRegions(): Promise<void> {

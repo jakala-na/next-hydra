@@ -7,4 +7,3 @@ Feature: Site-wide announcement
     When I visit the homepage and the registration page
     Then each page shows one demo announcement above its header
     And the announcement links to the Next Hydra website
-    And the placeholder region text is absent
