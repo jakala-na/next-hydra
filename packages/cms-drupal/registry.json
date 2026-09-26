@@ -324,6 +324,16 @@
           "type": "registry:file"
         },
         {
+          "path": "lib/content-path.ts",
+          "target": "~/packages/cms-drupal/lib/content-path.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/content-route.ts",
+          "target": "~/packages/cms-drupal/lib/content-route.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "lib/latest-articles.ts",
           "target": "~/packages/cms-drupal/lib/latest-articles.ts",
           "type": "registry:file"

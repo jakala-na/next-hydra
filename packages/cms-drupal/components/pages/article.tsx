@@ -1,11 +1,11 @@
 import type { ArticleTeaser } from "@repo/design-system/components/cms/article-card";
 import { ArticlePage as ArticlePageView } from "@repo/design-system/components/cms/pages/article";
 import type { Locale } from "@repo/i18n";
-import { getPathname } from "@repo/i18n/navigation";
 
 import { graphql, readFragment } from "../../graphql";
 import type { FragmentOf } from "../../graphql";
 import { getNodeCacheTag } from "../../lib/cache-tags";
+import { toContentRoute } from "../../lib/content-route";
 
 export const articleTeaserFragment = graphql(`
   fragment DrupalArticleTeaser on NodeArticle {
@@ -74,7 +74,7 @@ export function toArticleTeaser(
       : undefined;
 
   return {
-    href: getPathname({ href: article.path, locale }),
+    href: toContentRoute(article.path, locale),
     id: article.id,
     image,
     publishedAt: formatPublishedAt(article.created.time, locale),

@@ -7,4 +7,12 @@ export default defineConfig({
       "server-only": serverOnlyShim,
     },
   },
+  test: {
+    server: {
+      deps: {
+        // Resolve Next's extensionless imports through Vite, without mocking navigation.
+        inline: ["next-intl"],
+      },
+    },
+  },
 });

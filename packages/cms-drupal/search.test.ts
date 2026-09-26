@@ -1,3 +1,4 @@
+import { getPathname } from "@repo/i18n/navigation";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -77,5 +78,31 @@ describe(createDrupalSearchProjection, () => {
     expect(
       projection.toContentSearchHit(record, { locale: "en-US" })
     ).toMatchObject({ contentCard: { summary: "" } });
+  });
+
+  it.each([
+    ["/fr-FR/homepage", "/fr-FR/homepage"],
+    [
+      "https://cms.example.com/fr-FR/homepage?preview=0#intro",
+      "/fr-FR/homepage?preview=0#intro",
+    ],
+    ["/homepage", "/fr-FR/homepage"],
+    ["/fr-FR", "/fr-FR"],
+    ["/fr-FR?preview=0#intro", "/fr-FR?preview=0#intro"],
+    ["/fr-FR-guide", "/fr-FR/fr-FR-guide"],
+  ])("localizes indexed Content path %s exactly once", (path, destination) => {
+    const projection = createDrupalSearchProjection("acceptance--content");
+    const record = {
+      content_type: "landing_page",
+      id: "2f08ddbd-32d8-4097-8941-5691240bd36a",
+      objectID: "entity:node/8:fr",
+      path,
+      title: "Accueil",
+    };
+    const hit = projection.toContentSearchHit(record, { locale: "fr-FR" });
+
+    expect(getPathname({ href: hit.contentCard.path, locale: "fr-FR" })).toBe(
+      destination
+    );
   });
 });

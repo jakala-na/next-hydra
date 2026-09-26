@@ -7,6 +7,8 @@ import { decodeContentSearchHit } from "@repo/search/contract";
 import { Effect } from "effect";
 import { z } from "zod";
 
+import { toContentPath } from "./lib/content-path";
+
 const drupalContentRecordSchema = z.object({
   content_type: z.string().min(1),
   id: z.string().min(1),
@@ -31,21 +33,13 @@ function drupalLangcode(locale: string): string {
   return drupalLangcodeByLocale.get(locale) ?? locale.toLowerCase();
 }
 
-function applicationRelativePath(path: string): string {
-  if (path.startsWith("/") && !path.startsWith("//")) {
-    return path;
-  }
-  const url = new URL(path);
-  return `${url.pathname}${url.search}${url.hash}`;
-}
-
 export const createContentIndexingHandoff = (indexName: string) =>
   ({
     instructions: [
-      `Configure Drupal with ALGOLIA_APPLICATION_ID, a dedicated ALGOLIA_DRUPAL_WRITE_API_KEY restricted to "${indexName}", and ALGOLIA_CONTENT_INDEX_NAME="${indexName}".`,
+      `Configure Drupal with ALGOLIA_APPLICATION_ID, a dedicated ALGOLIA_DRUPAL_WRITE_API_KEY with search, browse, addObject, and deleteObject permissions restricted to "${indexName}", and ALGOLIA_CONTENT_INDEX_NAME="${indexName}".`,
       "Run `drush cr` (`ddev drush cr` locally) so Drupal loads the Algolia credentials and provisioned index name.",
       "Run `drush search-api:rebuild-tracker content`, then `drush search-api:index content` for the initial backfill (prefix both commands with `ddev` locally).",
-      "New Content saves are indexed directly. Keep Drupal cron running to drain any work left pending after transient failures.",
+      "New Content saves are indexed directly. Keep Drupal cron running to drain pending work. Search API Algolia can log failed writes while marking items processed; after correcting a delivery failure, rebuild the tracker and reindex, then verify the records in Algolia.",
     ],
     title: "Complete Content indexing in Drupal",
   }) as const;
@@ -81,7 +75,7 @@ export function createDrupalSearchProjection(
         contentCard: {
           contentType: hit.content_type,
           id: hit.id,
-          path: applicationRelativePath(hit.path),
+          path: toContentPath(hit.path),
           summary: hit.summary,
           title: hit.title,
         },

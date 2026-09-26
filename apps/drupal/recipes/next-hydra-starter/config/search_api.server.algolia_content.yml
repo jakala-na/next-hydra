@@ -1,0 +1,13 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - search_api_algolia
+id: algolia_content
+name: "Algolia Content"
+description: "Publishes CMS-managed Content records to the configured Algolia index."
+backend: search_api_algolia
+backend_config:
+  application_id: __ALGOLIA_APPLICATION_ID__
+  api_key: __ALGOLIA_DRUPAL_WRITE_API_KEY__
+  disable_truncate: false

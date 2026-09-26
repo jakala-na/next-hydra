@@ -453,6 +453,16 @@
           "type": "registry:file"
         },
         {
+          "path": "recipes/next-hydra-starter/config/search_api.index.content.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/search_api.index.content.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/next-hydra-starter/config/search_api.server.algolia_content.yml",
+          "target": "~/apps/drupal/recipes/next-hydra-starter/config/search_api.server.algolia_content.yml",
+          "type": "registry:file"
+        },
+        {
           "path": "recipes/next-hydra-starter/config/user.role.previewer.yml",
           "target": "~/apps/drupal/recipes/next-hydra-starter/config/user.role.previewer.yml",
           "type": "registry:file"

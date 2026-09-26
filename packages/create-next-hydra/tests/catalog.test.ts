@@ -107,6 +107,12 @@ describe("Next Hydra source registry", () => {
     expect(backendTargets).toContain(
       "~/apps/drupal/recipes/next-hydra-starter/recipe.yml"
     );
+    expect(backendTargets).toContain(
+      "~/apps/drupal/recipes/next-hydra-starter/config/search_api.index.content.yml"
+    );
+    expect(backendTargets).toContain(
+      "~/apps/drupal/recipes/next-hydra-starter/config/search_api.server.algolia_content.yml"
+    );
     expect(backendTargets).not.toContain("~/apps/drupal/docroot/index.php");
     expect(backendTargets).not.toContain("~/apps/drupal/docroot/.htaccess");
     expect(

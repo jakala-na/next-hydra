@@ -7,10 +7,10 @@ import {
 } from "@repo/design-system/components/ui/card";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
-import { getPathname } from "@repo/i18n/navigation";
 import type { ReactElement } from "react";
 
 import type { CanvasComponentProps } from "../../generated/canvas-component-props";
+import { toContentRoute } from "../../lib/content-route";
 
 const DIGITS_ONLY = /^\d+$/;
 const MILLISECONDS_PER_SECOND = 1000;
@@ -110,7 +110,7 @@ export function toCanvasArticleTeaser(
     : undefined;
 
   return {
-    href: getPathname({ href: path, locale }),
+    href: toContentRoute(path, locale),
     id: String(article.id ?? path),
     image,
     publishedAt: formatPublishedAt(article.created, locale),

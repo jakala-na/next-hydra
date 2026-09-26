@@ -66,6 +66,36 @@ Keep `CMS_REVALIDATION_SECRET` in `apps/web/.env.local` equal to the secret gene
 
 Port 3001 is fixed only for `dev:web`, so only one checkout can run that DDEV-compatible command at a time. The regular `pnpm --filter web dev` command retains Portless's dynamic application ports. Hosted environments should configure their frontend and revalidation URLs with the Drupal-enabled Vercel project URL.
 
+## Configure Algolia Content indexing
+
+The starter recipe installs Search API and Search API Algolia with an enabled, opinionated `Content` index for published Articles and Landing Pages. Make all three runtime values available to Drupal before indexing:
+
+```dotenv
+ALGOLIA_APPLICATION_ID=""
+ALGOLIA_DRUPAL_WRITE_API_KEY=""
+ALGOLIA_CONTENT_INDEX_NAME="content"
+```
+
+Use a dedicated Algolia key restricted to the exact Content index with `search`, `browse`, `addObject`, and `deleteObject` permissions. The backend browses split records during updates and deletions, so `browse` is required even when your content fits in a single record. Add `listIndexes` only when editors need the Search API connection-status view. Do not give Drupal the Algolia Admin API key in a hosted environment.
+
+Drupal owns Content selection, translation tracking, publication filtering, and record delivery. The search provider provisioning command owns the Algolia index settings. `@repo/cms-drupal` translates Drupal's flat records into the shared Content result contract when the application searches them.
+
+New Content saves are normally indexed directly after the request. Drupal cron drains work still marked pending. Operators can inspect or drain that backlog explicitly:
+
+```bash
+ddev drush search-api:status content
+ddev drush search-api:index content
+```
+
+After configuring the credentials and index name, rebuild the tracker before the initial backfill. This also recovers content created while the recipe still had placeholder Algolia credentials:
+
+```bash
+ddev drush search-api:rebuild-tracker content
+ddev drush search-api:index content
+```
+
+Search API directly indexes later saves and publication changes, removes deleted records, and retains cron as backlog recovery. However, Search API Algolia can catch a delivery error, log a warning, and still report the items as processed. An empty backlog therefore does not prove every write reached Algolia, and cron will not automatically retry those acknowledged failures. Monitor Drupal's logs; after fixing a delivery failure, rebuild the tracker and reindex using the commands above, then verify the affected records in Algolia. Failed deletions may require explicit removal of stale records from Algolia.
+
 ## Deploy to Acquia
 
 ### 1. Prepare the Acquia application
@@ -159,6 +189,7 @@ The Next Hydra recipe installs the demo content model and integration configurat
 - Canvas components and page templates
 - GraphQL Compose schema configuration
 - Preview and revalidation configuration
+- Search API configuration for publishing Content records to Algolia
 - Previewer and viewer OAuth consumers
 
 ## Update the Drupal schema
