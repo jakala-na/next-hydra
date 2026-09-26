@@ -45,9 +45,11 @@ export const fixture = (name: Example = "editorial", worktree = false) =>
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const processes = yield* ChildProcessSpawner.ChildProcessSpawner;
-    const root = yield* fs.makeTempDirectoryScoped({
+    const temporaryRoot = yield* fs.makeTempDirectoryScoped({
       prefix: "composition-example-",
     });
+    // Native watcher events use physical paths, including /private/var on macOS.
+    const root = yield* fs.realPath(temporaryRoot);
     let source = path.join(root, "source");
     const destination = path.join(root, "application");
     yield* fs.makeDirectory(source);
