@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Description: Installs the selected Algolia Content indexing recipe.
+set -euo pipefail
+
+ddev exec --dir /var/www/html bash scripts/prepare-search.sh
+ddev drush recipe ../recipes/search-algolia -v

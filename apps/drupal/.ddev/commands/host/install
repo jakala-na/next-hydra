@@ -19,6 +19,9 @@ if [[ -f recipes/next-hydra-commerce/recipe.yml ]]; then
   site_recipe=../recipes/next-hydra-commerce
 fi
 ddev drush recipe "$site_recipe" -v
+if [[ -f .ddev/commands/host/install-search ]]; then
+  ddev install-search
+fi
 ddev drush cr
 
 ### Generate scopes

@@ -68,7 +68,7 @@ Port 3001 is fixed only for `dev:web`, so only one workspace can run that DDEV-c
 
 ## Configure Algolia Content indexing
 
-The starter recipe installs Search API and Search API Algolia with an enabled, opinionated `Content` index for published Articles and Landing Pages. Make all three runtime values available to Drupal before indexing:
+When Algolia Search is selected, `ddev install` also runs `ddev install-search`. Its `scripts/prepare-search.sh` installs the local recipe package through Composer and Drupal's recipe-unpack plugin; Drush then applies the recipe. It installs Search API and Search API Algolia with a `Content` index for published Articles and Landing Pages. Commit the resulting `composer.json` and `composer.lock` in your application. A CMS-only installation without Search does not include these modules or credentials. Make all three runtime values available to Drupal before indexing:
 
 ```dotenv
 ALGOLIA_APPLICATION_ID=""
@@ -132,6 +132,16 @@ Keep the matching SSH public key on the Acquia automation user.
 
 ### 3. Deploy Drupal
 
+If Algolia Search is selected and you have not run `ddev install-search`, prepare its dependencies locally before deploying. This needs PHP and Composer, but no DDEV or database:
+
+```bash
+cd apps/drupal
+composer install
+bash scripts/prepare-search.sh
+```
+
+Commit the resulting `composer.json` and `composer.lock` so the deployment installs the same dependencies.
+
 Push a Drupal-affecting change to `main`. The `Deploy Drupal to Acquia` GitHub Action uses Turbo's affected selection, builds the Acquia artifact, pushes it to the configured environment, and runs database updates and a cache rebuild on an installed site.
 
 To force a deployment, open **Actions → Deploy Drupal to Acquia → Run workflow** in GitHub.
@@ -164,7 +174,7 @@ bash apps/drupal/scripts/bootstrap_acquia.sh myapp.prod
 
 Pass the exact target alias. The script asks for confirmation and stops if Drupal is already installed.
 
-The script initializes the environment's persistent `secrets.settings.php`, installs Drupal, applies the recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
+The script initializes the environment's persistent `secrets.settings.php`, installs Drupal, applies the base or Commerce recipe and the optional Search recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. When Search is selected, missing Search dependencies stop bootstrap before database installation. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
 
 Retrieve that file through an Acquia SSH session and add its values to the Drupal-enabled Vercel project. Also configure:
 
@@ -189,10 +199,11 @@ The base recipe (`recipes/next-hydra-base`) installs the demo content model and 
 - Canvas components and page templates
 - GraphQL Compose schema configuration
 - Preview and revalidation configuration
-- Search API configuration for publishing Content records to Algolia
 - Previewer and viewer OAuth consumers
 
 The Commerce recipe (`recipes/next-hydra-commerce`) adds product collection blocks for Paragraphs and Canvas, along with catalog sample pages. Product data comes from the selected Commerce provider rather than a Drupal product content type.
+
+The optional Search recipe (`recipes/search-algolia`) installs Search API and its Algolia backend, with configuration for publishing Content records to Algolia.
 
 ## Update the Drupal schema
 

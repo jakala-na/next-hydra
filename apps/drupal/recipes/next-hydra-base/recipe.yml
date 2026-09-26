@@ -39,8 +39,6 @@ install:
   - gin
   - gin_toolbar
   - paragraphs
-  - search_api
-  - search_api_algolia
   - simple_oauth
   - view_unpublished
   - graphql_compose

@@ -408,16 +408,6 @@
           "type": "registry:file"
         },
         {
-          "path": "recipes/next-hydra-base/config/search_api.index.content.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-base/config/search_api.index.content.yml",
-          "type": "registry:file"
-        },
-        {
-          "path": "recipes/next-hydra-base/config/search_api.server.algolia_content.yml",
-          "target": "~/apps/drupal/recipes/next-hydra-base/config/search_api.server.algolia_content.yml",
-          "type": "registry:file"
-        },
-        {
           "path": "recipes/next-hydra-base/config/user.role.previewer.yml",
           "target": "~/apps/drupal/recipes/next-hydra-base/config/user.role.previewer.yml",
           "type": "registry:file"
@@ -639,6 +629,57 @@
         {
           "path": "recipes/next-hydra-commerce/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
           "target": "~/apps/drupal/recipes/next-hydra-commerce/content/canvas_page/b2201727-fbfe-44d0-83a1-c7d54ac003dc.yml",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "drupal-algolia",
+      "type": "registry:item",
+      "title": "Drupal Algolia Content indexing",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/drupal/algolia",
+          "kind": "recipe",
+          "compatibility": {
+            "requires": ["next-hydra/cms/drupal", "next-hydra/search/algolia"]
+          }
+        }
+      },
+      "files": [
+        {
+          "path": ".ddev/commands/host/install-search",
+          "target": "~/apps/drupal/.ddev/commands/host/install-search",
+          "type": "registry:file"
+        },
+        {
+          "path": "scripts/prepare-search.sh",
+          "target": "~/apps/drupal/scripts/prepare-search.sh",
+          "type": "registry:file"
+        },
+        {
+          "path": "docroot/sites/settings/integrations/algolia.settings.php",
+          "target": "~/apps/drupal/docroot/sites/settings/integrations/algolia.settings.php",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/search-algolia/composer.json",
+          "target": "~/apps/drupal/recipes/search-algolia/composer.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/search-algolia/recipe.yml",
+          "target": "~/apps/drupal/recipes/search-algolia/recipe.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/search-algolia/config/search_api.index.content.yml",
+          "target": "~/apps/drupal/recipes/search-algolia/config/search_api.index.content.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipes/search-algolia/config/search_api.server.algolia_content.yml",
+          "target": "~/apps/drupal/recipes/search-algolia/config/search_api.server.algolia_content.yml",
           "type": "registry:file"
         }
       ]

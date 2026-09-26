@@ -608,6 +608,7 @@
     },
     {
       "name": "cms-drupal-search",
+      "registryDependencies": ["drupal-algolia"],
       "type": "registry:item",
       "title": "Drupal search integration",
       "meta": {
