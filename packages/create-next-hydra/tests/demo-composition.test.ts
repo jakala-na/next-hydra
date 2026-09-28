@@ -5,37 +5,6 @@ import { Workspaces } from "../src/workspaces.ts";
 import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
 
 it.effect(
-  "rejects dependency aliases that could reintroduce the omitted demo package",
-  () =>
-    Effect.gen(function* () {
-      const layer = yield* memoryWorkspace("demo");
-      yield* Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        for (const specifier of [
-          "workspace:@repo/demo-architecture@*",
-          "npm:@repo/demo-architecture@*",
-          "npm:@repo/demo-architecture",
-        ]) {
-          yield* fs.writeFileString(
-            "/source/packages/view/package.json",
-            `{"name":"@example/view","dependencies":{"demo":"${specifier}"}}`
-          );
-          const workspace = yield* (yield* Workspaces).fresh({
-            destination: "/customer",
-            name: "customer",
-            selection: { addOns: [], providers: {} },
-            source: { kind: "working-tree", root: "/source" },
-          });
-          const error = yield* workspace
-            .materialize({ install: "skip" })
-            .pipe(Effect.flip);
-          expect(error._tag).toBe("InvalidComposition");
-        }
-      }).pipe(Effect.provide(layer));
-    })
-);
-
-it.effect(
   "omits instrumentation and its dependency closure from fresh customer source",
   () =>
     Effect.gen(function* () {

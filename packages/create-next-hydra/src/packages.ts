@@ -238,21 +238,6 @@ export const completePackages = Effect.fn("Composition.completePackages")(
         "peerDependencies",
       ] as const) {
         if (manifest[section]) {
-          for (const [name, specifier] of Object.entries(manifest[section])) {
-            for (const omitted of omittedDependencies) {
-              if (
-                name !== omitted &&
-                (specifier.startsWith(`workspace:${omitted}@`) ||
-                  specifier === `workspace:${omitted}` ||
-                  specifier.startsWith(`npm:${omitted}@`) ||
-                  specifier === `npm:${omitted}`)
-              ) {
-                return yield* new InvalidComposition({
-                  message: `${target}: dependency alias ${name} targets omitted package ${omitted}. Use its canonical package name so imports can be removed safely.`,
-                });
-              }
-            }
-          }
           manifest[section] = Object.fromEntries(
             Object.entries(manifest[section]).filter(
               ([name]) => !omittedDependencies.has(name)

@@ -546,7 +546,7 @@ export class Composition extends Context.Service<
                 });
               }
               if (
-                /\.[cm]?[jt]sx?$/u.test(file.target) &&
+                /\.(?:tsx|jsx|ts|js|mts|cts|mjs|cjs)$/u.test(file.target) &&
                 !assets.some((asset) => asset.target === file.target)
               ) {
                 const source = new TextDecoder().decode(file.content);

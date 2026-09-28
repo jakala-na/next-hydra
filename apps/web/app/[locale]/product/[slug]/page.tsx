@@ -27,7 +27,7 @@ export default async function ProductDetail({
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
-  // oxlint-disable-next-line typescript/no-deprecated -- Preserve locale setup; migrating to root params is separate from demo instrumentation.
+  // oxlint-disable-next-line typescript/no-deprecated -- Migrate to root params later.
   setRequestLocale(locale);
   return (
     <ArchitectureBoundary
