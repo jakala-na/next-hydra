@@ -1,12 +1,12 @@
 frontends:
   - url: 'https://web.next-hydra.localhost'
     components:
+      - js.announcement
       - js.article
       - js.article-card
       - js.featured-articles
       - js.hero
       - js.latest-articles
-      - js.product-collection
       - js.rich-text
       - js.site-shell
       - js.text

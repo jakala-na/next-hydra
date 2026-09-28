@@ -4,6 +4,6 @@ Feature: Site-wide announcement
   the template, whichever CMS provides the site.
 
   Scenario: Read the demo announcement across the site
-    When I visit the homepage and the registration page
+    When I visit the homepage and the resource center
     Then each page shows one demo announcement above its header
     And the announcement links to the Next Hydra website

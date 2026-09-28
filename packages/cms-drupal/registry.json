@@ -321,6 +321,16 @@
           "type": "registry:file"
         },
         {
+          "path": "e2e/@announcement/announcement.feature",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.steps.ts",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "e2e/@cms/article-templates.feature",
           "target": "~/packages/cms-drupal/e2e/@cms/article-templates.feature",
           "type": "registry:file"
@@ -681,16 +691,6 @@
         {
           "path": "lib/commerce-category.ts",
           "target": "~/packages/cms-drupal/lib/commerce-category.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@announcement/announcement.feature",
-          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
-          "type": "registry:file"
-        },
-        {
-          "path": "e2e/@announcement/announcement.steps.ts",
-          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
           "type": "registry:file"
         }
       ]

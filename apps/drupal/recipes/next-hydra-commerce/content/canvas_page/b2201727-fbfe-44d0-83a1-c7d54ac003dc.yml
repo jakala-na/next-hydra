@@ -4,6 +4,8 @@ _meta:
   uuid: b2201727-fbfe-44d0-83a1-c7d54ac003dc
   default_langcode: en
 default:
+  page_variant:
+    - value: site
   revision_user:
     - target_id: 1
   status:
