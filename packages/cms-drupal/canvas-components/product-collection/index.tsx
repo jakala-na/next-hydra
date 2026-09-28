@@ -1,5 +1,5 @@
 import { ProductCollectionGrid } from "@repo/commerce/product/product-collection";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import {
   ProductCatalogSkeleton,
   ProductCollectionLayout,

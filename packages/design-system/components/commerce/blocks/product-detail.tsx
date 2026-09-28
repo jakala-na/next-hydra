@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import ProductVariant from "@repo/design-system/components/commerce/blocks/product-variants";
 import type {
   VariantItem,
@@ -122,7 +122,9 @@ export function ProductDetail({
           onVariantChange={handleVariantChange}
           quantity={quantity}
           onQuantityChange={setQuantity}
-          onAddToCart={handleAddToCart}
+          onAddToCart={(payload) => {
+            void handleAddToCart(payload);
+          }}
           onQuoteRequest={handleQuoteRequest}
         />
         <QuoteRequestDialog

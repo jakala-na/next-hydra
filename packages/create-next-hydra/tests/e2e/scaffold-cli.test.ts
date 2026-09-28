@@ -111,6 +111,34 @@ const scaffold = (cms: string, auth?: string) =>
         ? ["--auth", auth, "--commerce", "commercetools"]
         : ["--without", "auth", "--without", "commerce"]),
     ]);
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    expect(
+      yield* fs.exists(path.join(target, "packages/demo-architecture"))
+    ).toBeFalsy();
+    // Inspect delivered source before compilation: a no-op runtime would still
+    // typecheck, but would leave customers maintaining demo-only code.
+    for (const file of [
+      "apps/web/components/layout/document-shell.tsx",
+      "apps/web/env-schema.ts",
+      "apps/web/.env.example",
+      "packages/design-system/styles/globals.css",
+      ...(auth
+        ? [
+            "packages/design-system/components/commerce/blocks/product-collection.tsx",
+            "packages/design-system/components/commerce/product-card.tsx",
+            "packages/commerce/product/product-collection.tsx",
+          ]
+        : []),
+      `packages/cms-${cms}/package.json`,
+      "packages/design-system/package.json",
+      "apps/web/package.json",
+    ]) {
+      const contents = yield* fs.readFileString(path.join(target, file));
+      expect(contents).not.toMatch(
+        /ArchitectureBoundary|ArchitectureToolbar|ArchitectureMetadata|demo-architecture|architecture-boundary|ARCHITECTURE_OVERLAYS/u
+      );
+    }
     return target;
   });
 
@@ -178,6 +206,27 @@ for (const { cms, auth } of [
               "production"
             )
           : run(target, "pnpm", ["run", "typecheck", "--continue=always"]);
+        if (cms === "contentstack" && auth === "workos") {
+          const fs = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          for (const directory of [
+            "apps/web/.next/static",
+            "apps/web/.next/server/chunks",
+          ]) {
+            const root = path.join(target, directory);
+            for (const file of yield* fs.readDirectory(root, {
+              recursive: true,
+            })) {
+              if (/\.(?:js|css)$/u.test(file)) {
+                expect(
+                  yield* fs.readFileString(path.join(root, file))
+                ).not.toMatch(
+                  /data-architecture-|architecture-boundary|next-hydra-architecture-overlay/u
+                );
+              }
+            }
+          }
+        }
         // Exercise invitation behavior through the composed API/provider seam.
         expect(
           (yield* run(target, "pnpm", [

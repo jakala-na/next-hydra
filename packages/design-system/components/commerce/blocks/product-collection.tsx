@@ -1,12 +1,10 @@
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
-import type { ArchitectureMetadata } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { ReactNode } from "react";
 
 import ProductCard from "../product-card";
 import type { ProductCardProps } from "../product-card";
 
 interface ProductCollectionProps {
-  architecture?: ArchitectureMetadata;
   description?: ReactNode;
   products: ProductCardProps[];
   title: string;
@@ -19,7 +17,6 @@ interface ProductCollectionLayoutProps {
 }
 
 interface ProductGridProps {
-  architecture?: ArchitectureMetadata;
   products: ProductCardProps[];
 }
 
@@ -28,6 +25,7 @@ export function ProductCollectionLayout({
   description,
   title,
 }: ProductCollectionLayoutProps) {
+  const hasDescription = Boolean(description);
   return (
     <section className="py-24">
       <div className="container px-4 md:px-6 lg:px-8">
@@ -36,7 +34,7 @@ export function ProductCollectionLayout({
             <h3 className="font-bold text-4xl tracking-tight lg:text-5xl">
               {title}
             </h3>
-            {Boolean(description) ? (
+            {hasDescription ? (
               <div className="max-w-2xl text-muted-foreground text-xl">
                 {description}
               </div>
@@ -50,8 +48,8 @@ export function ProductCollectionLayout({
   );
 }
 
-export function ProductGrid({ architecture, products }: ProductGridProps) {
-  const grid = (
+export function ProductGrid({ products }: ProductGridProps) {
+  return (
     <ArchitectureBoundary
       component="server"
       description="Provider-neutral presentation receives product card data and composes hydrated cards."
@@ -69,27 +67,15 @@ export function ProductGrid({ architecture, products }: ProductGridProps) {
       </div>
     </ArchitectureBoundary>
   );
-
-  return architecture ? (
-    <ArchitectureBoundary {...architecture}>{grid}</ArchitectureBoundary>
-  ) : (
-    grid
-  );
 }
 
 export function ProductCollection(props: ProductCollectionProps) {
-  const { architecture, title, description, products } = props;
+  const { title, description, products } = props;
 
-  const catalog = (
+  return (
     <ProductCollectionLayout description={description} title={title}>
       <ProductGrid products={products} />
     </ProductCollectionLayout>
-  );
-
-  return architecture ? (
-    <ArchitectureBoundary {...architecture}>{catalog}</ArchitectureBoundary>
-  ) : (
-    catalog
   );
 }
 

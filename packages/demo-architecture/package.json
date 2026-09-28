@@ -1,0 +1,23 @@
+{
+  "name": "@repo/demo-architecture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./boundary": "./boundary.tsx",
+    "./toolbar": "./toolbar.tsx",
+    "./styles.css": "./styles.css"
+  },
+  "scripts": {
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/demo-architecture/tsconfig.json"
+  },
+  "dependencies": {
+    "lucide-react": "^0.511.0",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

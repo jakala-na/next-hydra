@@ -1,5 +1,5 @@
 import { NextCommerce } from "@repo/commerce/runtime";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ProductDetail as ProductDetailView } from "@repo/design-system/components/commerce/blocks/product-detail";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";

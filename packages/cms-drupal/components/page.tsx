@@ -1,5 +1,5 @@
 import { isPageRedirect, getDraftData } from "@drupal-canvas/headless-next";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
@@ -204,7 +204,7 @@ export async function Page(props: { url: string; locale: Locale }) {
   return (
     <ArchitectureBoundary
       cacheProfile={preview ? "preview cache bypass" : "hours"}
-      cacheTags={preview ? [] : PageRenderer.getCacheTags(entity)}
+      cacheTags={() => (preview ? [] : PageRenderer.getCacheTags(entity))}
       component="server"
       description="One route(path:) query resolves the Drupal entity and selects its page template by __typename."
       layer="route"

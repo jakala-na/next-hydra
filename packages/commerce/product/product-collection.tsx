@@ -1,4 +1,5 @@
 import { CatalogRuntime } from "@repo/commerce/product/catalog-runtime";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import {
   ProductCollection as ProductCollectionView,
   ProductGrid,
@@ -27,18 +28,6 @@ type ProductCollectionGridProps = Omit<
   ProductCollectionProps,
   "description" | "title"
 >;
-
-const productCollectionArchitecture = {
-  component: "server",
-  description:
-    "Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense.",
-  layer: "orchestration",
-  layerLabel: "Commerce orchestration",
-  name: "DynamicProductCatalog",
-  rendering: "streamed",
-  source: "commerce",
-  sourceLabel: "Commerce provider",
-} as const;
 
 const getProductCards = async ({
   categoryId,
@@ -79,10 +68,18 @@ export const ProductCollectionGrid = async (
     <>
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
-        <ProductGrid
-          architecture={productCollectionArchitecture}
-          products={products}
-        />
+        <ArchitectureBoundary
+          component="server"
+          description="Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense."
+          layer="orchestration"
+          layerLabel="Commerce orchestration"
+          name="DynamicProductCatalog"
+          rendering="streamed"
+          source="commerce"
+          sourceLabel="Commerce provider"
+        >
+          <ProductGrid products={products} />
+        </ArchitectureBoundary>
       )}
     </>
   );
@@ -99,12 +96,22 @@ export const ProductCollection = async ({
     <>
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
-        <ProductCollectionView
-          architecture={productCollectionArchitecture}
-          title={title}
-          description={description}
-          products={products}
-        />
+        <ArchitectureBoundary
+          component="server"
+          description="Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense."
+          layer="orchestration"
+          layerLabel="Commerce orchestration"
+          name="DynamicProductCatalog"
+          rendering="streamed"
+          source="commerce"
+          sourceLabel="Commerce provider"
+        >
+          <ProductCollectionView
+            title={title}
+            description={description}
+            products={products}
+          />
+        </ArchitectureBoundary>
       )}
     </>
   );

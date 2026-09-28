@@ -2,7 +2,7 @@ import {
   generateMetadataHandler,
   ProductDetailPage,
 } from "@repo/commerce/product/product-detail";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ProductDetailSkeleton } from "@repo/design-system/components/commerce/blocks/product-detail-skeleton";
 import { hasLocale, setRequestLocale } from "@repo/i18n";
 import { routing } from "@repo/i18n/routing";
@@ -27,6 +27,7 @@ export default async function ProductDetail({
   if (!hasLocale(routing.locales, locale)) {
     notFound();
   }
+  // oxlint-disable-next-line typescript/no-deprecated -- Preserve locale setup; migrating to root params is separate from demo instrumentation.
   setRequestLocale(locale);
   return (
     <ArchitectureBoundary

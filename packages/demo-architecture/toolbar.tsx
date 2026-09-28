@@ -1,12 +1,11 @@
 "use client";
 
 import { Boxes, DatabaseZap, EyeOff, Layers3, Server } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { MouseEvent } from "react";
 
-import { architectureOverlaysEnabled } from "./architecture-config";
-
 const STORAGE_KEY = "next-hydra-architecture-overlay";
+const CHANGE_EVENT = "architecture-overlay-change";
 
 const modes = [
   { icon: EyeOff, label: "Off", value: "off" },
@@ -28,17 +27,29 @@ function applyMode(mode: ArchitectureOverlayMode) {
   document.documentElement.dataset.architectureOverlayMode = mode;
 }
 
-function EnabledArchitectureToolbar() {
-  const [mode, setMode] = useState<ArchitectureOverlayMode>("off");
+function readMode(): ArchitectureOverlayMode {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return isArchitectureOverlayMode(stored) ? stored : "off";
+}
 
+function serverMode(): ArchitectureOverlayMode {
+  return "off";
+}
+
+function subscribe(listener: () => void) {
+  window.addEventListener("storage", listener);
+  window.addEventListener(CHANGE_EVENT, listener);
+  return () => {
+    window.removeEventListener("storage", listener);
+    window.removeEventListener(CHANGE_EVENT, listener);
+  };
+}
+
+export function ArchitectureToolbar() {
+  const mode = useSyncExternalStore(subscribe, readMode, serverMode);
   useEffect(() => {
-    const storedMode = localStorage.getItem(STORAGE_KEY);
-    const initialMode = isArchitectureOverlayMode(storedMode)
-      ? storedMode
-      : "off";
-    setMode(initialMode);
-    applyMode(initialMode);
-  }, []);
+    applyMode(mode);
+  }, [mode]);
 
   const selectMode = useCallback((event: MouseEvent<HTMLButtonElement>) => {
     const nextMode = event.currentTarget.value;
@@ -46,39 +57,32 @@ function EnabledArchitectureToolbar() {
       return;
     }
 
-    setMode(nextMode);
     localStorage.setItem(STORAGE_KEY, nextMode);
-    applyMode(nextMode);
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   }, []);
 
   return (
     <aside
       aria-label="Architecture overlay controls"
-      className="fixed right-4 bottom-4 z-[100] rounded-xl border bg-background/95 p-1.5 shadow-2xl backdrop-blur"
+      className="architecture-toolbar"
     >
-      <div className="flex items-center gap-1">
-        <span className="hidden px-2 font-mono text-muted-foreground text-xs lg:inline">
-          Architecture
-        </span>
+      <div className="architecture-toolbar__controls">
+        <span className="architecture-toolbar__heading">Architecture</span>
         {modes.map(({ icon: Icon, label, value }) => (
           <button
             aria-pressed={mode === value}
-            className="inline-flex h-9 items-center gap-2 rounded-lg px-2.5 font-medium text-xs transition-colors hover:bg-muted aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+            className="architecture-toolbar__button"
             key={value}
             onClick={selectMode}
             title={`Show ${label.toLowerCase()} metadata`}
             type="button"
             value={value}
           >
-            <Icon aria-hidden="true" className="size-4" />
-            <span className="hidden sm:inline">{label}</span>
+            <Icon aria-hidden="true" className="architecture-toolbar__icon" />
+            <span className="architecture-toolbar__mode-label">{label}</span>
           </button>
         ))}
       </div>
     </aside>
   );
-}
-
-export function ArchitectureToolbar() {
-  return architectureOverlaysEnabled ? <EnabledArchitectureToolbar /> : null;
 }

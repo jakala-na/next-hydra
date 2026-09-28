@@ -1,4 +1,9 @@
 {
-  "providers": { "cms": "contentstack" },
-  "addOns": []
+  "providers": {
+    "cms": "contentstack"
+  },
+  "addOns": [],
+  "demo": {
+    "architecture": true
+  }
 }

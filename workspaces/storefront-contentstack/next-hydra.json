@@ -4,5 +4,8 @@
     "auth": "workos",
     "commerce": "commercetools"
   },
-  "addOns": ["app-web-navigation-search"]
+  "addOns": ["app-web-navigation-search"],
+  "demo": {
+    "architecture": true
+  }
 }

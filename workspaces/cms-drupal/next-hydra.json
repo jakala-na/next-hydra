@@ -1,4 +1,9 @@
 {
-  "providers": { "cms": "drupal" },
-  "addOns": []
+  "providers": {
+    "cms": "drupal"
+  },
+  "addOns": [],
+  "demo": {
+    "architecture": true
+  }
 }

@@ -29,6 +29,7 @@ export const DevelopmentPort = Schema.Finite.check(
 );
 export const WorkspaceDefinition = Schema.Struct({
   ...Selection.fields,
+  demo: Schema.optionalKey(Schema.Struct({ architecture: Schema.Boolean })),
   development: Schema.optionalKey(
     Schema.Struct({ port: Schema.optionalKey(DevelopmentPort) })
   ),
@@ -59,14 +60,23 @@ export interface SourceInputs {
   readonly excluded: readonly string[];
 }
 
+const SourceTransforms = Schema.optionalKey(
+  Schema.Array(Schema.Literal("remove-demo-architecture"))
+);
+
 export const FileOrigin = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("registry"), owner: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal("registry"),
+    owner: Schema.String,
+    transforms: SourceTransforms,
+  }),
   Schema.Struct({
     kind: Schema.Literal("workspace-setting"),
     source: Schema.String,
   }),
   Schema.Struct({
     kind: Schema.Literal("source"),
+    transforms: SourceTransforms,
     owner: Schema.NullOr(Schema.String),
     source: Schema.String,
   }),
@@ -75,6 +85,7 @@ export const FileOrigin = Schema.Union([
       Schema.Struct({ ...Binding.fields, owner: Schema.String })
     ),
     kind: Schema.Literal("template"),
+    transforms: SourceTransforms,
     owner: Schema.String,
     source: Schema.String,
   }),

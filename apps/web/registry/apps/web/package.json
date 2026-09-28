@@ -15,6 +15,7 @@
     "typecheck": "next typegen && pnpm --workspace-root exec tsc --noEmit --project apps/web/tsconfig.json"
   },
   "dependencies": {
+    "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/next-config": "workspace:*",

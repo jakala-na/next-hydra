@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-import { architectureOverlaysEnabled } from "./architecture-config";
-
 export type ArchitectureComponent = "client" | "server";
 export type ArchitectureLayer =
   | "block"
@@ -19,7 +17,7 @@ export type ArchitectureSource = "app" | "cms" | "commerce" | "design-system";
 
 export type ArchitectureMetadata = {
   cacheProfile?: string;
-  cacheTags?: readonly string[];
+  cacheTags?: () => readonly string[];
   component: ArchitectureComponent;
   description?: string;
   layer: ArchitectureLayer;
@@ -32,17 +30,17 @@ export type ArchitectureMetadata = {
 
 type ArchitectureBoundaryProps = ArchitectureMetadata & {
   children: ReactNode;
-  className?: string;
 };
 
 function renderingLabel({
   cacheProfile,
   cacheTags = [],
   rendering,
-}: Pick<
-  ArchitectureBoundaryProps,
-  "cacheProfile" | "cacheTags" | "rendering"
->) {
+}: {
+  cacheProfile?: string;
+  cacheTags?: readonly string[];
+  rendering: ArchitectureRendering;
+}) {
   const parts: string[] = [rendering];
 
   if (cacheProfile) {
@@ -59,7 +57,6 @@ export function ArchitectureBoundary({
   cacheProfile,
   cacheTags,
   children,
-  className,
   component,
   description,
   layer,
@@ -69,13 +66,11 @@ export function ArchitectureBoundary({
   source,
   sourceLabel,
 }: ArchitectureBoundaryProps) {
-  if (!architectureOverlaysEnabled) {
-    return children;
-  }
+  const resolvedTags = cacheTags?.();
 
   const renderLabel = renderingLabel({
     cacheProfile,
-    cacheTags,
+    cacheTags: resolvedTags,
     rendering,
   });
   const title = [
@@ -91,11 +86,7 @@ export function ArchitectureBoundary({
 
   return (
     <div
-      className={
-        className
-          ? `architecture-boundary ${className}`
-          : "architecture-boundary"
-      }
+      className="architecture-boundary"
       data-architecture-component={component}
       data-architecture-layer={layer}
       data-architecture-rendering={rendering}

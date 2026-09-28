@@ -1,6 +1,6 @@
 import "server-only";
 import { getAuthRoutes, withAuth } from "@repo/auth/server";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { connection } from "next/server";
 

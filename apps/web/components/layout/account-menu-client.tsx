@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { AccountMenu } from "@repo/design-system/components/layout/account-menu";
 import type { AccountMenuUser } from "@repo/design-system/components/layout/account-menu";
 import { useTranslations } from "@repo/i18n";

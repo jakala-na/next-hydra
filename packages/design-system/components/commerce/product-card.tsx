@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -58,7 +58,7 @@ function ProductCard({
           {imageUrl ? (
             <Image
               src={imageUrl}
-              alt={imageTitle || ""}
+              alt={imageTitle ?? ""}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />

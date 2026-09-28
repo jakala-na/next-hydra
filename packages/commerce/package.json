@@ -84,6 +84,7 @@
   "dependencies": {
     "@repo/actions": "workspace:*",
     "@repo/auth-contract": "workspace:*",
+    "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/errors": "workspace:*",
     "@repo/i18n": "workspace:*",
