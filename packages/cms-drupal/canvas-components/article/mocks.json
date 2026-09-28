@@ -1,0 +1,27 @@
+{
+  "mocks": [
+    {
+      "name": "Article with formatted body",
+      "props": {
+        "title": "Choosing the right excavator for the job",
+        "summary": "Match operating weight, reach, and site constraints to the work.",
+        "publishedAt": "2026-01-01",
+        "image": {
+          "src": "/article-excavator-selection.jpg",
+          "alt": "Two compact excavators working at an urban construction site",
+          "width": 1600,
+          "height": 1000
+        }
+      },
+      "slots": { "body": ["article-body"] },
+      "elements": {
+        "article-body": {
+          "type": "rich-text",
+          "props": {
+            "html": "<h2>Start with the work</h2><p>Match the equipment to the <strong>site conditions</strong> and the work it must perform.</p>"
+          }
+        }
+      }
+    }
+  ]
+}

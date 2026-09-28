@@ -29,6 +29,24 @@ Base configuration lives in `apps/drupal/recipes/next-hydra-base/config`. Commer
 
 Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. It includes the `drupal-commerce` registry item, which installs the native `next-hydra-commerce` provisioning recipe.
 
+## Site announcement
+
+The native **Site** page template puts an **Announcement** component in the Site shell’s pre-header slot. It replaces the four placeholder region Text components; the remaining shared slots start empty. The banner uses the design system’s shadcn Alert primitive and exposes Message, Link label, and Link URL in Canvas. The recipe seeds a Next Hydra demo notice linking to `https://next-hydra.dev`.
+
+Edit and publish the Site template in Canvas to update the announcement across CMS pages and application routes. The announcement is template content, not hardcoded into the application layout.
+
+## Article content template
+
+The base recipe enables `canvas.content_template.node.article.full` for every Article's full view. Drupal chooses this template by entity type, bundle, and view mode; authors do not assign it to individual articles.
+
+The template contains an Article component with a Rich text component in its body slot. Dynamic bindings supply the node's title, summary, creation date, media image, and processed body. Article content and translations remain in their existing Drupal fields. The template selects the shared `site` page template; the Next.js layout renders its global regions once around the article. Article listings and cards continue to use GraphQL.
+
+The Article date uses a date input and can bind to **Authored on** through Canvas’s `unix_to_date` adapter. It is optional and has no example default: Canvas stores literal datetime defaults in a shape that Drupal’s configuration schema rejects. An unbound date starts empty; Workbench mocks supply sample dates. The recipe includes the date field configuration and binding; verify changes by reinstalling a disposable site from the recipe.
+
+Edit the Article full content template in Canvas to change the shared presentation. Preview it against an existing article, then publish the template to update all articles. The recipe configures template cache-tag revalidation, so publishing does not require resaving the articles. Canvas signed previews also render unpublished articles through the template. Existing Next.js for Drupal and GraphQL form previews retain their revision-aware GraphQL rendering.
+
+The matching `content-templates/node.article.full.json` documents the bindings for local tooling. Routine `canvas:push` excludes content templates and page templates, preserving editor changes. Change the recipe when changing the fresh-install defaults, then verify with `ddev install`.
+
 ## Environment
 
 For code generation, copy `.env.example` to this package's `.env`. For a Next.js application, put the same values in the consuming application's `.env.local`.
@@ -75,6 +93,8 @@ The draft route validates the UUID and token through Drupal's GraphQL `preview` 
 
 Drupal Canvas owns `/api/draft`, `/api/draft/renew`, `/api/disable-draft`, and `/api/canvas/components`. `CANVAS_SITE_URL` can override the Drupal origin for Canvas; when omitted it defaults to `DRUPAL_BASE_URL`.
 
+The web application's Nosecone proxy owns the framing policy. The provider exports `cmsFrameAncestors` through `@repo/cms/security`, using the configured Canvas site origin. Set `CANVAS_EDITOR_ORIGINS` to a comma-separated list to override that editor allowlist. The web proxy adds same-origin framing and serializes the policy through Nosecone.
+
 ## Canvas component Workbench
 
 Use Canvas Workbench to demonstrate and review the package's Canvas components without running Drupal or the consuming Next.js application:
@@ -87,7 +107,7 @@ Open the local URL printed by the command. Workbench discovers components from `
 
 Add a component in `canvas-components/<component-name>` with a default-exported `index.tsx` and a `component.yml`. Its built-in preview uses the examples in the component metadata. Add `mocks.json` beside those files when a realistic preview needs authored props or slot content. Workbench shows authored mocks in place of the generated Default preview. Components with content-entity-reference pickers retain Default so authenticated authors can select a real entity; their mock fixture remains available to type generation. Keep one representative preview unless another state adds clear review value.
 
-Workbench-only composed examples live in `pages`. They may reuse the local recipe images served by the custom Workbench Vite config. Page synchronization is disabled in `canvas.config.json`, so these preview fixtures are not pushed to Drupal Canvas.
+Composed examples live in `pages`, `content-templates`, and `page-templates`. The Article component's authored mock demonstrates a formatted body without Drupal; the content-template fixture records its Drupal field bindings. Examples may reuse the local recipe images served by the custom Workbench Vite config. Page and template synchronization is disabled in `canvas.config.json` and excluded from `canvas:push`, so component pushes preserve editor-authored content. The base recipe seeds the Site and Article full templates on installation; subsequent template edits belong in Drupal Canvas.
 
 ## GraphQL schema
 
@@ -103,3 +123,12 @@ Generation authenticates as the viewer, refreshes `gql/schema.graphql`, and upda
 pnpm --filter @repo/cms-drupal test
 pnpm --filter @repo/cms-drupal typecheck
 ```
+
+With the Drupal composition selected, a fresh local `ddev install`, and the workspace applications running, exercise shared template publishing and unpublished French article preview:
+
+```bash
+pnpm --filter @repo/e2e exec bddgen
+pnpm --filter @repo/e2e exec playwright test article-templates.feature.spec.js --workers=1
+```
+
+These scenarios use the installed Drupal site's real Canvas auto-save, publish, and signed-preview services. They remove their temporary template notice and draft article afterward and refuse to overwrite an existing article-template draft.

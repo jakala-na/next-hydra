@@ -108,6 +108,8 @@ node packages/create-next-hydra/dist/cli.js compose --all --check
 
 The suite checks materialization, template ownership and path collisions, working-tree deletions, environment isolation, overwrite refusal, installation recovery, observation and package closure through the workspace and CLI boundaries. Install-heavy E2E tests use the executable to create independent applications and need sufficient local disk/store capacity. Filesystem paths are trusted; ownership checks are not a sandbox for hostile package lifecycle scripts or concurrent directory mutation. See the [implementation guide](src/README.md) for services, state, packaging exercises and platform limits.
 
+Live watcher fixtures resolve their temporary root with `FileSystem.realPath` before deriving source and application paths. Preserve this when adding fixtures: on macOS, `/var/folders/...` can refer to the same directory as `/private/var/folders/...`, while native watcher events use the physical path. Comparing these different path strings can discard valid events and cause timeouts. If watcher tests time out, check the fixture root and reported event paths before increasing timeouts or attributing the failure to a code change. The normal test command requires no `TMPDIR` override.
+
 Whole-package and exact-route materialization are covered by local tests. Named-workspace tests also cover template refresh, dependency retry, local-edit protection, unregistered files and interruption recovery. Fresh external provisioning, hosted authentication, payment journeys and production builds remain separate integration gates. `compose --check` reports reconciliation work; automatic adoption is not implemented.
 
 ## Add code to your project

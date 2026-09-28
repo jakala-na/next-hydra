@@ -198,6 +198,11 @@
           "type": "registry:file"
         },
         {
+          "path": "components/announcement.tsx",
+          "target": "~/packages/cms-contentstack/components/announcement.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "components/blocks/hero-section.tsx",
           "target": "~/packages/cms-contentstack/components/blocks/hero-section.tsx",
           "type": "registry:file"
@@ -333,6 +338,11 @@
           "type": "registry:file"
         },
         {
+          "path": "recipe/content_types/announcement.json",
+          "target": "~/packages/cms-contentstack/recipe/content_types/announcement.json",
+          "type": "registry:file"
+        },
+        {
           "path": "recipe/content_types/landing_page.json",
           "target": "~/packages/cms-contentstack/recipe/content_types/landing_page.json",
           "type": "registry:file"
@@ -345,6 +355,16 @@
         {
           "path": "recipe/content_types/navigation.json",
           "target": "~/packages/cms-contentstack/recipe/content_types/navigation.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/announcement/en-us/1-entries.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/announcement/en-us/1-entries.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/entries/announcement/en-us/index.json",
+          "target": "~/packages/cms-contentstack/recipe/entries/announcement/en-us/index.json",
           "type": "registry:file"
         },
         {
@@ -405,6 +425,16 @@
         {
           "path": "scripts/gql-sync.ts",
           "target": "~/packages/cms-contentstack/scripts/gql-sync.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "security.test.ts",
+          "target": "~/packages/cms-contentstack/security.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "security.ts",
+          "target": "~/packages/cms-contentstack/security.ts",
           "type": "registry:file"
         },
         {

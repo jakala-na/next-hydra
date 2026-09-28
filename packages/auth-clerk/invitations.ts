@@ -155,18 +155,18 @@ const identityMembershipProjection = (
   operation: IdentityMembershipProjectionFailure["operation"],
   run: () => Promise<void>
 ) =>
-  Effect.tryPromise({ catch: (cause) => cause, try: run }).pipe(
-    Effect.catch((cause) =>
-      isClerkMembershipProjectionUnavailable(cause)
+  Effect.tryPromise({ catch: (error) => error, try: run }).pipe(
+    Effect.catch((error) =>
+      isClerkMembershipProjectionUnavailable(error)
         ? Effect.fail(
             new IdentityMembershipProjectionFailure({
-              cause,
+              cause: error,
               message: `Failed to ${operation} Clerk company membership metadata`,
               operation,
               reason: "unavailable",
             })
           )
-        : Effect.die(cause)
+        : Effect.die(error)
     )
   );
 

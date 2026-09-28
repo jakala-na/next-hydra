@@ -1,0 +1,19 @@
+--- a/src/EventSubscriber/DefaultContentSubscriber.php
++++ b/src/EventSubscriber/DefaultContentSubscriber.php
+@@ -169,7 +169,15 @@
+     }
+ 
+     $componentTreeFields = \array_keys($this->componentTreeFieldMap[$event->metadata['entity_type']]);
+-    foreach ($event->data as &$translation_data) {
++    $translation_data_sets = [&$event->data['default']];
++    if (isset($event->data['translations'])) {
++      foreach ($event->data['translations'] as &$translation_data) {
++        $translation_data_sets[] = &$translation_data;
++      }
++      unset($translation_data);
++    }
++
++    foreach ($translation_data_sets as &$translation_data) {
+       foreach ($componentTreeFields as $field_name) {
+         // Skip if field not present.
+         if (!isset($translation_data[$field_name])) {

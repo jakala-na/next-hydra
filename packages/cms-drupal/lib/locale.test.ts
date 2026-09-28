@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isDrupalLangcode, toDrupalLangcode, toDrupalPath } from "./locale";
+import {
+  isDrupalLangcode,
+  toCanvasPreviewPath,
+  toDrupalLangcode,
+  toDrupalPath,
+} from "./locale";
 
 describe("Drupal locale mapping", () => {
   it("uses Drupal's installed English language for the default frontend locale", () => {
@@ -24,5 +29,22 @@ describe("Drupal locale mapping", () => {
     expect(isDrupalLangcode("fr")).toBeTruthy();
     expect(isDrupalLangcode("fr-FR")).toBeFalsy();
     expect(isDrupalLangcode(undefined)).toBeFalsy();
+  });
+});
+
+describe("Canvas preview locale URLs", () => {
+  it.each([
+    ["/canvas-homepage", "fr", "/fr-FR/canvas-homepage"],
+    [
+      "/en-GB/canvas-homepage?view=full#main",
+      "fr",
+      "/fr-FR/canvas-homepage?view=full#main",
+    ],
+    ["/fr-FR/canvas-homepage", "en", "/canvas-homepage"],
+    ["/", "de", "/de-DE"],
+    ["/canvas-homepage", undefined, "/canvas-homepage"],
+    ["/canvas-homepage", "unknown", "/canvas-homepage"],
+  ])("maps %s with language %s", (path, language, expected) => {
+    expect(toCanvasPreviewPath(path, language)).toBe(expected);
   });
 });

@@ -24,16 +24,8 @@
               "target": "patches/@drupal-canvas__headless-next.patch"
             },
             {
-              "source": "patches/@drupal-canvas__headless-react.patch",
-              "target": "patches/@drupal-canvas__headless-react.patch"
-            },
-            {
-              "source": "patches/@drupal-canvas__headless.patch",
-              "target": "patches/@drupal-canvas__headless.patch"
-            },
-            {
-              "source": "patches/@drupal-canvas__workbench@0.10.0.patch",
-              "target": "patches/@drupal-canvas__workbench@0.10.0.patch"
+              "source": "patches/@drupal-canvas__workbench@0.12.0.patch",
+              "target": "patches/@drupal-canvas__workbench@0.12.0.patch"
             },
             {
               "source": "apps/drupal/recipes/next-hydra-base/content/file/next-hydra-hero.webp",
@@ -54,20 +46,12 @@
           ],
           "pnpmPatches": [
             {
-              "dependency": "@drupal-canvas/headless",
-              "path": "patches/@drupal-canvas__headless.patch"
-            },
-            {
               "dependency": "@drupal-canvas/headless-next",
               "path": "patches/@drupal-canvas__headless-next.patch"
             },
             {
-              "dependency": "@drupal-canvas/headless-react",
-              "path": "patches/@drupal-canvas__headless-react.patch"
-            },
-            {
-              "dependency": "@drupal-canvas/workbench@0.10.0",
-              "path": "patches/@drupal-canvas__workbench@0.10.0.patch"
+              "dependency": "@drupal-canvas/workbench@0.12.0",
+              "path": "patches/@drupal-canvas__workbench@0.12.0.patch"
             }
           ],
           "conditionalDependencies": [
@@ -136,6 +120,16 @@
           "type": "registry:file"
         },
         {
+          "path": "canvas-components/announcement/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/announcement/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/announcement/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/announcement/index.tsx",
+          "type": "registry:file"
+        },
+        {
           "path": "canvas-components/article-card/component.yml",
           "target": "~/packages/cms-drupal/canvas-components/article-card/component.yml",
           "type": "registry:file"
@@ -153,6 +147,26 @@
         {
           "path": "canvas-components/article-card/next.tsx",
           "target": "~/packages/cms-drupal/canvas-components/article-card/next.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/article/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article/mocks.json",
+          "target": "~/packages/cms-drupal/canvas-components/article/mocks.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/article/next.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/article/next.tsx",
           "type": "registry:file"
         },
         {
@@ -193,6 +207,26 @@
         {
           "path": "canvas-components/latest-articles/index.tsx",
           "target": "~/packages/cms-drupal/canvas-components/latest-articles/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/rich-text/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/rich-text/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/rich-text/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/rich-text/index.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/site-shell/component.yml",
+          "target": "~/packages/cms-drupal/canvas-components/site-shell/component.yml",
+          "type": "registry:file"
+        },
+        {
+          "path": "canvas-components/site-shell/index.tsx",
+          "target": "~/packages/cms-drupal/canvas-components/site-shell/index.tsx",
           "type": "registry:file"
         },
         {
@@ -251,13 +285,13 @@
           "type": "registry:file"
         },
         {
-          "path": "components/global-region.tsx",
-          "target": "~/packages/cms-drupal/components/global-region.tsx",
+          "path": "components/live-preview.tsx",
+          "target": "~/packages/cms-drupal/components/live-preview.tsx",
           "type": "registry:file"
         },
         {
-          "path": "components/live-preview.tsx",
-          "target": "~/packages/cms-drupal/components/live-preview.tsx",
+          "path": "components/page-layout.tsx",
+          "target": "~/packages/cms-drupal/components/page-layout.tsx",
           "type": "registry:file"
         },
         {
@@ -278,6 +312,31 @@
         {
           "path": "components/pages/landing-page.tsx",
           "target": "~/packages/cms-drupal/components/pages/landing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-templates/node.article.full.json",
+          "target": "~/packages/cms-drupal/content-templates/node.article.full.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@cms/article-templates.feature",
+          "target": "~/packages/cms-drupal/e2e/@cms/article-templates.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@cms/article-templates.steps.ts",
+          "target": "~/packages/cms-drupal/e2e/@cms/article-templates.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/article-template-driver.ts",
+          "target": "~/packages/cms-drupal/e2e/article-template-driver.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/fixtures/article-templates.php",
+          "target": "~/packages/cms-drupal/e2e/fixtures/article-templates.php",
           "type": "registry:file"
         },
         {
@@ -336,13 +395,18 @@
           "type": "registry:file"
         },
         {
-          "path": "lib/canvas-global-region.test.ts",
-          "target": "~/packages/cms-drupal/lib/canvas-global-region.test.ts",
+          "path": "lib/canvas-page-template.test.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-page-template.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "lib/canvas-global-region.ts",
-          "target": "~/packages/cms-drupal/lib/canvas-global-region.ts",
+          "path": "lib/canvas-page-template.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-page-template.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/canvas-page.ts",
+          "target": "~/packages/cms-drupal/lib/canvas-page.ts",
           "type": "registry:file"
         },
         {
@@ -398,6 +462,11 @@
         {
           "path": "package.json",
           "target": "~/packages/cms-drupal/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "page-templates/site.json",
+          "target": "~/packages/cms-drupal/page-templates/site.json",
           "type": "registry:file"
         },
         {
@@ -506,6 +575,16 @@
           "type": "registry:file"
         },
         {
+          "path": "security.test.ts",
+          "target": "~/packages/cms-drupal/security.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "security.ts",
+          "target": "~/packages/cms-drupal/security.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "tsconfig.json",
           "target": "~/packages/cms-drupal/tsconfig.json",
           "type": "registry:file"
@@ -591,6 +670,16 @@
         {
           "path": "lib/commerce-category.ts",
           "target": "~/packages/cms-drupal/lib/commerce-category.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.feature",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.steps.ts",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
           "type": "registry:file"
         }
       ]

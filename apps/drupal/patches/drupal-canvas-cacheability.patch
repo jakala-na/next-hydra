@@ -1,0 +1,79 @@
+--- a/modules/canvas_headless/src/Controller/CanvasContentController.php
++++ b/modules/canvas_headless/src/Controller/CanvasContentController.php
+@@ -163,6 +163,11 @@
+     $language_context = $this->translationLinks->build($rendered_entity, $request, $cacheability);
+     $response = new CacheableJsonResponse([
+       'content' => $content,
++      'cacheability' => [
++        'tags' => array_values($cacheability->getCacheTags()),
++        'contexts' => array_values($cacheability->getCacheContexts()),
++        'maxAge' => $cacheability->getCacheMaxAge(),
++      ],
+       'head' => $head_result['head'],
+       'route' => self::normalizeRoute(
+         $route_match,
+--- a/modules/canvas_headless/src/EventSubscriber/CanvasContentResponseSubscriber.php
++++ b/modules/canvas_headless/src/EventSubscriber/CanvasContentResponseSubscriber.php
+@@ -87,6 +87,23 @@
+         ->addCacheTags(['config:redirect.settings']);
+     }
+     $response->addCacheableDependency($cacheability);
++
++    if ($response instanceof CacheableJsonResponse) {
++      $data = json_decode(
++        (string) $response->getContent(),
++        TRUE,
++        flags: JSON_THROW_ON_ERROR,
++      );
++      if (\is_array($data) && isset($data['cacheability'])) {
++        $metadata = $response->getCacheableMetadata();
++        $data['cacheability'] = [
++          'tags' => array_values($metadata->getCacheTags()),
++          'contexts' => array_values($metadata->getCacheContexts()),
++          'maxAge' => $metadata->getCacheMaxAge(),
++        ];
++        $response->setData($data);
++      }
++    }
+   }
+ 
+   /**
+--- a/modules/canvas_headless/tests/src/Unit/CanvasContentResponseSubscriberTest.php
++++ b/modules/canvas_headless/tests/src/Unit/CanvasContentResponseSubscriberTest.php
+@@ -280,7 +280,10 @@
+    * Tests common cacheability on a content result.
+    */
+   public function testContentCacheability(): void {
+-    $event = $this->event(new CacheableJsonResponse(['content' => []]));
++    $event = $this->event(new CacheableJsonResponse([
++      'content' => [],
++      'cacheability' => ['tags' => [], 'contexts' => [], 'maxAge' => -1],
++    ]));
+ 
+     $this->subscriber(with_redirect: TRUE)->addCacheability($event);
+ 
+@@ -293,6 +296,24 @@
+     self::assertContains('route_match', $metadata->getCacheTags());
+     self::assertContains('languages:language_url', $metadata->getCacheContexts());
+     self::assertContains('url', $metadata->getCacheContexts());
++
++    $data = json_decode(
++      (string) $response->getContent(),
++      TRUE,
++      flags: JSON_THROW_ON_ERROR,
++    );
++    self::assertEqualsCanonicalizing(
++      $metadata->getCacheTags(),
++      $data['cacheability']['tags'],
++    );
++    self::assertEqualsCanonicalizing(
++      $metadata->getCacheContexts(),
++      $data['cacheability']['contexts'],
++    );
++    self::assertSame(
++      $metadata->getCacheMaxAge(),
++      $data['cacheability']['maxAge'],
++    );
+   }
+ 
+   /**

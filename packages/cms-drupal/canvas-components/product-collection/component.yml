@@ -31,4 +31,4 @@ props:
         9: 9 products
       examples:
         - 3
-slots: []
+slots: {}

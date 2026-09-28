@@ -20,6 +20,18 @@
               "section": "dependencies",
               "slot": "cms"
             }
+          ],
+          "assets": [
+            {
+              "source": "patches/@zanreal__nemo@3.0.1.patch",
+              "target": "patches/@zanreal__nemo@3.0.1.patch"
+            }
+          ],
+          "pnpmPatches": [
+            {
+              "dependency": "@zanreal/nemo@3.0.1",
+              "path": "patches/@zanreal__nemo@3.0.1.patch"
+            }
           ]
         },
         "composition": {
@@ -183,6 +195,16 @@
         {
           "path": "registry/templates/web.env.example",
           "target": "~/apps/web/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/security-proxy.test.ts",
+          "target": "~/apps/web/lib/security-proxy.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/proxy-chain.test.ts",
+          "target": "~/apps/web/lib/proxy-chain.test.ts",
           "type": "registry:file"
         }
       ],

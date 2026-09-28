@@ -1,13 +1,9 @@
-name: "Next Hydra headless shell"
+name: "Backend shell"
 type: theme
-description: "Declares Canvas regions rendered by the decoupled Next Hydra application."
+description: "Renders Drupal-owned routes while the frontend renders native Canvas page templates."
 base theme: false
 core_version_requirement: ^11.4
 hidden: true
 
 regions:
-  pre_header: "Before header"
-  post_header: "After header"
   content: Content
-  pre_footer: "Before footer"
-  post_footer: "After footer"

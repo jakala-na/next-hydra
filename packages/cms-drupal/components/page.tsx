@@ -1,8 +1,4 @@
-import {
-  fetchPage as fetchDraftAwareCanvasPage,
-  isPageRedirect,
-} from "@drupal-canvas/headless-next";
-import { fetchPage as fetchPublishedCanvasPage } from "@drupal-canvas/headless/server";
+import { isPageRedirect, getDraftData } from "@drupal-canvas/headless-next";
 import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
@@ -14,11 +10,8 @@ import { notFound, permanentRedirect, redirect } from "next/navigation";
 
 import { graphqlClient } from "../client";
 import { graphql } from "../graphql";
-import { keys } from "../keys";
-import {
-  getCanvasCachePolicy,
-  getCanvasPageCacheability,
-} from "../lib/canvas-cacheability";
+import { getCanvasPage } from "../lib/canvas-page";
+import { getPageContent } from "../lib/canvas-page-template";
 import { toDrupalLangcode, toDrupalPath } from "../lib/locale";
 import type {
   DrupalGraphqlPreviewContext,
@@ -114,32 +107,6 @@ async function getCachedRouteEntity(path: string, locale: Locale) {
   return entity;
 }
 
-async function getCachedCanvasPage(path: string) {
-  "use cache";
-
-  const config = keys();
-  const page = await fetchPublishedCanvasPage(path, {
-    baseUrl: config.CANVAS_SITE_URL ?? config.DRUPAL_BASE_URL,
-  });
-
-  if (!(page && !isPageRedirect(page))) {
-    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
-    return page;
-  }
-
-  const policy = getCanvasCachePolicy(getCanvasPageCacheability(page));
-  if (!policy) {
-    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
-    return page;
-  }
-
-  cacheLife(policy.life);
-  if (policy.tags.length > 0) {
-    cacheTag(...policy.tags);
-  }
-  return page;
-}
-
 async function getPagePreview(
   context: DrupalGraphqlPreviewContext,
   locale: Locale
@@ -184,12 +151,10 @@ export async function Page(props: { url: string; locale: Locale }) {
   const previewContext = preview ? await getDrupalPreviewContext() : undefined;
   const normalizedPath = normalizeDrupalPath(url);
   const drupalPath = toDrupalPath(normalizedPath, locale);
-  const canvasPage = preview
-    ? await fetchDraftAwareCanvasPage(drupalPath)
-    : await getCachedCanvasPage(drupalPath);
+  const canvasPage = await getCanvasPage(drupalPath);
 
   if (canvasPage && isPageRedirect(canvasPage)) {
-    // SAFETY: CMS-managed destinations are resolved at runtime, outside Next's generated route inventory.
+    // SAFETY: Canvas supplies CMS-resolved redirect URLs outside Next.js's generated route catalogue.
     const destination = canvasPage.redirect.url as Route;
     if (
       canvasPage.redirect.statusCode === MOVED_PERMANENTLY_STATUS ||
@@ -200,7 +165,15 @@ export async function Page(props: { url: string; locale: Locale }) {
     redirect(destination);
   }
 
-  if (canvasPage?.route.managedByCanvas) {
+  const draft = preview ? await getDraftData() : undefined;
+  if (draft?.previewContext?.pageVariant) {
+    return null;
+  }
+
+  // Existing Drupal/GraphQL revision previews keep their authenticated data path.
+  // Canvas draft sessions and published content use the enabled content template.
+  const useDrupalPreview = previewContext?.path === drupalPath && !draft;
+  if (canvasPage?.route.managedByCanvas && !useDrupalPreview) {
     return (
       <ArchitectureBoundary
         cacheProfile={
@@ -215,7 +188,7 @@ export async function Page(props: { url: string; locale: Locale }) {
         source="cms"
         sourceLabel="Drupal Canvas"
       >
-        <CanvasComponentTree tree={canvasPage.content} />
+        <CanvasComponentTree tree={getPageContent(canvasPage.content)} />
       </ArchitectureBoundary>
     );
   }

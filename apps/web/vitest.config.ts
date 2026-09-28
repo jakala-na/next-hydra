@@ -51,7 +51,7 @@ export default mergeConfig(
       ],
     },
     test: {
-      server: { deps: { inline: ["next-intl"] } },
+      server: { deps: { inline: ["@zanreal/nemo", "next-intl"] } },
     },
   })
 );

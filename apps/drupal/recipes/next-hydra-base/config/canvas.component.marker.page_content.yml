@@ -1,0 +1,14 @@
+langcode: en
+status: true
+dependencies: {  }
+label: 'Page content'
+id: marker.page_content
+source: marker
+source_local_id: page_content
+provider: canvas
+active_version: 3b12c0b99a6caecc
+versioned_properties:
+  active:
+    settings: {  }
+    fallback_metadata:
+      slot_definitions: null

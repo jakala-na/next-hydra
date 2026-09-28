@@ -10,6 +10,23 @@
 import type { ComponentType, ReactNode } from "react";
 
 export type CanvasComponentPropsMap = {
+  "announcement": {
+    message: string;
+    linkLabel: string;
+    linkUrl: string;
+  };
+  "article": {
+    title: string;
+    summary: string;
+    publishedAt?: string;
+    image?: {
+      alt?: string;
+      height?: number;
+      src: string;
+      width?: number;
+    };
+    body?: ReactNode;
+  };
   "article-card": {
     article?: {
       _Type?: string | null;
@@ -60,6 +77,16 @@ export type CanvasComponentPropsMap = {
     description?: string;
     categoryId?: string;
     limit?: 3 | 6 | 9;
+  };
+  "rich-text": {
+    html: string;
+  };
+  "site-shell": {
+    preHeader?: ReactNode;
+    postHeader?: ReactNode;
+    content?: ReactNode;
+    preFooter?: ReactNode;
+    postFooter?: ReactNode;
   };
   "text": {
     text: string;
