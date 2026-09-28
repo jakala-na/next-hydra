@@ -1,0 +1,75 @@
+_meta:
+  version: "1.0"
+  entity_type: canvas_page
+  uuid: ef0cb445-2e3d-4cdf-917a-a89a677e137e
+  default_langcode: en
+default:
+  page_variant:
+    - value: site
+  status:
+    - value: true
+  owner:
+    - target_id: 1
+  title:
+    - value: Site shell
+  components: []
+  path:
+    - alias: /site-shell
+      langcode: en
+translations:
+  en-gb:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: en-gb
+    content_translation_source:
+      - value: en
+  fr:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: fr
+    content_translation_source:
+      - value: en
+  de:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: de
+    content_translation_source:
+      - value: en
+  es:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: es
+    content_translation_source:
+      - value: en
+  it:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: it
+    content_translation_source:
+      - value: en
+  pt-pt:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: pt-pt
+    content_translation_source:
+      - value: en
+  nl:
+    title:
+      - value: Site shell
+    path:
+      - alias: /site-shell
+        langcode: nl
+    content_translation_source:
+      - value: en

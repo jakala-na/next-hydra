@@ -1,0 +1,251 @@
+--- a/README.md
++++ b/README.md
+@@ -45,7 +45,8 @@
+   "contentTemplatesDir": "content-templates",
+   "pageTemplatesDir": "page-templates",
+   "aliasBaseDir": "src",
+-  "globalCssPath": "src/global.css"
++  "globalCssPath": "src/global.css",
++  "workbench": { "hiddenComponents": ["server-only-component"] }
+ }
+ ```
+ 
+@@ -66,6 +67,10 @@
+ that file exists. Move the file to `src/global.css`, or set `globalCssPath`
+ explicitly to keep the legacy location. `outputDir` is part of the wider Canvas
+ config surface, but Workbench does not use it.
++
++`workbench.hiddenComponents` affects only Workbench navigation. It does not
++remove components from Canvas discovery or from the preview registry, so page
++and template previews can continue to render compositions that reference them.
+ 
+ ## Preview build command
+ 
+--- a/dist/server/system-ca-DPNJGk2J.mjs
++++ b/dist/server/system-ca-DPNJGk2J.mjs
+@@ -24148,8 +24148,13 @@
+ 		pages: true,
+ 		contentTemplates: true,
+ 		pageTemplates: true
+-	}
++	},
++	workbench: { hiddenComponents: [] }
+ };
++function resolveHiddenComponents(value) {
++	if (!Array.isArray(value)) return [];
++	return [...new Set(value.filter((name) => typeof name === "string").map((name) => name.trim()).filter(Boolean))];
++}
+ function resolveDefaultGlobalCssPath(options) {
+ 	const defaultGlobalCssPath = resolve(options.hostRoot, DEFAULT_CANVAS_CONFIG.globalCssPath);
+ 	const legacyGlobalCssPath = resolve(options.hostRoot, LEGACY_GLOBAL_CSS_PATH);
+@@ -24189,6 +24194,7 @@
+ 				contentTemplates: parsed.sync?.contentTemplates ?? DEFAULT_CANVAS_CONFIG.sync.contentTemplates,
+ 				pageTemplates: parsed.sync?.pageTemplates ?? DEFAULT_CANVAS_CONFIG.sync.pageTemplates
+ 			},
++			workbench: { hiddenComponents: resolveHiddenComponents(parsed.workbench?.hiddenComponents) },
+ 			...Object.keys(legacy).length > 0 ? { legacy } : {}
+ 		};
+ 	} catch {
+--- a/dist/server/vite.published.config.mjs
++++ b/dist/server/vite.published.config.mjs
+@@ -347,6 +347,7 @@
+ 		exampleProps: {},
+ 		props: {},
+ 		dataDependencies: {},
++		hidden: false,
+ 		metadataErrors: [],
+ 		mocks: []
+ 	};
+@@ -370,6 +371,7 @@
+ 		exampleProps: {},
+ 		props: {},
+ 		dataDependencies: {},
++		hidden: false,
+ 		metadataErrors: [],
+ 		mocks: []
+ 	};
+@@ -393,6 +395,7 @@
+ 		exampleProps: {},
+ 		props: {},
+ 		dataDependencies: {},
++		hidden: false,
+ 		metadataErrors: [],
+ 		mocks: []
+ 	};
+@@ -710,7 +713,7 @@
+ async function loadWorkbenchHtmlTemplate(appHtmlPath, url, transformIndexHtml) {
+ 	return transformIndexHtml(url, await promises.readFile(appHtmlPath, "utf-8"));
+ }
+-async function buildWorkbenchPreviewManifest(discoveryResult) {
++async function buildWorkbenchPreviewManifest(discoveryResult, hiddenComponentNames) {
+ 	const manifest = buildPreviewManifest(discoveryResult);
+ 	const discoveredComponentNames = manifest.components.map((component) => component.name);
+ 	const componentMocksAndExamples = await Promise.all(manifest.components.map(async (component, index) => {
+@@ -739,6 +742,7 @@
+ 				exampleProps,
+ 				props: metadata.props.properties ?? {},
+ 				dataDependencies: metadata.dataDependencies ?? {},
++				hidden: hiddenComponentNames.includes(metadata.machineName ?? component.name),
+ 				mocks
+ 			},
+ 			warnings
+@@ -853,7 +857,7 @@
+ 			server.middlewares.use("/__canvas/preview-manifest", (_req, res) => {
+ 				(async () => {
+ 					await refresh();
+-					const manifest = await buildWorkbenchPreviewManifest(cachedResult);
++					const manifest = await buildWorkbenchPreviewManifest(cachedResult, paths.hiddenComponentNames);
+ 					res.statusCode = 200;
+ 					res.setHeader("Content-Type", "application/json");
+ 					res.end(JSON.stringify({
+@@ -1059,6 +1063,7 @@
+ 		clientRoot,
+ 		componentDiscoveryRoot,
+ 		contentTemplatesDiscoveryRoot,
++		hiddenComponentNames: canvasConfig.workbench.hiddenComponents,
+ 		siteUrl: loadEnv("development", hostProjectRoot, "CANVAS_").CANVAS_SITE_URL?.trim() || null,
+ 		hostProjectRoot,
+ 		packageRoot,
+--- a/dist/client/src/lib/preview-contract.ts
++++ b/dist/client/src/lib/preview-contract.ts
+@@ -39,6 +39,7 @@
+     entityFields?: Record<string, string[]>;
+   };
+   metadataErrors: PreviewComponentMetadataError[];
++  hidden: boolean;
+   mocks: PreviewManifestComponentMock[];
+ }
+ 
+@@ -165,6 +166,7 @@
+       exampleProps: {},
+       props: {},
+       dataDependencies: {},
++      hidden: false,
+       metadataErrors: [],
+       mocks: [],
+     };
+@@ -191,6 +193,7 @@
+       exampleProps: {},
+       props: {},
+       dataDependencies: {},
++      hidden: false,
+       metadataErrors: [],
+       mocks: [],
+     };
+@@ -216,7 +219,8 @@
+     exampleProps: {},
+     props: {},
+     dataDependencies: {},
+-    metadataErrors: [],
++    hidden: false,
++      metadataErrors: [],
+     mocks: [],
+   };
+ }
+--- a/dist/client/src/lib/preview-content-entity-reference.ts
++++ b/dist/client/src/lib/preview-content-entity-reference.ts
+@@ -26,6 +26,23 @@
+ 
+ export interface ResolvedContentEntityReferenceFieldsResponse {
+   data: Record<string, unknown>;
++}
++
++export function canonicalizeCanvasHeadlessPropValue(value: unknown): unknown {
++  if (Array.isArray(value)) {
++    return value.map(canonicalizeCanvasHeadlessPropValue);
++  }
++  if (!isRecord(value)) {
++    return value;
++  }
++  return Object.fromEntries(
++    Object.entries(value).map(([key, nestedValue]) => [
++      key.replace(/[_-]([a-z])/g, (_, letter: string) =>
++        letter.toUpperCase(),
++      ),
++      canonicalizeCanvasHeadlessPropValue(nestedValue),
++    ]),
++  );
+ }
+ 
+ function isRecord(value: unknown): value is Record<string, unknown> {
+@@ -265,5 +282,10 @@
+   }
+   const result =
+     (await response.json()) as ResolvedContentEntityReferenceFieldsResponse;
+-  return result.data;
+-}
++  return Object.fromEntries(
++    Object.entries(result.data).map(([propName, value]) => [
++      propName,
++      canonicalizeCanvasHeadlessPropValue(value),
++    ]),
++  );
++}
+--- a/dist/client/src/client/App.tsx
++++ b/dist/client/src/client/App.tsx
+@@ -159,13 +159,13 @@
+ 
+ function pickInitialSelection(manifest: PreviewManifest): string | null {
+   const firstPreviewable = manifest.components.find(
+-    (component) => component.previewable,
++    (component) => !component.hidden && component.previewable,
+   );
+   if (firstPreviewable) {
+     return firstPreviewable.id;
+   }
+ 
+-  return manifest.components[0]?.id ?? null;
++  return manifest.components.find((component) => !component.hidden)?.id ?? null;
+ }
+ 
+ function pickInitialPage(pages: DiscoveredPage[]): DiscoveredPage | null {
+@@ -315,9 +315,11 @@
+       return [];
+     }
+ 
+-    return [...previewManifest.components].sort((componentA, componentB) =>
+-      componentA.label.localeCompare(componentB.label),
+-    );
++    return previewManifest.components
++      .filter((component) => !component.hidden)
++      .sort((componentA, componentB) =>
++        componentA.label.localeCompare(componentB.label),
++      );
+   }, [previewManifest]);
+ 
+   const sortedPages = useMemo<DiscoveredPage[]>(() => {
+@@ -421,6 +423,20 @@
+       return [];
+     }
+ 
++    const mockVariants = selectedComponent.mocks.map((mock, index) => ({
++      id: mock.id,
++      label: mock.label,
++      mockIndex: index,
++      source: 'mock' as const,
++      mock,
++    }));
++    const hasContentEntityReferenceProps =
++      Object.keys(selectedComponent.dataDependencies.entityFields ?? {}).length >
++      0;
++    if (!hasContentEntityReferenceProps && mockVariants.length > 0) {
++      return mockVariants;
++    }
++
+     return [
+       {
+         id: DEFAULT_COMPONENT_VARIANT_ID,
+@@ -429,13 +445,6 @@
+         source: 'default',
+         mock: null,
+       },
+-      ...selectedComponent.mocks.map((mock, index) => ({
+-        id: mock.id,
+-        label: mock.label,
+-        mockIndex: index,
+-        source: 'mock' as const,
+-        mock,
+-      })),
+     ];
+   }, [selectedComponent]);
+ 

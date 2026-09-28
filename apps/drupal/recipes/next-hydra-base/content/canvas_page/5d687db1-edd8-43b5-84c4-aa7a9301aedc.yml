@@ -10,6 +10,8 @@ _meta:
     d128b08b-22c0-4603-8d90-4595df7e6853: node
     dde7b21e-d64e-4f95-9b6f-3eb68d5c3d9b: media
 default:
+  page_variant:
+    - value: site
   revision_user:
     - target_id: 1
   status:

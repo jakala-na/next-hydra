@@ -17,5 +17,8 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "next": "catalog:"
   }
 }

@@ -156,6 +156,24 @@ for (const cms of ["contentstack", "drupal"]) {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const target = yield* scaffold(cms);
+        if (cms === "drupal") {
+          for (const file of [
+            "canvas_headless.settings.yml",
+            "next.next_site.next_hydra.yml",
+          ]) {
+            const config = yield* fs.readFileString(
+              path.join(
+                target,
+                "apps/drupal/recipes/next-hydra-base/config",
+                file
+              )
+            );
+            expect(config).toContain(
+              `https://web.${path.basename(target)}.localhost`
+            );
+            expect(config).not.toContain("web.next-hydra.localhost");
+          }
+        }
         yield* run(target, "pnpm", ["run", "typecheck", "--continue=always"]);
         const readme = yield* fs.readFileString(
           path.join(target, "apps/cli/README.md")

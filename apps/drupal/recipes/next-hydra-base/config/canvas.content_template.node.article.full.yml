@@ -1,0 +1,54 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.component.js.article
+    - canvas.component.js.rich-text
+    - canvas.page_variant.site
+    - core.entity_view_mode.node.full
+    - field.field.media.image.field_media_image
+    - field.field.node.article.body
+    - field.field.node.article.field_image
+    - field.field.node.article.field_summary
+    - image.style.canvas_parametrized_width
+    - media.type.image
+    - node.type.article
+  module:
+    - file
+    - media
+    - node
+id: node.article.full
+content_entity_type_id: node
+content_entity_type_bundle: article
+content_entity_type_view_mode: full
+component_tree:
+  4eaf5c38-6bd6-435c-bad8-36b07639e351:
+    uuid: 4eaf5c38-6bd6-435c-bad8-36b07639e351
+    component_id: js.article
+    component_version: c41a1fa7b92a7383
+    inputs:
+      title:
+        sourceType: entity-field
+        expression: 'ℹ︎␜entity:node:article␝title␞␟value'
+      summary:
+        sourceType: entity-field
+        expression: 'ℹ︎␜entity:node:article␝field_summary␞␟value'
+      publishedAt:
+        sourceType: entity-field
+        expression: 'ℹ︎␜entity:node␝created␞␟value'
+        adapter: unix_to_date
+      image:
+        sourceType: entity-field
+        expression: 'ℹ︎␜entity:node:article␝field_image␞␟entity␜␜entity:media:image␝field_media_image␞␟{src↠src,alt↠alt,width↠width,height↠height}'
+  40ea3e16-7d15-4d68-bec3-06833e6ec124:
+    parent_uuid: 4eaf5c38-6bd6-435c-bad8-36b07639e351
+    slot: body
+    uuid: 40ea3e16-7d15-4d68-bec3-06833e6ec124
+    component_id: js.rich-text
+    component_version: c4c1862626805b42
+    inputs:
+      html:
+        sourceType: entity-field
+        expression: 'ℹ︎␜entity:node:article␝body␞␟processed'
+exposed_slots: {  }
+page_variant: site

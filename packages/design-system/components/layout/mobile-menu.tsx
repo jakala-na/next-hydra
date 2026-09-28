@@ -32,6 +32,7 @@ type MobileMenuProps = {
 };
 
 export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
+  const hasSearch = Boolean(Search);
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -48,9 +49,7 @@ export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <div className="mt-8 flex flex-col gap-4 px-4 pb-6 sm:px-6">
-          {Search === undefined || Search === null ? null : (
-            <div className="border-b pb-4">{Search}</div>
-          )}
+          {hasSearch ? <div className="border-b pb-4">{Search}</div> : null}
           <div className="flex flex-col gap-2">
             {navigationItems.map((item, index) => {
               const hasChildren =

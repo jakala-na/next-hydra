@@ -28,4 +28,4 @@ props:
         9: 9 articles
       examples:
         - 3
-slots: []
+slots: {}

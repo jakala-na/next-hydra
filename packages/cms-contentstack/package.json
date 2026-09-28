@@ -16,6 +16,7 @@
     "./next-config": "./next-config.ts",
     "./proxy": "./proxy.ts",
     "./search": "./search.ts",
+    "./security": "./security.ts",
     "./routes/disable-draft": "./routes/disable-draft.ts",
     "./routes/draft": "./routes/draft.ts",
     "./typescript-config.json": "./typescript-config.json"

@@ -232,6 +232,12 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
           source: { kind: "working-tree", root: sourceRoot },
         });
         const result = yield* fresh.materialize({ git: "initialize" });
+        yield* executeLintCommand(destination, "pnpm", [
+          "-r",
+          "--if-present",
+          "run",
+          "lint:prepare",
+        ]);
         const web = path.join(destination, "apps/web");
         const config = path.join(web, "next.config.ts");
         if (yield* fs.exists(config)) {

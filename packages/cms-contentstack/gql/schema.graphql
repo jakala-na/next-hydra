@@ -1,6 +1,8 @@
 type Query {
   assets(uid: String!, locale: String = "en-us", fallback_locale: Boolean = false): SysAsset
   all_assets(where: SysAssetWhere, locale: String = "en-us", order_by: [SysAssetOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = false): AllSysAsset
+  announcement(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): Announcement
+  all_announcement(where: AnnouncementWhere, locale: String! = "en-us", order_by: [AnnouncementOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllAnnouncement
   landing_page(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): LandingPage
   all_landing_page(where: LandingPageWhere, locale: String! = "en-us", order_by: [LandingPageOrderBy] = [updated_at_DESC], skip: Int = 0, limit: Int = 25, fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): AllLandingPage
   navigation(uid: String!, locale: String! = "en-us", fallback_locale: Boolean = null, taxonomy_fallback_locale: Boolean = null): Navigation
@@ -447,6 +449,134 @@ enum SysAssetOrderBy {
   updated_at_DESC
 }
 
+type Announcement {
+  title: String
+  enabled: Boolean
+  message: String
+  link_label: String
+  link_url: String
+  system: EntrySystemField
+}
+
+type EntrySystemField {
+  branch: String
+  created_at: DateTime
+  publish_details: SystemPublishDetails
+  updated_at: DateTime
+  created_by: String
+  updated_by: String
+  uid: String
+  tags: [String]
+  version: Int
+  content_type_uid: String
+  locale: String
+  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
+}
+
+type AllAnnouncement {
+  total: Int
+  items: [Announcement]
+}
+
+input AnnouncementWhere {
+  title: String
+  title_ne: String
+  title_in: [String]
+  title_nin: [String]
+  title_exists: Boolean
+  enabled: Boolean
+  enabled_exists: Boolean
+  enabled_ne: Boolean
+  message: String
+  message_ne: String
+  message_in: [String]
+  message_nin: [String]
+  message_exists: Boolean
+  link_label: String
+  link_label_ne: String
+  link_label_in: [String]
+  link_label_nin: [String]
+  link_label_exists: Boolean
+  link_url: String
+  link_url_ne: String
+  link_url_in: [String]
+  link_url_nin: [String]
+  link_url_exists: Boolean
+  created_at: DateTime
+  created_at_in: [DateTime]
+  created_at_nin: [DateTime]
+  created_at_ne: DateTime
+  created_by: String
+  created_by_in: [String]
+  created_by_nin: [String]
+  created_by_ne: String
+  created_at_lt: DateTime
+  created_at_lte: DateTime
+  created_at_gt: DateTime
+  created_at_gte: DateTime
+  updated_at: DateTime
+  updated_at_in: [DateTime]
+  updated_at_nin: [DateTime]
+  updated_at_ne: DateTime
+  updated_by: String
+  updated_by_in: [String]
+  updated_by_nin: [String]
+  updated_by_ne: String
+  updated_at_lt: DateTime
+  updated_at_lte: DateTime
+  updated_at_gt: DateTime
+  updated_at_gte: DateTime
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+  locale_exists: Boolean
+  uid: String
+  uid_ne: String
+  uid_in: [String]
+  uid_nin: [String]
+  uid_exists: Boolean
+  tags_in: [String]
+  tags_nin: [String]
+  version: Int
+  version_ne: Int
+  version_in: [Int]
+  version_nin: [Int]
+  version_lt: Int
+  version_lte: Int
+  version_gt: Int
+  version_gte: Int
+  publish_details: SystemPublishDetailsWhere
+  AND: [AnnouncementWhere]
+  OR: [AnnouncementWhere]
+}
+
+input SystemPublishDetailsWhere {
+  time: DateTime
+  time_ne: DateTime
+  time_in: [DateTime]
+  time_nin: [DateTime]
+  time_lt: DateTime
+  time_lte: DateTime
+  time_gt: DateTime
+  time_gte: DateTime
+  user: String
+  user_ne: String
+  user_in: [String]
+  user_nin: [String]
+  locale: String
+  locale_ne: String
+  locale_in: [String]
+  locale_nin: [String]
+}
+
+enum AnnouncementOrderBy {
+  created_at_ASC
+  created_at_DESC
+  updated_at_ASC
+  updated_at_DESC
+}
+
 type LandingPage {
   title: String
   url: String
@@ -544,21 +674,6 @@ type DynamicProductCollectionDescriptionEmbeddedItemsEdge {
 }
 
 union DynamicProductCollectionDescriptionEmbeddedItemsNode = SysAsset
-
-type EntrySystemField {
-  branch: String
-  created_at: DateTime
-  publish_details: SystemPublishDetails
-  updated_at: DateTime
-  created_by: String
-  updated_by: String
-  uid: String
-  tags: [String]
-  version: Int
-  content_type_uid: String
-  locale: String
-  extensionConnection(skip: Int = 0, limit: Int = 25): SysExtensionConnection
-}
 
 type AllLandingPage {
   total: Int
@@ -701,25 +816,6 @@ input LandingPageComponentsDynamicProductCollectionWhere {
   description_exists: Boolean
   product_category: JSON
   product_category_exists: Boolean
-}
-
-input SystemPublishDetailsWhere {
-  time: DateTime
-  time_ne: DateTime
-  time_in: [DateTime]
-  time_nin: [DateTime]
-  time_lt: DateTime
-  time_lte: DateTime
-  time_gt: DateTime
-  time_gte: DateTime
-  user: String
-  user_ne: String
-  user_in: [String]
-  user_nin: [String]
-  locale: String
-  locale_ne: String
-  locale_in: [String]
-  locale_nin: [String]
 }
 
 enum LandingPageOrderBy {

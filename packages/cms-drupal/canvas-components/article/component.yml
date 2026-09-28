@@ -1,0 +1,31 @@
+name: Article
+machineName: article
+status: true
+required:
+  - title
+  - summary
+props:
+  properties:
+    title:
+      title: Title
+      type: string
+      examples:
+        - Choosing the right equipment for the job
+    summary:
+      title: Summary
+      type: string
+      examples:
+        - Practical advice for planning your next project.
+    publishedAt:
+      title: Article date
+      type: string
+      format: date
+      # Keep optional with no example: Canvas's literal datetime defaults do not
+      # match Drupal's field.value.datetime config schema. Mocks provide samples.
+    image:
+      title: Image
+      type: object
+      $ref: json-schema-definitions://canvas.module/image
+slots:
+  body:
+    title: Body

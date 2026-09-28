@@ -1,0 +1,29 @@
+langcode: en
+status: true
+dependencies: {}
+machineName: announcement
+name: Announcement
+type: external
+required:
+  - message
+  - linkLabel
+  - linkUrl
+props:
+  message:
+    type: string
+    title: Message
+    examples:
+      - This is a Next Hydra template demo.
+  linkLabel:
+    type: string
+    title: Link label
+    examples:
+      - Explore Next Hydra
+  linkUrl:
+    type: string
+    format: uri
+    title: Link URL
+    examples:
+      - https://next-hydra.dev
+slots: {}
+dataDependencies: {}

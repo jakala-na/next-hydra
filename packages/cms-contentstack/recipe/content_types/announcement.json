@@ -1,0 +1,69 @@
+{
+  "description": "Reusable announcements for different placements, page types, and audiences.",
+  "field_rules": [],
+  "options": {
+    "is_page": false,
+    "singleton": false,
+    "sub_title": [],
+    "title": "title"
+  },
+  "schema": [
+    {
+      "data_type": "text",
+      "display_name": "Title",
+      "field_metadata": {
+        "_default": true,
+        "version": 3
+      },
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "title",
+      "unique": false
+    },
+    {
+      "data_type": "boolean",
+      "display_name": "Enabled",
+      "field_metadata": {
+        "default_value": true
+      },
+      "mandatory": false,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "enabled",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "Message",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "message",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "Link label",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "link_label",
+      "unique": false
+    },
+    {
+      "data_type": "text",
+      "display_name": "Link URL",
+      "field_metadata": {},
+      "mandatory": true,
+      "multiple": false,
+      "non_localizable": false,
+      "uid": "link_url",
+      "unique": false
+    }
+  ],
+  "title": "Announcement",
+  "uid": "announcement"
+}

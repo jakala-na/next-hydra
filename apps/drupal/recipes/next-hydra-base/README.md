@@ -8,8 +8,8 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 - CKEditor 5 with Drupal's Basic HTML toolbar for Article bodies;
 - GraphQL Compose routes, native menus, and revision preview;
 - regional languages and content translation for Drupal and Canvas;
-- Canvas Translate for Canvas pages, content templates, and page regions;
-- preinstalled Hero, Featured Articles, Article Card, and Text external Canvas component definitions;
+- Canvas Translate for Canvas pages and content templates;
+- preinstalled Hero, Featured Articles, Article Card, Article, Rich Text, Site Shell, Announcement, and Text external Canvas component definitions;
 - a Next.js for Drupal site that renders landing pages in the View-tab iframe;
 - cache-tag revalidation for pages and their referenced article dependencies;
 - viewer and previewer roles for OAuth clients;
@@ -24,9 +24,7 @@ The recipe defaults browser previews to `https://web.next-hydra.localhost`. For 
 
 The recipe uses Drupal's standard catalogue IDs (`en`, `en-gb`, `es`, `fr`, `de`, `it`, `pt-pt`, and `nl`) while retaining the frontend's regional URL prefixes (`/en-GB`, `/es-ES`, `/fr-FR`, and so on). Landing pages, Articles, Paragraph text, menu links, Image Media, and Canvas pages are translation-enabled. Structural references such as the hero image remain shared across translations.
 
-Canvas Translate adds a translation workspace at `/canvas/app/canvas_translate`. It translates Canvas page component values as content translations and stores translated content-template and page-region values as language-specific configuration overrides. The module is currently an alpha dependency, so review its release status before a production upgrade. Administrators can access the workspace; grant its restricted `translate canvas content` permission deliberately when creating a dedicated translator role.
-
-The recipe also enables the headless theme's `pre_header`, `post_header`, `pre_footer`, and `post_footer` Canvas PageRegions. Each region contains a small text component after installation so the complete global-region delivery path can be verified at `/canvas/regions-api`; replace these markers with the site's authored global content.
+Canvas Translate adds a translation workspace at `/canvas/app/canvas_translate`. It translates Canvas page component values as content translations and stores translated content-template values as language-specific configuration overrides. The module is currently an alpha dependency, so review its release status before a production upgrade. Administrators can access the workspace; grant its restricted `translate canvas content` permission deliberately when creating a dedicated translator role.
 
 Canvas page translations share component-tree structure while retaining independently translatable component inputs. Structural edits such as adding, removing, or reordering a component therefore remain symmetrical across languages without overwriting translated component copy.
 
@@ -65,3 +63,13 @@ php core/scripts/drupal content:export node <node-id> \
 ```
 
 Core's exporter does not currently emit portable embedded values for `entity_reference_revisions` fields. Keep Paragraphs embedded under the parent node's `field_components` values, as the demo landing pages do, rather than committing exported numeric Paragraph IDs.
+
+## Native page template
+
+The `site` page variant is shared by the Canvas pages and owns the `preHeader`, `postHeader`, `preFooter`, and `postFooter` slots around a native page-content marker. The frontend's `site-shell` component combines these slots with the application header and footer. The published empty `/site-shell` Canvas page lets frontend-owned routes fetch the same shared template through the standard Headless content API. The matching Workbench fixture is in `packages/cms-drupal/page-templates/site.json`. The recipe seeds the template once; routine component pushes exclude page templates to preserve subsequent editorial changes and translations.
+
+The recipe configures Next revalidation for `page_variant` entities. The old theme PageRegion configuration and custom region endpoint are no longer used.
+
+The headless template is explicitly selected on Canvas pages, rather than made Drupal’s site-wide default. This keeps Drupal-owned login and administrative routes renderable without a JavaScript frontend.
+
+The Site template seeds one Announcement component above the header, identifying the Next Hydra template demo and linking to `https://next-hydra.dev`. Other shared slots start empty. Edit the component fields in Canvas to change the message and destination.

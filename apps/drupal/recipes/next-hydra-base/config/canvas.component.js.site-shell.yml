@@ -1,0 +1,27 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - canvas.js_component.site-shell
+label: 'Site shell'
+id: js.site-shell
+source: js
+source_local_id: site-shell
+provider: null
+active_version: 99f464bae24bc529
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions: {  }
+    fallback_metadata:
+      slot_definitions:
+        preHeader:
+          title: 'Before header'
+        postHeader:
+          title: 'After header'
+        content:
+          title: 'Page content'
+        preFooter:
+          title: 'Before footer'
+        postFooter:
+          title: 'After footer'

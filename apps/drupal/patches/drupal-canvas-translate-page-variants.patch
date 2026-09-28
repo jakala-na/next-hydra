@@ -1,0 +1,1080 @@
+diff --git a/ARCHITECTURE.md b/ARCHITECTURE.md
+index 4a35951..ca12ccf 100644
+--- a/ARCHITECTURE.md
++++ b/ARCHITECTURE.md
+@@ -51,7 +51,7 @@ The single most important thing to internalize: **there are two translation
+ domains — content and config — that share one UI, one controller, and one draft
+ store, but differ in what a "translation" *is* and where publishing lands.**
+ 
+-| | Content (`canvas_page`) | Config (`content_template`, `page_region`) |
++| | Content (`canvas_page`) | Config (`content_template`, `page_variant`, `page_region`) |
+ |---|---|---|
+ | What a "translation" *is* | a real entity translation | a `language.config.<lang>.*` override |
+ | Draft store | per-langcode values map in `TranslationDraftStore` | per-config-name values map in `TranslationDraftStore` |
+@@ -197,6 +197,29 @@ publish of the base config entity never publishes it.
+ > publish (`publish` / `publishBatch` / `publishConfigTranslation`). Do not move
+ > drafts back into `AutoSaveManager` — it re-exposes them to Canvas's publish.
+ 
++### 2.5 Upgrade path: page regions → page variants (`PageRegionTranslationUpgrade`)
++
++Canvas 1.11 turns a theme's page regions into one page variant, `theme_<theme>`,
++and keeps the component UUIDs. Canvas copies the published translations (the
++language overrides) but does not know about our draft and approval stores, and
++copies nothing published to a region after its own update ran.
++
++`PageRegionTranslationUpgrade::upgrade($variant)` finds the regions by the UUIDs
++they share with the variant and, per language:
++
++- moves region draft entries for those UUIDs into the variant draft (a draft the
++  variant already had wins),
++- approves the variant draft only when every moved region draft was approved
++  and the variant had no draft of its own,
++- adds published region translations the variant override lacks (the variant's
++  own translations win).
++
++It runs from two places: `hook_page_variant_insert()` for a variant Canvas
++creates while this module is installed (its update hook, or enabling Canvas for
++a theme later), and `canvas_translate_post_update_0001` for a site that updated
++Canvas first. Both are idempotent. The `canvas_translate_baseline` snapshot is
++not copied; the next publish of the variant writes it.
++
+ ## 3. Endpoint map (`canvas_translate.routing.yml`)
+ 
+ All require the `translate canvas content` permission; all mutations require an
+diff --git a/canvas_translate.post_update.php b/canvas_translate.post_update.php
+new file mode 100644
+index 0000000..41ebf4c
+--- /dev/null
++++ b/canvas_translate.post_update.php
+@@ -0,0 +1,17 @@
++<?php
++
++/**
++ * @file
++ * Post update functions for Canvas Translate.
++ */
++
++declare(strict_types=1);
++
++use Drupal\canvas_translate\Service\PageRegionTranslationUpgrade;
++
++/**
++ * Moves page region translation drafts and approvals to the page variants.
++ */
++function canvas_translate_post_update_0001_move_page_region_translations(): void {
++  \Drupal::service(PageRegionTranslationUpgrade::class)->upgradeAll();
++}
+diff --git a/canvas_translate.routing.yml b/canvas_translate.routing.yml
+index c757267..cdf0fcc 100644
+--- a/canvas_translate.routing.yml
++++ b/canvas_translate.routing.yml
+@@ -123,16 +123,17 @@ canvas_translate.api.translation.discard:
+         type: 'entity:canvas_page'
+     no_cache: TRUE
+ 
+-# Config-entity (Content Template / Page Region) translation routes.
+-# `{id}` is a config entity ID and may contain dots (e.g. node.article.full),
+-# so it is matched permissively. `{type}` ∈ content_template | page_region.
++# Config-entity (Content Template / Page Region / Page Variant) translation
++# routes. `{id}` is a config entity ID and may contain dots (e.g.
++# node.article.full), so it is matched permissively.
++# `{type}` ∈ content_template | page_region | page_variant.
+ canvas_translate.api.config_translation.get:
+   path: '/canvas-translate/api/config/{type}/{id}/{langcode}'
+   defaults:
+     _controller: '\Drupal\canvas_translate\Controller\ApiTranslateController::getConfigTranslation'
+   requirements:
+     _permission: 'translate canvas content'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [GET]
+   options:
+     no_cache: TRUE
+@@ -144,7 +145,7 @@ canvas_translate.api.config_translation.save:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [PATCH]
+   options:
+     no_cache: TRUE
+@@ -156,7 +157,7 @@ canvas_translate.api.config_translation.publish:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [POST]
+   options:
+     no_cache: TRUE
+@@ -168,7 +169,7 @@ canvas_translate.api.config_translation.approve:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [POST]
+   options:
+     no_cache: TRUE
+@@ -180,7 +181,7 @@ canvas_translate.api.config_translation.unapprove:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [POST]
+   options:
+     no_cache: TRUE
+@@ -192,7 +193,7 @@ canvas_translate.api.config_translation.mark_reviewed:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [POST]
+   options:
+     no_cache: TRUE
+@@ -204,7 +205,7 @@ canvas_translate.api.config_translation.discard:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [DELETE]
+   options:
+     no_cache: TRUE
+diff --git a/canvas_translate.services.yml b/canvas_translate.services.yml
+index 9e15abf..981e8cd 100644
+--- a/canvas_translate.services.yml
++++ b/canvas_translate.services.yml
+@@ -21,6 +21,11 @@ services:
+     arguments:
+       $store: '@canvas_translate.approval_store'
+ 
++  Drupal\canvas_translate\Service\PageRegionTranslationUpgrade:
++    public: true
++    arguments:
++      $languageConfigOverride: '@language.config_factory_override'
++
+   Drupal\canvas_translate\Routing\TranslateRouteSubscriber:
+     tags:
+       - { name: event_subscriber }
+diff --git a/extension/drafts.ts b/extension/drafts.ts
+index 02c0d98..d0a9783 100644
+--- a/extension/drafts.ts
++++ b/extension/drafts.ts
+@@ -3,7 +3,7 @@ import type { ConfigType, DashboardResponse, Kind } from './types.ts';
+ /** One pending draft, flattened from the dashboard's per-language cells. */
+ export interface DraftRow {
+   kind: Kind;
+-  /** Config sub-type (content_template | page_region), only when kind === 'config'. */
++  /** Config sub-type, only when kind === 'config'. @see ConfigType */
+   type?: ConfigType;
+   /** Numeric for content pages; string config id for config entities. */
+   id: number | string;
+diff --git a/extension/types.ts b/extension/types.ts
+index fe2a3a1..7ee39e5 100644
+--- a/extension/types.ts
++++ b/extension/types.ts
+@@ -26,11 +26,11 @@ export interface TranslationState {
+ export type Kind = 'content' | 'config';
+ 
+ /** Config entity sub-type, present only when kind === 'config'. */
+-export type ConfigType = 'content_template' | 'page_region';
++export type ConfigType = 'content_template' | 'page_region' | 'page_variant';
+ 
+ export interface DashboardItem {
+   kind: Kind;
+-  /** 'canvas_page' for content; 'content_template' | 'page_region' for config. */
++  /** 'canvas_page' for content; a ConfigType for config. */
+   type: string;
+   /** Numeric for content pages; string config ID (e.g. node.article.full) for config. */
+   id: number | string;
+diff --git a/modules/canvas_translate_ai/canvas_translate_ai.routing.yml b/modules/canvas_translate_ai/canvas_translate_ai.routing.yml
+index 1e724b6..34b43d5 100644
+--- a/modules/canvas_translate_ai/canvas_translate_ai.routing.yml
++++ b/modules/canvas_translate_ai/canvas_translate_ai.routing.yml
+@@ -22,7 +22,7 @@ canvas_translate_ai.translate_config:
+   requirements:
+     _permission: 'translate canvas content'
+     _csrf_request_header_token: 'TRUE'
+-    type: 'content_template|page_region'
++    type: 'content_template|page_region|page_variant'
+   methods: [POST]
+   options:
+     no_cache: TRUE
+diff --git a/modules/canvas_translate_ai/src/Controller/AiTranslateController.php b/modules/canvas_translate_ai/src/Controller/AiTranslateController.php
+index c23bf20..c72732e 100644
+--- a/modules/canvas_translate_ai/src/Controller/AiTranslateController.php
++++ b/modules/canvas_translate_ai/src/Controller/AiTranslateController.php
+@@ -4,8 +4,6 @@ declare(strict_types=1);
+ 
+ namespace Drupal\canvas_translate_ai\Controller;
+ 
+-use Drupal\canvas\Entity\ContentTemplate;
+-use Drupal\canvas\Entity\PageRegion;
+ use Drupal\canvas_translate_ai\AiTranslator;
+ use Drupal\canvas_translate_ai\AiTranslatorUnavailableException;
+ use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+@@ -29,13 +27,14 @@ use Symfony\Component\HttpFoundation\Response;
+ final class AiTranslateController implements ContainerInjectionInterface {
+ 
+   /**
+-   * Config `{type}` route value → config entity type ID.
++   * Config entity types whose component trees are translatable.
+    *
+    * Mirrors ApiTranslateController::CONFIG_TYPES.
+    */
+   private const array CONFIG_TYPES = [
+-    'content_template' => ContentTemplate::ENTITY_TYPE_ID,
+-    'page_region' => PageRegion::ENTITY_TYPE_ID,
++    'content_template',
++    'page_region',
++    'page_variant',
+   ];
+ 
+   /**
+@@ -84,14 +83,14 @@ final class AiTranslateController implements ContainerInjectionInterface {
+    * Translates posted strings for one config entity + target language.
+    */
+   public function translateConfig(string $type, string $id, string $langcode, Request $request): JsonResponse {
+-    if (!\array_key_exists($type, self::CONFIG_TYPES)) {
++    if (!\in_array($type, self::CONFIG_TYPES, TRUE) || !$this->entityTypeManager->hasDefinition($type)) {
+       return new JsonResponse(['error' => 'Unknown config type.'], Response::HTTP_NOT_FOUND);
+     }
+     $source_langcode = $this->languageManager->getDefaultLanguage()->getId();
+     if (($error = $this->validateTarget($langcode, $source_langcode)) !== NULL) {
+       return $error;
+     }
+-    $entity = $this->entityTypeManager->getStorage(self::CONFIG_TYPES[$type])->load($id);
++    $entity = $this->entityTypeManager->getStorage($type)->load($id);
+     if (!$entity instanceof EntityInterface) {
+       return new JsonResponse(['error' => 'Not found.'], Response::HTTP_NOT_FOUND);
+     }
+diff --git a/openspec/specs/config-translation/spec.md b/openspec/specs/config-translation/spec.md
+index bc7815c..8288159 100644
+--- a/openspec/specs/config-translation/spec.md
++++ b/openspec/specs/config-translation/spec.md
+@@ -3,23 +3,76 @@
+ ## Purpose
+ 
+ Extend the translation workspace to Canvas config-entity layouts — content
+-templates and global page regions — so their translatable component strings can
+-be translated alongside page content, using Drupal's configuration language
+-overrides.
++templates, and the full-page layouts Canvas builds pages from (page variants,
++or page regions on Canvas versions that predate them) — so their translatable
++component strings can be translated alongside page content, using Drupal's
++configuration language overrides.
+ 
+ ## Requirements
+ 
+ ### Requirement: Config layouts in the workspace
+ 
+-The system MUST list translatable config-entity layouts (content templates and
+-page regions) in the same dashboard as pages, distinguished by type, and MUST
+-open them in the same side-by-side editor.
++The system MUST list translatable config-entity layouts (content templates,
++page variants and page regions) in the same dashboard as pages, distinguished
++by type, and MUST open them in the same side-by-side editor. Layout types the
++installed Canvas does not provide MUST be skipped rather than reported as an
++error.
+ 
+ #### Scenario: Listing a page region
+ 
+ - **WHEN** a page region with translatable component strings exists
+ - **THEN** the dashboard MUST list it with its type and per-language status
+ 
++#### Scenario: Listing a page variant
++
++- **WHEN** a page variant with translatable component strings exists
++- **THEN** the dashboard MUST list it with its type and per-language status
++
++#### Scenario: A layout type the installed Canvas does not have
++
++- **WHEN** Canvas does not provide one of the supported layout types
++- **THEN** the dashboard MUST omit it and list the remaining types normally
++
++### Requirement: Page region translation state follows the page variant
++
++When Canvas converts a theme's page regions into a page variant (Canvas 1.11,
++variant ID `theme_<theme>`), the system MUST move this module's translation
++state for those regions to the variant, matched by component UUID: pending
++drafts, approvals, and published translations the variant does not have yet.
++Regions whose components are not in the variant MUST be left alone. This MUST
++work whether Canvas converts the regions before or after this module is
++updated.
++
++#### Scenario: Canvas converts regions while this module is installed
++
++- **WHEN** Canvas creates a `theme_<theme>` page variant from the theme's regions
++- **THEN** the system MUST move the regions' drafts, approvals and published
++  translations to the variant at once
++
++#### Scenario: Canvas was updated first
++
++- **WHEN** a `theme_<theme>` variant already exists and regions still hold
++  drafts or published translations from before this module was updated
++- **THEN** the post update MUST move them to the variant
++- **AND** running it again MUST change nothing
++
++#### Scenario: A region Canvas did not convert
++
++- **WHEN** a region's components are not in the variant
++- **THEN** its drafts and published translations MUST stay on the region
++
++#### Scenario: The variant already has a newer translation
++
++- **WHEN** both the region and the variant have a published translation for the
++  same component
++- **THEN** the variant's translation MUST be kept
++
++#### Scenario: Approval only moves when everything moved was approved
++
++- **WHEN** drafts from several regions merge into one variant draft
++- **THEN** the variant draft MUST be approved only if every region draft was
++  approved and the variant had no draft of its own
++
+ ### Requirement: Config translation storage via language overrides
+ 
+ The system MUST store config-layout translations as configuration language
+diff --git a/src/Controller/ApiTranslateController.php b/src/Controller/ApiTranslateController.php
+index 7f93212..bb3d7be 100644
+--- a/src/Controller/ApiTranslateController.php
++++ b/src/Controller/ApiTranslateController.php
+@@ -5,9 +5,7 @@ declare(strict_types=1);
+ namespace Drupal\canvas_translate\Controller;
+ 
+ use Drupal\canvas\Entity\ComponentTreeConfigEntityBase;
+-use Drupal\canvas\Entity\ContentTemplate;
+ use Drupal\canvas\Entity\Page;
+-use Drupal\canvas\Entity\PageRegion;
+ use Drupal\canvas\Plugin\Field\FieldType\ComponentTreeItem;
+ use Drupal\canvas_translate\Service\ApprovalStore;
+ use Drupal\canvas_translate\Service\ConfigTranslatableGlue;
+@@ -75,16 +73,19 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+   public const array WRITTEN_FIELDS = [...self::SIMPLE_FIELDS, 'components'];
+ 
+   /**
+-   * Config entity types whose component trees are translatable, by `type`.
++   * Config entity types whose component trees are translatable.
+    *
+-   * Mirrors Canvas core's TRANSLATABLE_ENTITY_TYPE_IDS. The keys are the
+-   * `{type}` route parameter used by the SPA.
++   * Also the `{type}` route parameter. Written as strings, not class
++   * constants: page regions and page variants do not both exist across the
++   * Canvas versions this module supports, so naming either class would fatal
++   * on the other. Types that are not installed are skipped where this is used.
+    *
+    * @see \Drupal\canvas\Hook\ConfigTranslationHooks::TRANSLATABLE_ENTITY_TYPE_IDS
+    */
+   private const array CONFIG_TYPES = [
+-    'content_template' => ContentTemplate::ENTITY_TYPE_ID,
+-    'page_region' => PageRegion::ENTITY_TYPE_ID,
++    'content_template',
++    'page_region',
++    'page_variant',
+   ];
+ 
+   public function __construct(
+@@ -257,7 +258,11 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+   private function configItems(string $search, string $filter_langcode, string $filter_status): array {
+     $source_langcode = $this->languageManager->getDefaultLanguage()->getId();
+     $items = [];
+-    foreach (self::CONFIG_TYPES as $type => $entity_type_id) {
++    foreach (self::CONFIG_TYPES as $entity_type_id) {
++      // Page regions and page variants each exist in only some Canvas versions.
++      if (!$this->entityTypeManager->hasDefinition($entity_type_id)) {
++        continue;
++      }
+       $storage = $this->entityTypeManager->getStorage($entity_type_id);
+       foreach ($storage->loadMultiple() as $entity) {
+         \assert($entity instanceof ComponentTreeConfigEntityBase);
+@@ -282,7 +287,7 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+         }
+         $items[] = [
+           'kind' => 'config',
+-          'type' => $type,
++          'type' => $entity_type_id,
+           'id' => (string) $entity->id(),
+           'label' => $label,
+           'sourceLangcode' => $source_langcode,
+@@ -1012,7 +1017,7 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+     $base = \is_string($body['baseSourceHash'] ?? NULL) ? $body['baseSourceHash'] : NULL;
+     $source_hash = $this->configGlue->sourceHash($entity);
+     return new JsonResponse([
+-      'entityType' => self::CONFIG_TYPES[$type],
++      'entityType' => $type,
+       'entityId' => (string) $entity->id(),
+       'status' => $this->singleConfigStatus($entity, $langcode),
+       'sourceChanged' => $base !== NULL && $base !== $source_hash,
+@@ -1128,7 +1133,7 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+    *   A tuple of [entity, error]; exactly one is non-NULL.
+    */
+   private function loadConfigEntity(string $type, string $id, string $langcode): array {
+-    if (!\array_key_exists($type, self::CONFIG_TYPES)) {
++    if (!\in_array($type, self::CONFIG_TYPES, TRUE) || !$this->entityTypeManager->hasDefinition($type)) {
+       return [NULL, new JsonResponse(['error' => 'Unknown config type.'], Response::HTTP_NOT_FOUND)];
+     }
+     if (!\array_key_exists($langcode, $this->languageManager->getLanguages())) {
+@@ -1138,7 +1143,7 @@ final class ApiTranslateController implements ContainerInjectionInterface {
+       $message = 'Cannot translate the source language. Edit the layout in the Canvas editor instead.';
+       return [NULL, new JsonResponse(['error' => $message], Response::HTTP_BAD_REQUEST)];
+     }
+-    $entity = $this->entityTypeManager->getStorage(self::CONFIG_TYPES[$type])->load($id);
++    $entity = $this->entityTypeManager->getStorage($type)->load($id);
+     if (!$entity instanceof ComponentTreeConfigEntityBase) {
+       return [NULL, new JsonResponse(['error' => 'Not found.'], Response::HTTP_NOT_FOUND)];
+     }
+diff --git a/src/Hook/PageVariantUpgradeHooks.php b/src/Hook/PageVariantUpgradeHooks.php
+new file mode 100644
+index 0000000..383e76e
+--- /dev/null
++++ b/src/Hook/PageVariantUpgradeHooks.php
+@@ -0,0 +1,39 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\canvas_translate\Hook;
++
++use Drupal\canvas\Entity\PageVariant;
++use Drupal\canvas_translate\Service\PageRegionTranslationUpgrade;
++use Drupal\Core\Entity\EntityInterface;
++use Drupal\Core\Hook\Attribute\Hook;
++
++/**
++ * Moves page region translations when Canvas turns regions into a variant.
++ */
++final class PageVariantUpgradeHooks {
++
++  public function __construct(
++    private readonly PageRegionTranslationUpgrade $upgrade,
++  ) {}
++
++  /**
++   * Implements hook_ENTITY_TYPE_insert() for page_variant.
++   *
++   * Canvas creates a "theme_<theme>" variant when it converts a theme's page
++   * regions: in its own update hook, or later when Canvas is enabled for a
++   * theme on the theme settings form. Move the regions' drafts, approvals and
++   * published translations over right away, so nothing is left behind on the
++   * regions.
++   *
++   * @see \Drupal\canvas\PageVariantMigration::createFromPageRegions()
++   */
++  #[Hook('page_variant_insert')]
++  public function pageVariantInsert(EntityInterface $entity): void {
++    if ($entity instanceof PageVariant && PageRegionTranslationUpgrade::isThemeVariant($entity)) {
++      $this->upgrade->upgrade($entity);
++    }
++  }
++
++}
+diff --git a/src/Service/PageRegionTranslationUpgrade.php b/src/Service/PageRegionTranslationUpgrade.php
+new file mode 100644
+index 0000000..0dfdb21
+--- /dev/null
++++ b/src/Service/PageRegionTranslationUpgrade.php
+@@ -0,0 +1,254 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\canvas_translate\Service;
++
++use Drupal\canvas\Entity\ComponentTreeConfigEntityBase;
++use Drupal\canvas\Entity\PageVariant;
++use Drupal\canvas\Plugin\Field\FieldType\ComponentTreeItem;
++use Drupal\Core\Entity\EntityTypeManagerInterface;
++use Drupal\Core\Language\LanguageManagerInterface;
++use Drupal\language\Config\LanguageConfigFactoryOverrideInterface;
++
++/**
++ * Moves page region translation state to the page variant that replaced them.
++ *
++ * Canvas 1.11 turns a theme's page regions into one page variant, named
++ * "theme_<theme>". Canvas copies the published translations (the language
++ * config overrides) but knows nothing about this module's drafts and
++ * approvals. It also copies nothing that was published after its own update
++ * ran, which happens when Canvas is updated before Canvas Translate.
++ *
++ * The regions a variant was built from are found by the component UUIDs the
++ * two still share. Then, for each language:
++ * - region drafts move into the variant draft,
++ * - the approval moves along when every region that had a draft was approved,
++ * - published region translations the variant override lacks are added.
++ *
++ * Example: the "header" region had a Hungarian draft for its heading. After
++ * the upgrade the same heading, same UUID, sits in variant "theme_olivero",
++ * and the Hungarian draft shows up there.
++ *
++ * Only entries whose UUID is in the variant move. Regions Canvas did not
++ * migrate (other themes, disabled regions) keep their drafts and overrides.
++ * The staleness baseline is not copied; it is written again on the next
++ * publish of the variant.
++ */
++final class PageRegionTranslationUpgrade {
++
++  /**
++   * Canvas names the variant it builds from a theme's regions like this.
++   */
++  public const string VARIANT_ID_PREFIX = 'theme_';
++
++  // Entity type IDs as strings, so this class loads on a Canvas that has only
++  // one of the two entity types.
++  private const string PAGE_VARIANT = 'page_variant';
++  private const string PAGE_REGION = 'page_region';
++
++  public function __construct(
++    private readonly TranslationDraftStore $draftStore,
++    private readonly ApprovalStore $approvalStore,
++    private readonly EntityTypeManagerInterface $entityTypeManager,
++    private readonly LanguageManagerInterface $languageManager,
++    private readonly LanguageConfigFactoryOverrideInterface $languageConfigOverride,
++  ) {}
++
++  /**
++   * Whether Canvas built this variant from a theme's page regions.
++   */
++  public static function isThemeVariant(PageVariant $variant): bool {
++    return \str_starts_with((string) $variant->id(), self::VARIANT_ID_PREFIX);
++  }
++
++  /**
++   * Upgrades every theme variant on the site.
++   *
++   * @return array<string, array{drafts: int, approvals: int, overrides: int}>
++   *   What moved, keyed by variant ID.
++   */
++  public function upgradeAll(): array {
++    if (!$this->entityTypeManager->hasDefinition(self::PAGE_VARIANT)) {
++      return [];
++    }
++    $result = [];
++    foreach ($this->entityTypeManager->getStorage(self::PAGE_VARIANT)->loadMultiple() as $variant) {
++      \assert($variant instanceof PageVariant);
++      if (self::isThemeVariant($variant)) {
++        $result[(string) $variant->id()] = $this->upgrade($variant);
++      }
++    }
++    return $result;
++  }
++
++  /**
++   * Moves the translation state of the regions a variant was built from.
++   *
++   * Safe to run more than once: a second run finds nothing left to move.
++   *
++   * @return array{drafts: int, approvals: int, overrides: int}
++   *   How many draft entries, approvals and override entries moved.
++   */
++  public function upgrade(PageVariant $variant): array {
++    $counts = ['drafts' => 0, 'approvals' => 0, 'overrides' => 0];
++    // Canvas 2.0 removes page regions. Nothing left to move then.
++    if (!$this->entityTypeManager->hasDefinition(self::PAGE_REGION)) {
++      return $counts;
++    }
++    $uuids = self::uuids($variant);
++    $regions = [];
++    foreach ($this->entityTypeManager->getStorage(self::PAGE_REGION)->loadMultiple() as $region) {
++      \assert($region instanceof ComponentTreeConfigEntityBase);
++      if (\array_intersect_key(self::uuids($region), $uuids) !== []) {
++        $regions[] = $region;
++      }
++    }
++    if ($regions === []) {
++      return $counts;
++    }
++    $variant_name = $variant->getConfigDependencyName();
++    foreach (\array_keys($this->languageManager->getLanguages()) as $langcode) {
++      $counts['drafts'] += $this->moveDrafts($regions, $uuids, $variant_name, $langcode, $counts['approvals']);
++      $counts['overrides'] += $this->mergeOverrides($regions, $uuids, $variant_name, $langcode);
++    }
++    return $counts;
++  }
++
++  /**
++   * Moves region draft entries for the variant's components into its draft.
++   *
++   * @param list<\Drupal\canvas\Entity\ComponentTreeConfigEntityBase> $regions
++   *   The regions the variant was built from.
++   * @param array<string, true> $uuids
++   *   The variant's component UUIDs.
++   * @param string $variant_name
++   *   The variant's config name.
++   * @param string $langcode
++   *   The language.
++   * @param int $approvals
++   *   Incremented when the approval moves too.
++   *
++   * @return int
++   *   How many draft entries moved.
++   */
++  private function moveDrafts(array $regions, array $uuids, string $variant_name, string $langcode, int &$approvals): int {
++    $variant_key = TranslationDraftStore::key($variant_name, $langcode);
++    $had_own_draft = $this->draftStore->has($variant_key);
++    $moved = [];
++    $all_approved = TRUE;
++    foreach ($regions as $region) {
++      $region_key = TranslationDraftStore::key($region->getConfigDependencyName(), $langcode);
++      $draft = $this->draftStore->get($region_key);
++      if ($draft === NULL) {
++        continue;
++      }
++      $keep = [];
++      foreach ($draft as $key => $text) {
++        if (isset($uuids[self::uuidOfKey((string) $key)])) {
++          $moved[$key] = $text;
++        }
++        else {
++          $keep[$key] = $text;
++        }
++      }
++      if ($keep === $draft) {
++        // Nothing of this region's draft is in the variant.
++        continue;
++      }
++      $all_approved = $all_approved && $this->approvalStore->isApproved($region_key);
++      if ($keep === []) {
++        $this->draftStore->delete($region_key);
++        $this->approvalStore->clear($region_key);
++      }
++      else {
++        $this->draftStore->set($region_key, $keep);
++      }
++    }
++    if ($moved === []) {
++      return 0;
++    }
++    // A draft the variant already had wins over the moved entries.
++    $this->draftStore->set($variant_key, ($this->draftStore->get($variant_key) ?? []) + $moved);
++    // An approval covers a whole draft. Keep it only when every moved entry
++    // was approved and the variant had no draft of its own waiting for review.
++    if (!$had_own_draft && $all_approved) {
++      $this->approvalStore->approve($variant_key);
++      $approvals++;
++    }
++    return \count($moved);
++  }
++
++  /**
++   * Adds published region translations the variant override does not have.
++   *
++   * Canvas copied these once, when it converted the regions. Anything
++   * published to a region after that only exists on the region.
++   *
++   * @param list<\Drupal\canvas\Entity\ComponentTreeConfigEntityBase> $regions
++   *   The regions the variant was built from.
++   * @param array<string, true> $uuids
++   *   The variant's component UUIDs.
++   * @param string $variant_name
++   *   The variant's config name.
++   * @param string $langcode
++   *   The language.
++   *
++   * @return int
++   *   How many component entries were added to the variant override.
++   */
++  private function mergeOverrides(array $regions, array $uuids, string $variant_name, string $langcode): int {
++    $from_regions = [];
++    foreach ($regions as $region) {
++      $override = $this->languageConfigOverride->getOverride($langcode, $region->getConfigDependencyName());
++      if ($override->isNew()) {
++        continue;
++      }
++      $tree = $override->get('component_tree');
++      if (\is_array($tree)) {
++        $from_regions += \array_intersect_key($tree, $uuids);
++      }
++    }
++    if ($from_regions === []) {
++      return 0;
++    }
++    $override = $this->languageConfigOverride->getOverride($langcode, $variant_name);
++    $data = $override->isNew() ? [] : $override->getRawData();
++    $data = \is_array($data) ? $data : [];
++    $existing = \is_array($data['component_tree'] ?? NULL) ? $data['component_tree'] : [];
++    // The variant's own translations win. Only fill in what it lacks.
++    $new = \array_diff_key($from_regions, $existing);
++    if ($new === []) {
++      return 0;
++    }
++    $data['component_tree'] = $existing + $new;
++    $override->setData($data)->save();
++    return \count($new);
++  }
++
++  /**
++   * The component UUIDs in a config entity's tree, as array keys.
++   *
++   * @return array<string, true>
++   *   Keyed by UUID.
++   */
++  private static function uuids(ComponentTreeConfigEntityBase $entity): array {
++    $uuids = [];
++    foreach ($entity->getComponentTree() as $item) {
++      \assert($item instanceof ComponentTreeItem);
++      $uuids[$item->getUuid()] = TRUE;
++    }
++    return $uuids;
++  }
++
++  /**
++   * The UUID in a draft key like "component_tree.<uuid>.inputs.text".
++   */
++  private static function uuidOfKey(string $key): string {
++    if (!\str_starts_with($key, 'component_tree.')) {
++      return '';
++    }
++    return \explode('.', $key)[1] ?? '';
++  }
++
++}
+diff --git a/tests/src/Kernel/PageRegionTranslationUpgradeTest.php b/tests/src/Kernel/PageRegionTranslationUpgradeTest.php
+new file mode 100644
+index 0000000..71e18e6
+--- /dev/null
++++ b/tests/src/Kernel/PageRegionTranslationUpgradeTest.php
+@@ -0,0 +1,340 @@
++<?php
++
++declare(strict_types=1);
++
++namespace Drupal\Tests\canvas_translate\Kernel;
++
++use Drupal\canvas\Entity\Component;
++use Drupal\canvas\Entity\ComponentTreeConfigEntityBase;
++use Drupal\canvas\Entity\Page;
++use Drupal\canvas\Entity\PageVariant;
++use Drupal\canvas\Plugin\Canvas\ComponentSource\Marker;
++use Drupal\canvas_translate\Service\ApprovalStore;
++use Drupal\canvas_translate\Service\PageRegionTranslationUpgrade;
++use Drupal\canvas_translate\Service\TranslationDraftStore;
++use Drupal\language\ConfigurableLanguageManagerInterface;
++use Drupal\language\Entity\ConfigurableLanguage;
++use Drupal\Tests\canvas\Kernel\CanvasKernelTestBase;
++use Drupal\Tests\canvas\Traits\GenerateComponentConfigTrait;
++use PHPUnit\Framework\Attributes\CoversClass;
++use PHPUnit\Framework\Attributes\Group;
++use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
++
++/**
++ * Tests moving page region translations to the page variant Canvas built.
++ *
++ * Canvas keeps the component UUIDs when it converts a theme's regions into a
++ * "theme_<theme>" variant. Drafts, approvals and published translations are
++ * all keyed by those UUIDs, so they can follow the components.
++ */
++#[RunTestsInSeparateProcesses]
++#[CoversClass(PageRegionTranslationUpgrade::class)]
++#[Group('canvas')]
++#[Group('canvas_translation')]
++final class PageRegionTranslationUpgradeTest extends CanvasKernelTestBase {
++
++  use GenerateComponentConfigTrait;
++
++  private const string UUID_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
++  private const string UUID_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
++  private const string UUID_C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
++  private const string MARKER_VERSION = '3b12c0b99a6caecc';
++
++  /**
++   * {@inheritdoc}
++   */
++  protected static $modules = [
++    ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
++    'canvas_test_sdc',
++    'language',
++    'content_translation',
++    'canvas_translate',
++  ];
++
++  /**
++   * The draft store.
++   */
++  private TranslationDraftStore $drafts;
++
++  /**
++   * The approval store.
++   */
++  private ApprovalStore $approvals;
++
++  /**
++   * The language manager.
++   */
++  private ConfigurableLanguageManagerInterface $languageManager;
++
++  /**
++   * The service under test.
++   */
++  private PageRegionTranslationUpgrade $upgrade;
++
++  /**
++   * {@inheritdoc}
++   */
++  protected function setUp(): void {
++    parent::setUp();
++    $this->installEntitySchema('user');
++    $this->installEntitySchema('path_alias');
++    $this->installEntitySchema(Page::ENTITY_TYPE_ID);
++    $this->installConfig(['language']);
++    ConfigurableLanguage::createFromLangcode('fr')->save();
++    ConfigurableLanguage::createFromLangcode('de')->save();
++    $this->generateComponentConfig();
++    // The marker component ships in config/install, which kernel tests do not
++    // import. A variant is only valid with exactly one marker in its tree.
++    if (Component::load(Marker::PAGE_CONTENT_COMPONENT_ID) === NULL) {
++      Component::create([
++        'id' => Marker::PAGE_CONTENT_COMPONENT_ID,
++        'label' => 'Page content',
++        'provider' => 'canvas',
++        'source' => Marker::SOURCE_PLUGIN_ID,
++        'source_local_id' => Marker::PAGE_CONTENT_LOCAL_ID,
++        'active_version' => self::MARKER_VERSION,
++        'versioned_properties' => [
++          'active' => [
++            'settings' => [],
++            'fallback_metadata' => ['slot_definitions' => []],
++          ],
++        ],
++        'dependencies' => ['enforced' => ['module' => ['canvas']]],
++      ])->save();
++    }
++    $this->drafts = $this->container->get(TranslationDraftStore::class);
++    $this->approvals = $this->container->get(ApprovalStore::class);
++    $language_manager = $this->container->get('language_manager');
++    \assert($language_manager instanceof ConfigurableLanguageManagerInterface);
++    $this->languageManager = $language_manager;
++    $this->upgrade = $this->container->get(PageRegionTranslationUpgrade::class);
++  }
++
++  /**
++   * Drafts, approvals and published translations follow the components.
++   *
++   * This is the site that updated Canvas first: the variant already exists,
++   * and translators kept working on the regions with the old Canvas Translate
++   * until this module was updated too.
++   */
++  public function testUpgradeMovesRegionState(): void {
++    // Two regions Canvas would migrate (A, B), and one it would not (C is
++    // disabled, so the variant does not contain its component).
++    $a = $this->createRegion('sidebar_first', self::UUID_A, 'A');
++    $b = $this->createRegion('header', self::UUID_B, 'B');
++    $c = $this->createRegion('sidebar_second', self::UUID_C, 'C', enabled: FALSE);
++    // The variant Canvas built: same components, same UUIDs, plus the marker.
++    $variant = $this->createThemeVariant([self::UUID_A => 'A', self::UUID_B => 'B']);
++
++    // Work that happened on the regions after that.
++    $this->drafts->set($this->key($a, 'fr'), [
++      $this->textKey(self::UUID_A) => 'A fr draft',
++      $this->labelKey(self::UUID_A) => 'A label fr',
++    ]);
++    $this->approvals->approve($this->key($a, 'fr'));
++    $this->drafts->set($this->key($b, 'fr'), [$this->textKey(self::UUID_B) => 'B fr draft']);
++    $this->drafts->set($this->key($c, 'fr'), [$this->textKey(self::UUID_C) => 'C fr draft']);
++    $this->drafts->set($this->key($a, 'de'), [$this->textKey(self::UUID_A) => 'A de draft']);
++    $this->approvals->approve($this->key($a, 'de'));
++
++    // Published translations on the regions. B's was published after Canvas
++    // migrated, so the variant does not have it; A's is older than what the
++    // variant already has.
++    $this->publish($a, 'fr', self::UUID_A, 'A fr live (old)');
++    $this->publish($b, 'fr', self::UUID_B, 'B fr live');
++    $this->publish($c, 'fr', self::UUID_C, 'C fr live');
++    $this->publish($variant, 'fr', self::UUID_A, 'A fr variant (newer)');
++
++    $counts = $this->upgrade->upgrade($variant);
++    self::assertSame(['drafts' => 4, 'approvals' => 1, 'overrides' => 1], $counts);
++
++    // Drafts: A and B moved to the variant, C stayed on its region.
++    self::assertSame($this->sorted([
++      $this->textKey(self::UUID_A) => 'A fr draft',
++      $this->labelKey(self::UUID_A) => 'A label fr',
++      $this->textKey(self::UUID_B) => 'B fr draft',
++    ]), $this->sorted($this->drafts->get($this->key($variant, 'fr'))));
++    self::assertSame([$this->textKey(self::UUID_A) => 'A de draft'], $this->drafts->get($this->key($variant, 'de')));
++    self::assertNull($this->drafts->get($this->key($a, 'fr')));
++    self::assertNull($this->drafts->get($this->key($a, 'de')));
++    self::assertNull($this->drafts->get($this->key($b, 'fr')));
++    self::assertSame([$this->textKey(self::UUID_C) => 'C fr draft'], $this->drafts->get($this->key($c, 'fr')));
++
++    // Approvals: French mixes an approved (A) and an unapproved (B) draft, so
++    // the variant is not approved. German only had approved work.
++    self::assertFalse($this->approvals->isApproved($this->key($variant, 'fr')));
++    self::assertTrue($this->approvals->isApproved($this->key($variant, 'de')));
++    self::assertFalse($this->approvals->isApproved($this->key($a, 'fr')));
++    self::assertFalse($this->approvals->isApproved($this->key($a, 'de')));
++
++    // Published: B's text was added, A's newer variant text was kept, C and
++    // the region overrides themselves were not touched.
++    $tree = $this->overrideTree($variant, 'fr');
++    self::assertSame('A fr variant (newer)', $tree[self::UUID_A]['inputs']['text']);
++    self::assertSame('B fr live', $tree[self::UUID_B]['inputs']['text']);
++    self::assertArrayNotHasKey(self::UUID_C, $tree);
++    self::assertSame('A fr live (old)', $this->overrideTree($a, 'fr')[self::UUID_A]['inputs']['text']);
++    self::assertSame('C fr live', $this->overrideTree($c, 'fr')[self::UUID_C]['inputs']['text']);
++
++    // A second run has nothing left to move.
++    self::assertSame(['drafts' => 0, 'approvals' => 0, 'overrides' => 0], $this->upgrade->upgrade($variant));
++  }
++
++  /**
++   * Creating a theme variant moves the region state right away.
++   */
++  public function testInsertHook(): void {
++    $a = $this->createRegion('sidebar_first', self::UUID_A, 'A');
++    $this->drafts->set($this->key($a, 'fr'), [$this->textKey(self::UUID_A) => 'A fr draft']);
++
++    // A variant not built from regions leaves the region alone.
++    $custom = $this->createVariant('custom', [self::UUID_A => 'A']);
++    self::assertNull($this->drafts->get($this->key($custom, 'fr')));
++    self::assertNotNull($this->drafts->get($this->key($a, 'fr')));
++
++    // The variant Canvas builds from the theme's regions takes the draft.
++    $variant = $this->createThemeVariant([self::UUID_A => 'A']);
++    self::assertSame([$this->textKey(self::UUID_A) => 'A fr draft'], $this->drafts->get($this->key($variant, 'fr')));
++    self::assertNull($this->drafts->get($this->key($a, 'fr')));
++  }
++
++  /**
++   * The post update covers variants Canvas created before this module knew.
++   */
++  public function testPostUpdate(): void {
++    $a = $this->createRegion('sidebar_first', self::UUID_A, 'A');
++    $variant = $this->createThemeVariant([self::UUID_A => 'A']);
++    // The draft arrives after the variant exists, as on a site that updated
++    // Canvas first and kept translating regions with the old Canvas Translate.
++    $this->drafts->set($this->key($a, 'fr'), [$this->textKey(self::UUID_A) => 'A fr draft']);
++    $this->publish($a, 'fr', self::UUID_A, 'A fr live');
++
++    $this->container->get('module_handler')->loadInclude('canvas_translate', 'php', 'canvas_translate.post_update');
++    canvas_translate_post_update_0001_move_page_region_translations();
++
++    self::assertSame([$this->textKey(self::UUID_A) => 'A fr draft'], $this->drafts->get($this->key($variant, 'fr')));
++    self::assertNull($this->drafts->get($this->key($a, 'fr')));
++    self::assertSame('A fr live', $this->overrideTree($variant, 'fr')[self::UUID_A]['inputs']['text']);
++  }
++
++  /**
++   * Creates a page region in the default theme with one heading component.
++   *
++   * Goes through the entity type manager: the page region class is deprecated
++   * in Canvas 1.11, so we use the more generic ComponentTreeConfigEntityBase
++   * to not trigger deprecation warnings in the test.
++   */
++  private function createRegion(string $region, string $uuid, string $text, bool $enabled = TRUE): ComponentTreeConfigEntityBase {
++    $entity = $this->container->get('entity_type.manager')->getStorage('page_region')->create([
++      'theme' => $this->container->get('theme_handler')->getDefault(),
++      'region' => $region,
++      'component_tree' => [$this->heading($uuid, $text)],
++    ]);
++    \assert($entity instanceof ComponentTreeConfigEntityBase);
++    if ($enabled) {
++      $entity->enable();
++    }
++    $entity->save();
++    return $entity;
++  }
++
++  /**
++   * Creates the variant Canvas would build from the default theme's regions.
++   *
++   * @param array<string, string> $headings
++   *   Heading text keyed by component UUID.
++   */
++  private function createThemeVariant(array $headings): PageVariant {
++    $theme = $this->container->get('theme_handler')->getDefault();
++    return $this->createVariant(PageRegionTranslationUpgrade::VARIANT_ID_PREFIX . $theme, $headings);
++  }
++
++  /**
++   * Creates a page variant with the given headings and the content marker.
++   *
++   * @param string $id
++   *   The variant ID.
++   * @param array<string, string> $headings
++   *   Heading text keyed by component UUID.
++   */
++  private function createVariant(string $id, array $headings): PageVariant {
++    $tree = [
++      [
++        'uuid' => $this->container->get('uuid')->generate(),
++        'component_id' => Marker::PAGE_CONTENT_COMPONENT_ID,
++        'component_version' => self::MARKER_VERSION,
++        'inputs' => [],
++      ],
++    ];
++    foreach ($headings as $uuid => $text) {
++      $tree[] = $this->heading($uuid, $text);
++    }
++    $variant = PageVariant::create(['id' => $id, 'label' => $id, 'component_tree' => $tree]);
++    $variant->save();
++    return $variant;
++  }
++
++  /**
++   * A heading component instance for a component tree.
++   */
++  private function heading(string $uuid, string $text): array {
++    $component = Component::load('sdc.canvas_test_sdc.heading');
++    \assert($component instanceof Component);
++    return [
++      'uuid' => $uuid,
++      'component_id' => 'sdc.canvas_test_sdc.heading',
++      'component_version' => $component->getActiveVersion(),
++      'inputs' => ['text' => $text, 'element' => 'h3'],
++      'label' => "$text label",
++    ];
++  }
++
++  /**
++   * Writes a published translation for one heading's text.
++   */
++  private function publish(ComponentTreeConfigEntityBase $entity, string $langcode, string $uuid, string $text): void {
++    $override = $this->languageManager->getLanguageConfigOverride($langcode, $entity->getConfigDependencyName());
++    $tree = $override->get('component_tree') ?? [];
++    $tree[$uuid] = ['inputs' => ['text' => $text]];
++    $override->set('component_tree', $tree)->save();
++  }
++
++  /**
++   * The published translation tree of an entity in a language.
++   */
++  private function overrideTree(ComponentTreeConfigEntityBase $entity, string $langcode): array {
++    return $this->languageManager->getLanguageConfigOverride($langcode, $entity->getConfigDependencyName())->get('component_tree') ?? [];
++  }
++
++  /**
++   * A draft with its keys sorted, so tests do not depend on region order.
++   */
++  private function sorted(?array $draft): ?array {
++    if ($draft !== NULL) {
++      \ksort($draft);
++    }
++    return $draft;
++  }
++
++  /**
++   * The draft and approval key of an entity in a language.
++   */
++  private function key(ComponentTreeConfigEntityBase $entity, string $langcode): string {
++    return TranslationDraftStore::key($entity->getConfigDependencyName(), $langcode);
++  }
++
++  /**
++   * The draft key of a heading's text.
++   */
++  private function textKey(string $uuid): string {
++    return "component_tree.$uuid.inputs.text";
++  }
++
++  /**
++   * The draft key of a component's label.
++   */
++  private function labelKey(string $uuid): string {
++    return "component_tree.$uuid.label";
++  }
++
++}

@@ -11,7 +11,7 @@ export default defineConfig({
     server: {
       deps: {
         // Resolve Next's extensionless imports through Vite, without mocking navigation.
-        inline: ["next-intl"],
+        inline: ["next-intl", "@drupal-canvas/headless-next"],
       },
     },
   },

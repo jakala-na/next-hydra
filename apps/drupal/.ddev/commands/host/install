@@ -11,7 +11,7 @@ ddev start
 ddev composer install
 
 ## Install Drupal
-ddev drush site:install minimal --verbose -y
+ddev drush site:install minimal --account-name=admin --account-pass=admin --verbose -y
 
 ## Apply the selected recipe (Commerce includes the base recipe)
 site_recipe=../recipes/next-hydra-base

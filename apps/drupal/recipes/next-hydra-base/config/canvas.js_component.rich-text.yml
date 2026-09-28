@@ -1,0 +1,18 @@
+langcode: en
+status: true
+dependencies: {  }
+machineName: rich-text
+name: 'Rich text'
+type: external
+required:
+  - html
+props:
+  html:
+    type: string
+    contentMediaType: text/html
+    x-formatting-context: block
+    title: HTML
+    examples:
+      - '<p>Practical advice for your next project.</p>'
+slots: {  }
+dataDependencies: {  }

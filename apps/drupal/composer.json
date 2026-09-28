@@ -18,7 +18,7 @@
     "acquia/drupal-recommended-settings": "^1.2",
     "composer/installers": "^2.3",
     "cweagans/composer-patches": "~2.0",
-    "drupal/canvas": "^1.10",
+    "drupal/canvas": "dev-1.x#9211e2e8109501ceeb2d7f1a3a8ef3c913432a67",
     "drupal/canvas_translate": "^1.0@alpha",
     "drupal/core-composer-scaffold": "^11.4",
     "drupal/core-project-message": "^11.4",
@@ -65,12 +65,24 @@
     "patches": {
       "drupal/canvas": [
         {
-          "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
-          "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch"
+          "description": "Expose complete Headless cacheability metadata",
+          "url": "patches/drupal-canvas-cacheability.patch"
         },
         {
-          "description": "Expose active-theme Canvas regions to headless frontends",
-          "url": "patches/drupal-canvas-1.10-headless-global-regions.patch"
+          "description": "Resolve Canvas entity references in translated default content",
+          "url": "patches/drupal-canvas-default-content-translations.patch"
+        }
+      ],
+      "drupal/canvas_translate": [
+        {
+          "description": "Support page variant translations (upstream MR !9 at 38b37e37)",
+          "url": "patches/drupal-canvas-translate-page-variants.patch",
+          "extra": {
+            "issue": "https://www.drupal.org/project/canvas_translate/issues/3620535",
+            "merge-request": "https://git.drupalcode.org/project/canvas_translate/-/merge_requests/9",
+            "base-commit": "50e7b63f66c7be345d07ba47339e5603c76984f8",
+            "patched-commit": "38b37e378a589c8318e7e78d099f03fd5b9bd103"
+          }
         }
       ],
       "drupal/next": [
@@ -130,7 +142,7 @@
       ],
       "post-create-project-cmd-message": [
         "<bg=blue;fg=white>                                                         </>",
-        "<bg=blue;fg=white>  Congratulations, you’ve installed the Drupal codebase  </>",
+        "<bg=blue;fg=white>  Congratulations, you\u2019ve installed the Drupal codebase  </>",
         "<bg=blue;fg=white>  from the drupal/recommended-project template!          </>",
         "<bg=blue;fg=white>                                                         </>",
         "",
@@ -144,5 +156,13 @@
         "      composer remove drupal/core-project-message"
       ]
     }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "bash scripts/build-canvas.sh"
+    ],
+    "post-update-cmd": [
+      "bash scripts/build-canvas.sh"
+    ]
   }
 }

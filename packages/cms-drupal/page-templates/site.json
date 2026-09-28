@@ -1,0 +1,26 @@
+{
+  "label": "Site",
+  "description": "Shared content around the application header, page and footer.",
+  "status": true,
+  "default": false,
+  "elements": {
+    "shell": {
+      "type": "js.site-shell",
+      "slots": {
+        "preHeader": ["announcement"],
+        "content": ["content"]
+      }
+    },
+    "content": {
+      "type": "marker.page_content"
+    },
+    "announcement": {
+      "type": "js.announcement",
+      "props": {
+        "message": "This is a Next Hydra template demo.",
+        "linkLabel": "Explore Next Hydra",
+        "linkUrl": "https://next-hydra.dev"
+      }
+    }
+  }
+}

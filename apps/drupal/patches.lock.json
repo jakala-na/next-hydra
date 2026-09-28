@@ -1,12 +1,12 @@
 {
-  "_hash": "9500e9cb33a76f723208a463de33084d8c3d1ad687b54e4762eada6e7095a69d",
+  "_hash": "adefe5e0274986e1a9e49b8736f3494a568a41dbc4b0633e2ac7de5e06e46a74",
   "patches": {
     "drupal/canvas": [
       {
         "package": "drupal/canvas",
-        "description": "Add multilingual headless previews, translated default content, and cacheability metadata",
-        "url": "patches/drupal-canvas-1.10-next-hydra-compatibility.patch",
-        "sha256": "dad199f83132d4e6985e43356d4354654968185fcc28a762734205459ddb32e8",
+        "description": "Expose complete Headless cacheability metadata",
+        "url": "patches/drupal-canvas-cacheability.patch",
+        "sha256": "249507c1b1a82040c0c0ae80bb29b77fd69a70efea4b3221db64a9c5c1fef271",
         "depth": 1,
         "extra": {
           "provenance": "root"
@@ -14,11 +14,27 @@
       },
       {
         "package": "drupal/canvas",
-        "description": "Expose active-theme Canvas regions to headless frontends",
-        "url": "patches/drupal-canvas-1.10-headless-global-regions.patch",
-        "sha256": "7eaff1273b0f299d0363992a854fcc3da57d9cde68386d7b90580cd5a7c1af13",
+        "description": "Resolve Canvas entity references in translated default content",
+        "url": "patches/drupal-canvas-default-content-translations.patch",
+        "sha256": "9fd94c6ead669b21ffb22af68fb2f969fe0479b2a90073abb2e46b26ce8c8d55",
         "depth": 1,
         "extra": {
+          "provenance": "root"
+        }
+      }
+    ],
+    "drupal/canvas_translate": [
+      {
+        "package": "drupal/canvas_translate",
+        "description": "Support page variant translations (upstream MR !9 at 38b37e37)",
+        "url": "patches/drupal-canvas-translate-page-variants.patch",
+        "sha256": "76914a3d3aa7f78a3b77a2bc2e9614880a85ce260912dd07873da32e5fa7b10c",
+        "depth": 1,
+        "extra": {
+          "issue": "https://www.drupal.org/project/canvas_translate/issues/3620535",
+          "merge-request": "https://git.drupalcode.org/project/canvas_translate/-/merge_requests/9",
+          "base-commit": "50e7b63f66c7be345d07ba47339e5603c76984f8",
+          "patched-commit": "38b37e378a589c8318e7e78d099f03fd5b9bd103",
           "provenance": "root"
         }
       }

@@ -10,8 +10,8 @@
       "@repo/auth/*": ["../../packages/auth-workos/*"],
       "@repo/commerce-provider": ["../../packages/commerce-commercetools"],
       "@repo/commerce-provider/*": ["../../packages/commerce-commercetools/*"],
-      "@repo/cms": ["../../packages/cms-contentstack"],
-      "@repo/cms/*": ["../../packages/cms-contentstack/*"],
+      "@repo/cms": ["../../packages/cms-drupal"],
+      "@repo/cms/*": ["../../packages/cms-drupal/*"],
       "@repo/*": ["../../packages/*"]
     }
   },

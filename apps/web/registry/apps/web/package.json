@@ -18,7 +18,6 @@
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/next-config": "workspace:*",
-    "@rescale/nemo": "^2.1.1",
     "@t3-oss/env-nextjs": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
@@ -35,7 +34,8 @@
     "@sentry/nextjs": "^10.22.0",
     "effect": "catalog:",
     "import-in-the-middle": "2.0.0",
-    "require-in-the-middle": "8.0.1"
+    "require-in-the-middle": "8.0.1",
+    "@zanreal/nemo": "3.0.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -29,6 +29,7 @@ type WorkosIdentityUserListItem = Pick<
 >;
 
 export interface WorkosIdentityUserManagement {
+  // oxlint-disable-next-line anti-slop/no-unknown-returns -- This SDK boundary returns untrusted data, decoded by WorkosIdentityUserProfile before exposure.
   readonly getUser: (authUserId: string) => Promise<unknown>;
   readonly listUsers: (input: {
     readonly email: string;
@@ -92,7 +93,8 @@ const displayName = (user: {
 }) =>
   [user.firstName, user.lastName]
     .filter(
-      (value): value is string => typeof value === "string" && value !== ""
+      (value): value is string =>
+        value !== undefined && value !== null && value !== ""
     )
     .join(" ") || user.email;
 
