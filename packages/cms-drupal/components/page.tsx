@@ -13,6 +13,7 @@ import { graphql } from "../graphql";
 import {
   getCanvasCachePolicy,
   getCanvasPageCacheability,
+  UNCACHED_CANVAS_LIFE,
 } from "../lib/canvas-cacheability";
 import { getCanvasPage } from "../lib/canvas-page";
 import { getPageContent } from "../lib/canvas-page-template";
@@ -181,7 +182,7 @@ export async function Page(props: { url: string; locale: Locale }) {
     return (
       <ArchitectureBoundary
         name="Canvas page"
-        description="Renders the component tree stored in Drupal Canvas. TTL comes from Drupal's response max-age and describes the configured lifetime, not time remaining. Cache tags can invalidate content earlier."
+        description="Shows the mapped Next.js cacheLife arguments and cache tags used for this Canvas response. Preview bypasses caching."
         getCaching={() => {
           if (preview) {
             return "Bypassed · preview";
@@ -191,15 +192,22 @@ export async function Page(props: { url: string; locale: Locale }) {
             return "Uncached · metadata unavailable";
           }
           if (metadata.maxAge === 0) {
-            return "Uncached · Drupal TTL 0s";
+            return "Uncached";
           }
           const policy = getCanvasCachePolicy(metadata);
           if (!policy) {
             return "Uncached · unsupported Drupal policy";
           }
-          return Number.isFinite(policy.life.expire)
-            ? `Cached · Drupal TTL ${policy.life.expire}s`
-            : "Cached · no time-based expiry";
+          return "Cached · cacheLife";
+        }}
+        getCacheLife={() => {
+          if (preview) {
+            return undefined;
+          }
+          return (
+            getCanvasCachePolicy(getCanvasPageCacheability(canvasPage))?.life ??
+            UNCACHED_CANVAS_LIFE
+          );
         }}
         getCacheTags={() => {
           if (preview) {

@@ -1378,12 +1378,18 @@ importers:
 
   packages/demo-architecture:
     dependencies:
+      '@radix-ui/react-popover':
+        specifier: ^1.1.14
+        version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.10))(@types/react@19.2.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react:
         specifier: ^0.511.0
         version: 0.511.0(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*

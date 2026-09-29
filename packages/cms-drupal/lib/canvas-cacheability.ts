@@ -12,6 +12,12 @@ type CanvasCacheLife = {
   stale: number;
 };
 
+export const UNCACHED_CANVAS_LIFE: CanvasCacheLife = {
+  expire: 0,
+  revalidate: 0,
+  stale: 0,
+};
+
 export type CanvasCachePolicy = {
   life: CanvasCacheLife;
   tags: string[];

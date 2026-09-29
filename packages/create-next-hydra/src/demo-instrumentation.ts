@@ -105,6 +105,7 @@ const metadataProps = new Set([
   "composition",
   "description",
   "getCaching",
+  "getCacheLife",
   "getCacheTags",
   "name",
   "streaming",

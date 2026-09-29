@@ -45,10 +45,10 @@ it.effect(
       const source = `
 import { ArchitectureBoundary } from "./application";
 import { ArchitectureBoundary as Demo } from "@repo/demo-architecture/boundary";
-import { readDisplayLifetime } from "./cache-policy";
+import { readDisplayLifetime, readMappedLife } from "./cache-policy";
 import { readDisplayTags, readContent } from "./content";
 const content = readContent();
-const view = <Demo getCaching={() => readDisplayLifetime()} getCacheTags={() => readDisplayTags()}><ArchitectureBoundary /></Demo>;
+const view = <Demo getCaching={() => readDisplayLifetime()} getCacheLife={() => readMappedLife()} getCacheTags={() => readDisplayTags()}><ArchitectureBoundary /></Demo>;
 `;
       const output = yield* eraseDemoInstrumentation("lazy.tsx", source);
       expect(output).toContain(
@@ -56,7 +56,7 @@ const view = <Demo getCaching={() => readDisplayLifetime()} getCacheTags={() => 
       );
       expect(output).toContain("<ArchitectureBoundary />");
       expect(output).not.toMatch(
-        /readDisplayTags|readDisplayLifetime|cache-policy|demo-architecture/u
+        /readDisplayTags|readDisplayLifetime|readMappedLife|cache-policy|demo-architecture/u
       );
       expect(output).toContain('import { readContent } from "./content";');
       expect(output).toContain("const content = readContent();");

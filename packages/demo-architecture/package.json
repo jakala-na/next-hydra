@@ -12,8 +12,10 @@
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/demo-architecture/tsconfig.json"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.14",
     "lucide-react": "^0.511.0",
-    "react": "catalog:"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
