@@ -1,10 +1,11 @@
 import { cmsFrameAncestors } from "@repo/cms/security";
-import { noseconeOptions, noseconeProxy } from "@repo/security/proxy";
+import { noseconeOptions, noseconeProxy, resolveFrameAncestors } from "@repo/security/proxy";
 import type { NoseconeOptions } from "@repo/security/proxy";
 import { cmsProxy } from "@repo/cms/proxy";
 import { i18nProxy } from "@repo/i18n/proxy";
 import { createNEMO } from "@zanreal/nemo";
 import type { GlobalMiddlewareConfig, MiddlewareConfig } from "@zanreal/nemo";
+import { env } from "./env";
 {{imports}}
 
 export const config = { matcher: ["/((?!api|_next/|_static|_vercel|ingest|monitoring).*)"{{#proxy}}, "/api/auth/:path*"{{/proxy}}] };
@@ -12,7 +13,7 @@ const securityOptions = {
   ...noseconeOptions,
   contentSecurityPolicy: {
     // Keep framing independent of script nonces and static rendering.
-    directives: { frameAncestors: ["'self'", ...cmsFrameAncestors] },
+    directives: { frameAncestors: resolveFrameAncestors(cmsFrameAncestors, env.FRAME_ANCESTORS) },
   },
   // CMS previews and third-party resources do not require cross-origin isolation.
   crossOriginEmbedderPolicy: false,
@@ -20,7 +21,7 @@ const securityOptions = {
   xFrameOptions: false,
 };
 
-// SAFETY: The CMS providers resolve validated HTTP(S) origins. Nosecone accepts
+// SAFETY: The CMS providers and env schema validate HTTP(S) origins. Nosecone accepts
 // these strings, but its beta declarations require literal hostname patterns.
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Provider origins are validated HTTP(S) URLs accepted by Nosecone's serializer.
 const securityProxy = noseconeProxy(securityOptions as NoseconeOptions);

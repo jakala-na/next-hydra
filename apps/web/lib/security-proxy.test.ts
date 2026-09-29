@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { cmsProxy } from "@repo/cms/proxy";
 import { i18nProxy } from "@repo/i18n/proxy";
-import { noseconeOptions, noseconeProxy } from "@repo/security/proxy";
+import {
+  noseconeOptions,
+  noseconeProxy,
+  resolveFrameAncestors,
+} from "@repo/security/proxy";
+import type { NoseconeOptions } from "@repo/security/proxy";
 import { createNEMO } from "@zanreal/nemo";
 import { NextFetchEvent } from "next/dist/server/web/spec-extension/fetch-event";
 import { NextRequest, NextResponse } from "next/server";
@@ -22,6 +27,37 @@ async function execute(handler: NextProxy, path: string) {
 }
 
 describe("Web security policy", () => {
+  it.each(["https://app.contentstack.com", "https://drupal.example.test"])(
+    "adds configured embedding origins alongside provider %s",
+    async (providerOrigin) => {
+      const options = {
+        ...noseconeOptions,
+        contentSecurityPolicy: {
+          directives: {
+            frameAncestors: resolveFrameAncestors(
+              [providerOrigin],
+              [
+                "https://editor.example.test:8443",
+                "https://portal.example.test",
+              ]
+            ),
+          },
+        },
+        xFrameOptions: false,
+      };
+      const response = await execute(
+        // SAFETY: These fixture values are exact HTTP(S) origins accepted by Nosecone.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Nosecone's beta declarations require literal hostname patterns.
+        noseconeProxy(options as NoseconeOptions),
+        "/article"
+      );
+      expect(response?.headers.get("content-security-policy")).toBe(
+        `frame-ancestors 'self' ${providerOrigin} https://editor.example.test:8443 https://portal.example.test;`
+      );
+      expect(response?.headers.has("x-frame-options")).toBeFalsy();
+    }
+  );
+
   it.each([
     ["/article", "x-middleware-rewrite", `${origin}/en-US/article`],
     ["/fr-FR/article", "x-middleware-next", "1"],
