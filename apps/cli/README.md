@@ -12,7 +12,9 @@ pnpm --filter cli cli --help
 
 The selected packages determine which commands are available. pnpm runs the CLI in `apps/cli`, so relative `--env-file` and `--output` paths resolve there. There is no root `pnpm cli` shortcut.
 
-Selecting Search adds `search provision`. With CMS alone, it configures Content indices, locale-specific Query Suggestions, and a restricted runtime search key. Commerce also adds Product indices, connectors, pricing secrets and `search types generate`. See the selected search provider's environment examples; CMS-only Search needs no Commerce credentials.
+Selecting Search adds `search provision`. With CMS alone, it configures Content indices, locale-specific Query Suggestions, a restricted runtime search key, and a separate Content write key. Commerce also adds Product indices, connectors, pricing secrets and `search types generate`. See the selected search provider's environment examples; CMS-only Search needs no Commerce credentials.
+
+Algolia publishes Search and Content credentials to one selected destination. `--store local --output <file>` writes one private file, including `ALGOLIA_CONTENT_WRITE_API_KEY` and `ALGOLIA_CONTENT_INDEX_NAME` when the CMS uses a single index. `--store vercel` publishes the same variables to the linked web project; keys remain sensitive and are available to its server runtime, but cannot be copied back from Vercel. Prefer local output for manual CMS setup. Rerunning with local output reconciles and retrieves the managed key from Algolia; it does not read secrets back from Vercel. Choose a new local filename when exporting again. Bootstrap and Commerce connector credentials are not exported. With `--install-content-search-app`, Contentstack receives the generated key directly regardless of destination; no preexisting Content write key is needed.
 
 ```sh
 pnpm --filter cli cli search provision --locale en-US --dry-run

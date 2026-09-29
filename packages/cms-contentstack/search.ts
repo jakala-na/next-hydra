@@ -1,3 +1,4 @@
+import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import { defineContentSearchProjection } from "@repo/search/content-search-projection";
 import type {
   ContentSearchProjection,
@@ -45,10 +46,17 @@ export interface ContentstackSearchProjectionOptions {
   readonly indexName: string;
 }
 
+export const contentIndexingOperations = [
+  "list-indices",
+  "search",
+  "upsert",
+  "delete",
+] as const satisfies readonly ContentIndexingOperation[];
+
 export const createContentIndexingHandoff = (indexName: string) =>
   ({
     instructions: [
-      "Open the Algolia app in Contentstack and connect it to the Algolia application identified by ALGOLIA_APPLICATION_ID with a key authorized to write Content records.",
+      "Open the Algolia app in Contentstack and use ALGOLIA_APPLICATION_ID and ALGOLIA_CONTENT_WRITE_API_KEY from the output of search provision. Choose --store local for manual setup, or --install-content-search-app to configure the app directly; Vercel sensitive keys cannot be read back.",
       `Set the app's destination index to "${indexName}".`,
       "Configure the Article and Landing Page mappings to emit the fields expected by the Contentstack search projection: localized articles[.<branch>].<locale> and landing_pages[.<branch>].<locale> search fields plus objectID, _content_type, content, environment, and publish_details.locale.",
       "Run the app's initial content sync. The Contentstack app handles later publish and unpublish updates.",

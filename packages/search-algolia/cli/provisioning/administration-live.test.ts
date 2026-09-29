@@ -220,6 +220,72 @@ const makeClients = () => {
 };
 
 describe(makeAlgoliaAdministration, () => {
+  it("reconciles CMS clear permission without granting Product access or settings changes", async () => {
+    const { clients, spies } = makeClients();
+    const administration = makeAlgoliaAdministration(clients);
+    const description = "CMS writer for this deployment";
+    await administration
+      .configureContentKey({
+        description,
+        indexNames: ["staging--content"],
+        operations: ["list-indices", "search", "upsert", "delete"],
+      })
+      .pipe(Effect.runPromise);
+    expect(spies.addApiKey.mock.calls[0]?.[0]).toEqual({
+      acl: ["listIndexes", "search", "addObject", "deleteObject"],
+      description,
+      indexes: ["staging--content"],
+    });
+    spies.listApiKeys.mockResolvedValue({
+      keys: [
+        {
+          acl: ["search", "addObject", "deleteObject"],
+          createdAt: 1,
+          description,
+          indexes: ["staging--content"],
+          validity: 0,
+          value: "new-key",
+        },
+      ],
+    });
+    await administration
+      .configureContentKey({
+        description,
+        indexNames: ["content"],
+        operations: [
+          "list-indices",
+          "search",
+          "browse",
+          "upsert",
+          "delete",
+          "clear",
+        ],
+      })
+      .pipe(Effect.runPromise);
+    expect(spies.addApiKey).toHaveBeenCalledOnce();
+    expect(spies.updateApiKey).toHaveBeenCalledWith({
+      apiKey: {
+        acl: [
+          "listIndexes",
+          "search",
+          "browse",
+          "addObject",
+          "deleteObject",
+          "deleteIndex",
+        ],
+        description,
+        indexes: ["content"],
+      },
+      key: "new-key",
+    });
+    expect(spies.waitForApiKey).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        key: "new-key",
+        operation: "update",
+      })
+    );
+  });
+
   it("waits for index settings and creates idempotent Query Suggestions configuration", async () => {
     const { clients, spies } = makeClients();
     const administration = makeAlgoliaAdministration(clients);

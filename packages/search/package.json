@@ -12,6 +12,7 @@
     "./combined-search-routing": "./combined-search-routing.ts",
     "./combined-search-server": "./combined-search-server.tsx",
     "./combined-search-skeleton": "./combined-search-skeleton.tsx",
+    "./content-indexing": "./content-indexing.ts",
     "./content-search-app": "./content-search-app.ts",
     "./content-search-projection": "./content-search-projection.ts",
     "./contract": "./contract.ts",

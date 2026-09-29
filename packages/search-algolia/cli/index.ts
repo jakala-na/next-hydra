@@ -2,6 +2,7 @@ import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
+import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import type { InstalledContentSearchApp } from "@repo/search/content-search-app";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import type { ConfigProvider, Effect as EffectType } from "effect";
@@ -13,7 +14,10 @@ import type { StoreConfiguration } from "../index-graph";
 import type { ContentIndexingHandoff } from "./content-indexing-handoff";
 import { formatContentIndexingHandoff } from "./content-indexing-handoff";
 import type { ContentSearchAppHook } from "./content-search-app-hook";
-import { requireContentSearchAppHook } from "./content-search-app-hook";
+import {
+  contentSearchAppConfigProvider,
+  requireContentSearchAppHook,
+} from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { createSearchProvisioningLayer } from "./layer";
 import type { AlgoliaProvisioningReceipt } from "./provisioning/model";
@@ -33,6 +37,7 @@ export interface SearchCliComposition<CommerceError, ContentError> {
     readonly generateTypes: () => EffectType.Effect<void, CommerceError>;
   };
   readonly content: {
+    readonly indexingOperations: readonly ContentIndexingOperation[];
     readonly createIndexingHandoff: (
       indexName: string
     ) => ContentIndexingHandoff;
@@ -121,6 +126,9 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
             composition.products?.storefronts
           );
           yield* Console.log(plan);
+          yield* Console.log(
+            `  Content write credentials use the selected ${destinationFlags.store} destination (operations: ${composition.content.indexingOperations.join(", ")})`
+          );
           if (installContentSearchApp) {
             yield* Console.log(
               `  Content search app installation: Contentstack Algolia app -> "${contentIndexName(requestedIndexPrefix)}"`
@@ -139,7 +147,8 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
           composition.products === undefined
             ? undefined
             : yield* composition.products.prepare(resolvedConfigProviderEffect);
-        const receipt = yield* provisionAlgolia({
+        const { receipt, contentCredentials } = yield* provisionAlgolia({
+          contentIndexingOperations: composition.content.indexingOperations,
           contentProjection,
           destination: runtimeEnvironmentDestinationFromFlags(destinationFlags),
           indexPrefix: requestedIndexPrefix,
@@ -159,7 +168,12 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
         );
         const contentSearchApp = yield* installHook(
           { indexName: contentIndexName(receipt.indexPrefix) },
-          resolvedConfigProviderEffect
+          Effect.succeed(
+            contentSearchAppConfigProvider(
+              contentCredentials,
+              resolvedConfigProvider
+            )
+          )
         );
         return {
           contentSearchApp,

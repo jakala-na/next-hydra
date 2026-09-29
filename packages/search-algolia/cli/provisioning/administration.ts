@@ -1,3 +1,4 @@
+import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import type { IndexSettings } from "algoliasearch";
 import type { Effect, Redacted } from "effect";
 import { Context, Layer } from "effect";
@@ -82,6 +83,11 @@ export interface ConfiguredCommercetoolsConnector {
 }
 
 interface AlgoliaAdministrationValue {
+  readonly configureContentKey: (
+    options: ConfigureAlgoliaSearchKeyOptions & {
+      readonly operations: readonly ContentIndexingOperation[];
+    }
+  ) => Effect.Effect<Redacted.Redacted, AlgoliaProvisioningError>;
   readonly configureAlgoliaDestinationAuthentication: (
     options: ConfigureAlgoliaDestinationAuthenticationOptions
   ) => Effect.Effect<string, AlgoliaProvisioningError>;

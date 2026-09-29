@@ -73,6 +73,11 @@
           "type": "registry:file"
         },
         {
+          "path": "content-indexing.ts",
+          "target": "~/packages/search/content-indexing.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "content-search-app.ts",
           "target": "~/packages/search/content-search-app.ts",
           "type": "registry:file"

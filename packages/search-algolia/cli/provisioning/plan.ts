@@ -45,6 +45,7 @@ export const formatAlgoliaProvisioningPlan = (
         );
       }
       lines.push(
+        `  Restricted Content write key: ${graph.contentIndices.length} Content indices (sensitive)`,
         `  Restricted runtime key: ${graph.queryableIndexNames.length} queryable indices`
       );
       if (graph.productPrimaries.length > 0) {

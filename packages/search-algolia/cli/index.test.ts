@@ -2,11 +2,14 @@ import type {
   InstallContentSearchAppOptions,
   InstalledContentSearchApp,
 } from "@repo/search/content-search-app";
-import { Cause, Effect } from "effect";
+import { Cause, Config, ConfigProvider, Effect, Redacted } from "effect";
 import { CliOutput } from "effect/unstable/cli";
 import { describe, expect, it } from "vitest";
 
-import { requireContentSearchAppHook } from "./content-search-app-hook";
+import {
+  contentSearchAppConfigProvider,
+  requireContentSearchAppHook,
+} from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { AlgoliaProvisioningError } from "./provisioning/model";
 
@@ -65,6 +68,32 @@ const hook = (
   });
 
 describe(requireContentSearchAppHook, () => {
+  it("delivers the new write key to CMS installation while preserving CMS configuration", async () => {
+    const provider = contentSearchAppConfigProvider(
+      {
+        ALGOLIA_APPLICATION_ID: "new-app",
+        ALGOLIA_CONTENT_INDEX_NAME: "staging--content",
+        ALGOLIA_CONTENT_WRITE_API_KEY: Redacted.make("generated-write-key"),
+      },
+      ConfigProvider.fromUnknown({
+        ALGOLIA_APPLICATION_ID: "old-app",
+        ALGOLIA_CONTENT_WRITE_API_KEY: "old-key",
+        CONTENTSTACK_ENVIRONMENT: "staging",
+      })
+    );
+    const config = await Effect.gen(function* () {
+      return {
+        applicationId: yield* Config.NonEmptyString("ALGOLIA_APPLICATION_ID"),
+        environment: yield* Config.NonEmptyString("CONTENTSTACK_ENVIRONMENT"),
+        key: yield* Config.Redacted("ALGOLIA_CONTENT_WRITE_API_KEY"),
+      };
+    }).pipe(Effect.provide(ConfigProvider.layer(provider)), Effect.runPromise);
+    expect(config.applicationId).toBe("new-app");
+    expect(Redacted.value(config.key)).toBe("generated-write-key");
+    expect(config.environment).toBe("staging");
+    expect(JSON.stringify(config)).not.toContain("generated-write-key");
+  });
+
   it("fails clearly when the CMS provider supplies no hook", async () => {
     const failure = await requireContentSearchAppHook(undefined).pipe(
       Effect.flip,

@@ -72,11 +72,19 @@ Port 3001 is fixed only for `dev:web`, so only one workspace can run that DDEV-c
 
 ## Configure Algolia Content indexing
 
+Run provisioning from the composed workspace's `apps/cli` directory with your deployment locales and provisioning credentials:
+
+```sh
+pnpm cli search provision --env-file .env.algolia.provision.local --locale en-US --locale fr-FR --store local --output .env.algolia.runtime.local
+```
+
+The output file includes the three CMS values below alongside the search credentials. For DDEV, put them in the Drupal app's ignored `.ddev/config.local.yaml` under `web_environment`, then run `ddev restart` and `ddev drush cr`. Hosted Drupal needs the same variables in its backend environment. Use local output for this manual setup: Vercel sensitive keys cannot be copied back out. This replaces the previous `ALGOLIA_DRUPAL_WRITE_API_KEY` variable; rename existing deployment configuration when updating.
+
 When Algolia Search is selected, `ddev install` also runs `ddev install-search`. Its `scripts/prepare-search.sh` installs the local recipe package through Composer and Drupal's recipe-unpack plugin; Drush then applies the recipe. It installs Search API and Search API Algolia with a `Content` index for published Articles and Landing Pages. Commit the resulting `composer.json` and `composer.lock` in your application. A CMS-only installation without Search does not include these modules or credentials. Make all three runtime values available to Drupal before indexing:
 
 ```dotenv
 ALGOLIA_APPLICATION_ID=""
-ALGOLIA_DRUPAL_WRITE_API_KEY=""
+ALGOLIA_CONTENT_WRITE_API_KEY=""
 ALGOLIA_CONTENT_INDEX_NAME="content"
 ```
 

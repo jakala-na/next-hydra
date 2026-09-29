@@ -1,0 +1,5 @@
+# Keep the router separate from the frontend proxy.
+name: shared-backend
+type: drupal11
+docroot: docroot
+router_https_port: "8443"

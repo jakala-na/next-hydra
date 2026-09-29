@@ -1,4 +1,4 @@
-import { createContentIndexingHandoff, loadContentSearchProjection } from "@repo/cms/search";
+import { contentIndexingOperations, createContentIndexingHandoff, loadContentSearchProjection } from "@repo/cms/search";
 import { createSearchCommand } from "@repo/search-provider/cli";
 import type { ConfigProvider, Effect } from "effect";
 {{imports}}
@@ -8,6 +8,7 @@ export const createWorkspaceSearchCommand = <E, R>(
 ) => createSearchCommand(configProvider, {
   {{#products}}products: {{products}},{{/products}}
   content: {
+    indexingOperations: contentIndexingOperations,
     createIndexingHandoff: createContentIndexingHandoff,
     createProjection: loadContentSearchProjection,
     {{#contentSearchApp}}installContentSearchApp: {{contentSearchApp}},{{/contentSearchApp}}

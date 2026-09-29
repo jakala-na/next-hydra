@@ -1,4 +1,7 @@
-import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import {
+  RuntimeEnvironmentPreflightError,
+  RuntimeEnvironmentPublisher,
+} from "@repo/cli-core/runtime-environment";
 import { createCanonicalContentSearchProjection } from "@repo/search/content-search-projection";
 import { ConfigProvider, Effect, Layer, Redacted } from "effect";
 import { describe, expect, it, vi } from "vitest";
@@ -12,34 +15,13 @@ const forbidden = () =>
     new Error("Content-only provisioning must not configure Commerce")
   );
 describe("Content-only provisioning", () => {
-  it("publishes a Content-only runtime key without connector operations or pricing configuration", async () => {
-    const configureIndex = vi.fn<
-      AlgoliaAdministration["Service"]["configureIndex"]
-    >(() => Effect.void);
-    const configureSearchKey = vi.fn<
-      AlgoliaAdministration["Service"]["configureSearchKey"]
-    >(() => Effect.succeed(Redacted.make("search-key")));
-    const publish = vi.fn<RuntimeEnvironmentPublisher["Service"]["publish"]>(
-      () =>
-        Effect.succeed({
-          destination: "local",
-          mode: 0o600,
-          path: "/tmp/content-search.env",
-        })
-    );
-    const prepare = vi.fn<RuntimeEnvironmentPublisher["Service"]["prepare"]>(
-      ({ manifest }) =>
-        Effect.succeed({
-          destination: "local",
-          manifest: [...manifest],
-          path: "/tmp/content-search.env",
-        })
-    );
-    const receipt = await provisionAlgolia({
+  it("rejects an unavailable output before changing provider resources", async () => {
+    const error = await provisionAlgolia({
+      contentIndexingOperations: ["upsert", "delete"],
       contentProjection: createCanonicalContentSearchProjection("content"),
       destination: {
         destination: "local",
-        output: "/tmp/content-search.env",
+        output: "/tmp/shared.env",
         publicationMode: "create",
         yes: true,
       },
@@ -48,56 +30,196 @@ describe("Content-only provisioning", () => {
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
-          AlgoliaProvisioningConfig.layer.pipe(
-            Layer.provide(
-              ConfigProvider.layer(
-                ConfigProvider.fromEnv({
-                  env: {
-                    ALGOLIA_ADMIN_API_KEY: "admin",
-                    ALGOLIA_APPLICATION_ID: "app",
-                    ALGOLIA_REGION: "us",
-                  },
-                })
-              )
-            )
-          ),
+          Layer.succeed(AlgoliaProvisioningConfig, {
+            adminApiKey: Redacted.make("admin"),
+            applicationId: "app",
+            region: "us",
+          }),
           AlgoliaAdministration.layerFrom({
             configureAlgoliaDestinationAuthentication: forbidden,
             configureAlgoliaTransformationSecrets: forbidden,
             configureCommercetoolsAuthentication: forbidden,
             configureCommercetoolsConnector: forbidden,
             configureConnectorKey: forbidden,
-            configureIndex,
-            configureQuerySuggestions: () => Effect.void,
-            configureSearchKey,
+            configureContentKey: forbidden,
+            configureIndex: forbidden,
+            configureQuerySuggestions: forbidden,
+            configureSearchKey: forbidden,
             findCommercetoolsAuthentication: forbidden,
           }),
-          RuntimeEnvironmentPublisher.layerFrom({ prepare, publish })
+          RuntimeEnvironmentPublisher.layerFrom({
+            prepare: () =>
+              Effect.fail(
+                new RuntimeEnvironmentPreflightError({
+                  cause: new Error("File already exists"),
+                  destination: "local",
+                  message: "Choose a new output file",
+                  operation: "validation",
+                })
+              ),
+            publish: forbidden,
+          })
         )
       ),
+      Effect.flip,
       Effect.runPromise
     );
-    expect(receipt).toMatchObject({
-      connectors: 0,
-      contentIndices: 1,
-      productPrimaries: 0,
-      productReplicas: 0,
-      querySuggestions: 1,
-    });
-    expect(
-      configureIndex.mock.calls.map(([request]) => request.indexName)
-    ).toEqual(["content"]);
-    expect(configureSearchKey).toHaveBeenCalledWith(
-      expect.objectContaining({
-        indexNames: ["content", "query-suggestions--en-US"],
-      })
-    );
-    expect(prepare.mock.calls[0]?.[0].manifest.map(({ key }) => key)).toEqual([
-      "ALGOLIA_APPLICATION_ID",
-      "ALGOLIA_SEARCH_API_KEY",
-    ]);
-    expect(publish.mock.calls[0]?.[1]).not.toHaveProperty(
-      "ALGOLIA_PRICE_CUSTOMER_GROUP_IDS"
-    );
+    expect(error.message).toBe("Choose a new output file");
   });
+
+  it.each(["local", "vercel"] as const)(
+    "publishes both Content-only keys to one %s destination without Commerce credentials",
+    async (store) => {
+      const configureContentKey = vi.fn<
+        AlgoliaAdministration["Service"]["configureContentKey"]
+      >(() => Effect.succeed(Redacted.make("content-write-key")));
+      const configureIndex = vi.fn<
+        AlgoliaAdministration["Service"]["configureIndex"]
+      >(() => Effect.void);
+      const configureSearchKey = vi.fn<
+        AlgoliaAdministration["Service"]["configureSearchKey"]
+      >(() => Effect.succeed(Redacted.make("search-key")));
+      const publish = vi.fn<RuntimeEnvironmentPublisher["Service"]["publish"]>(
+        () =>
+          Effect.succeed({
+            destination: "local",
+            mode: 0o600,
+            path: "/tmp/content-search.env",
+          })
+      );
+      const prepare = vi.fn<RuntimeEnvironmentPublisher["Service"]["prepare"]>(
+        ({ manifest, destination }) =>
+          Effect.succeed(
+            destination.destination === "local"
+              ? { destination: "local", manifest, path: destination.output }
+              : {
+                  destination: "vercel",
+                  environments: destination.environments,
+                  manifest,
+                  projects: [],
+                  publicationMode: destination.publicationMode,
+                }
+          )
+      );
+      const { receipt } = await provisionAlgolia({
+        contentIndexingOperations: ["search", "browse", "upsert", "delete"],
+        contentProjection: createCanonicalContentSearchProjection("content"),
+        destination:
+          store === "local"
+            ? {
+                destination: "local",
+                output: "/tmp/content-search.env",
+                publicationMode: "create",
+                yes: true,
+              }
+            : {
+                destination: "vercel",
+                environments: ["production"],
+                publicationMode: "create",
+                yes: true,
+              },
+        indexPrefix: undefined,
+        locales: ["en-US"],
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            AlgoliaProvisioningConfig.layer.pipe(
+              Layer.provide(
+                ConfigProvider.layer(
+                  ConfigProvider.fromEnv({
+                    env: {
+                      ALGOLIA_ADMIN_API_KEY: "admin",
+                      ALGOLIA_APPLICATION_ID: "app",
+                      ALGOLIA_REGION: "us",
+                    },
+                  })
+                )
+              )
+            ),
+            AlgoliaAdministration.layerFrom({
+              configureAlgoliaDestinationAuthentication: forbidden,
+              configureAlgoliaTransformationSecrets: forbidden,
+              configureCommercetoolsAuthentication: forbidden,
+              configureCommercetoolsConnector: forbidden,
+              configureConnectorKey: forbidden,
+              configureContentKey,
+              configureIndex,
+              configureQuerySuggestions: () => Effect.void,
+              configureSearchKey,
+              findCommercetoolsAuthentication: forbidden,
+            }),
+            RuntimeEnvironmentPublisher.layerFrom({ prepare, publish })
+          )
+        ),
+        Effect.runPromise
+      );
+      expect(receipt).toMatchObject({
+        connectors: 0,
+        contentIndices: 1,
+        productPrimaries: 0,
+        productReplicas: 0,
+        querySuggestions: 1,
+      });
+      expect({
+        contentKey: configureContentKey.mock.calls[0]?.[0],
+        indices: configureIndex.mock.calls.map(
+          ([request]) => request.indexName
+        ),
+        searchKey: configureSearchKey.mock.calls[0]?.[0],
+      }).toMatchObject({
+        contentKey: {
+          indexNames: ["content"],
+          operations: ["search", "browse", "upsert", "delete"],
+        },
+        indices: ["content"],
+        searchKey: { indexNames: ["content", "query-suggestions--en-US"] },
+      });
+      expect(
+        prepare.mock.calls.map(([{ destination, manifest }]) => ({
+          destination: destination.destination,
+          manifest,
+        }))
+      ).toEqual([
+        {
+          destination: store,
+          manifest: [
+            {
+              applications: ["web"],
+              key: "ALGOLIA_APPLICATION_ID",
+              sensitive: false,
+            },
+            {
+              applications: ["web"],
+              key: "ALGOLIA_SEARCH_API_KEY",
+              sensitive: true,
+            },
+            {
+              applications: ["web"],
+              key: "ALGOLIA_CONTENT_WRITE_API_KEY",
+              sensitive: true,
+            },
+            {
+              applications: ["web"],
+              key: "ALGOLIA_CONTENT_INDEX_NAME",
+              sensitive: false,
+            },
+          ],
+        },
+      ]);
+      expect(publish.mock.calls).toEqual([
+        [
+          expect.objectContaining({ destination: store }),
+          {
+            ALGOLIA_APPLICATION_ID: "app",
+            ALGOLIA_CONTENT_INDEX_NAME: "content",
+            ALGOLIA_CONTENT_WRITE_API_KEY: Redacted.make("content-write-key"),
+            ALGOLIA_SEARCH_API_KEY: Redacted.make("search-key"),
+          },
+        ],
+      ]);
+      expect(JSON.stringify(publish.mock.calls)).not.toContain(
+        "content-write-key"
+      );
+    }
+  );
 });

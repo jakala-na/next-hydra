@@ -1,3 +1,4 @@
+import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import { defineContentSearchProjection } from "@repo/search/content-search-projection";
 import type {
   ContentSearchProjection,
@@ -33,10 +34,19 @@ function drupalLangcode(locale: string): string {
   return drupalLangcodeByLocale.get(locale) ?? locale.toLowerCase();
 }
 
+export const contentIndexingOperations = [
+  "list-indices",
+  "search",
+  "browse",
+  "upsert",
+  "delete",
+  "clear",
+] as const satisfies readonly ContentIndexingOperation[];
+
 export const createContentIndexingHandoff = (indexName: string) =>
   ({
     instructions: [
-      `Configure Drupal with ALGOLIA_APPLICATION_ID, a dedicated ALGOLIA_DRUPAL_WRITE_API_KEY with search, browse, addObject, and deleteObject permissions restricted to "${indexName}", and ALGOLIA_CONTENT_INDEX_NAME="${indexName}".`,
+      `Configure Drupal with ALGOLIA_APPLICATION_ID, ALGOLIA_CONTENT_WRITE_API_KEY, and ALGOLIA_CONTENT_INDEX_NAME="${indexName}" from the output of search provision. Choose --store local for manual CMS setup; Vercel sensitive keys cannot be read back.`,
       "Run `drush cr` (`ddev drush cr` locally) so Drupal loads the Algolia credentials and provisioned index name.",
       "Run `drush search-api:rebuild-tracker content`, then `drush search-api:index content` for the initial backfill (prefix both commands with `ddev` locally).",
       "New Content saves are indexed directly. Keep Drupal cron running to drain pending work. Search API Algolia can log failed writes while marking items processed; after correcting a delivery failure, rebuild the tracker and reindex, then verify the records in Algolia.",

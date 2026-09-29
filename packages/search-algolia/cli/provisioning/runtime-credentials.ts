@@ -2,6 +2,19 @@ import { runtimeEnvironmentManifestFromSchema } from "@repo/cli-core/runtime-env
 import { Schema } from "effect";
 import type { Redacted } from "effect";
 
+/** Content credentials use the same operator-selected destination as Search. */
+export const contentRuntimeEnvironmentManifest = (singleIndex: boolean) => {
+  const credentials = {
+    ALGOLIA_CONTENT_WRITE_API_KEY: Schema.Redacted(Schema.String),
+  };
+  return runtimeEnvironmentManifestFromSchema(
+    singleIndex
+      ? { ...credentials, ALGOLIA_CONTENT_INDEX_NAME: Schema.String }
+      : credentials,
+    ["web"]
+  );
+};
+
 const requiredSearchRuntimeEnvironmentSchema = {
   ALGOLIA_APPLICATION_ID: Schema.String,
   ALGOLIA_SEARCH_API_KEY: Schema.Redacted(Schema.String),

@@ -1,3 +1,4 @@
+import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import type { Acl, ApiKey } from "algoliasearch";
 import { Effect, Redacted } from "effect";
 
@@ -7,8 +8,17 @@ import { operationError, tryClient } from "./administration-live-shared";
 
 type ApiKeyAdministration = Pick<
   AlgoliaAdministration["Service"],
-  "configureConnectorKey" | "configureSearchKey"
+  "configureConnectorKey" | "configureSearchKey" | "configureContentKey"
 >;
+
+const contentAcl = {
+  browse: "browse",
+  clear: "deleteIndex",
+  delete: "deleteObject",
+  "list-indices": "listIndexes",
+  search: "search",
+  upsert: "addObject",
+} satisfies Record<ContentIndexingOperation, Acl>;
 
 const connectorIndexScopes = (indexNames: readonly string[]) =>
   indexNames.flatMap((indexName) => [indexName, `${indexName}-temp-*`]);
@@ -94,6 +104,11 @@ export const algoliaApiKeyAdministration = (
         description,
         indexNames: connectorIndexScopes(indexNames),
         legacyDescriptions,
+      }),
+    configureContentKey: ({ operations, ...options }) =>
+      configureApiKey({
+        ...options,
+        acl: [...new Set(operations.map((operation) => contentAcl[operation]))],
       }),
     configureSearchKey: ({ description, indexNames, legacyDescriptions }) =>
       configureApiKey({

@@ -129,11 +129,14 @@ describe(provisionAlgolia, () => {
         }),
     };
     const prepare = vi.fn<RuntimeEnvironmentPublisher["Service"]["prepare"]>(
-      ({ manifest }) =>
+      ({ manifest, destination }) =>
         Effect.succeed({
           destination: "local",
           manifest: [...manifest],
-          path: "/tmp/.env.algolia.local",
+          path:
+            destination.destination === "local"
+              ? destination.output
+              : "/tmp/.env.algolia.local",
         })
     );
     let publishedValues: RuntimeEnvironmentValues | undefined;
@@ -180,6 +183,8 @@ describe(provisionAlgolia, () => {
         configureCommercetoolsAuthentication,
         configureCommercetoolsConnector,
         configureConnectorKey,
+        configureContentKey: () =>
+          Effect.succeed(Redacted.make("content-write-key")),
         configureIndex,
         configureQuerySuggestions,
         configureSearchKey,
@@ -198,7 +203,8 @@ describe(provisionAlgolia, () => {
     const ProvisionTestLayer = Layer.mergeAll(TestLayer, testConsoleLayer);
 
     const { progressLines, receipt } = await Effect.gen(function* () {
-      const provisioningReceipt = yield* provisionAlgolia({
+      const { receipt: provisioningReceipt } = yield* provisionAlgolia({
+        contentIndexingOperations: ["search", "browse", "upsert", "delete"],
         contentProjection,
         destination: {
           destination: "local",
@@ -210,8 +216,8 @@ describe(provisionAlgolia, () => {
         locales,
         products: {
           priceCustomerGroupIds: ["contractors-id"],
-          provision: (graph) =>
-            provisionAlgoliaProducts(graph, commerceConnectorSource, [
+          provision: (indexGraph) =>
+            provisionAlgoliaProducts(indexGraph, commerceConnectorSource, [
               "contractors-id",
             ]),
           storefronts: storeConfiguration,
@@ -288,8 +294,8 @@ describe(provisionAlgolia, () => {
         "  Applying the source, Product transformation, destination, task, and waiting for the initial reindex...",
         '  Completed initial reindex "run-id" for Store "default-store".',
         "  Creating or updating the scoped runtime search API key for 9 queryable indices...",
-        "  Publishing runtime search credentials...",
-        "  Runtime search credentials published.",
+        "  Publishing Search and Content credentials...",
+        "  Search and Content credentials published.",
       ])
     );
     const publishedSearchKey = publishedValues?.ALGOLIA_SEARCH_API_KEY;
@@ -307,7 +313,8 @@ describe(provisionAlgolia, () => {
       encodedTransformationConfiguration
     );
 
-    const repeatedReceipt = await provisionAlgolia({
+    const { receipt: repeatedReceipt } = await provisionAlgolia({
+      contentIndexingOperations: ["search", "browse", "upsert", "delete"],
       contentProjection,
       destination: {
         destination: "local",
@@ -319,15 +326,16 @@ describe(provisionAlgolia, () => {
       locales,
       products: {
         priceCustomerGroupIds: ["contractors-id"],
-        provision: (graph) =>
-          provisionAlgoliaProducts(graph, commerceConnectorSource, [
+        provision: (indexGraph) =>
+          provisionAlgoliaProducts(indexGraph, commerceConnectorSource, [
             "contractors-id",
           ]),
         storefronts: storeConfiguration,
       },
     }).pipe(Effect.provide(ProvisionTestLayer), Effect.runPromise);
 
-    const reconciledReceipt = await provisionAlgolia({
+    const { receipt: reconciledReceipt } = await provisionAlgolia({
+      contentIndexingOperations: ["search", "browse", "upsert", "delete"],
       contentProjection,
       destination: {
         destination: "local",
@@ -339,8 +347,8 @@ describe(provisionAlgolia, () => {
       locales,
       products: {
         priceCustomerGroupIds: ["contractors-id"],
-        provision: (graph) =>
-          provisionAlgoliaProducts(graph, commerceConnectorSource, [
+        provision: (indexGraph) =>
+          provisionAlgoliaProducts(indexGraph, commerceConnectorSource, [
             "contractors-id",
           ]),
         storefronts: storeConfiguration,

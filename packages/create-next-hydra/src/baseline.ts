@@ -46,7 +46,7 @@ const Lockfile = Schema.Struct({
   ),
 });
 
-const yamlDocument = Effect.fn("Composition.yamlDocument")(function* <A>(
+export const yamlDocument = Effect.fn("Composition.yamlDocument")(function* <A>(
   bytes: Uint8Array,
   target: string,
   schema: Schema.Decoder<A>

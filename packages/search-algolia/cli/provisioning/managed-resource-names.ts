@@ -52,6 +52,7 @@ export const managedAlgoliaResourceNames = (
     indexPrefix
   ),
   connectorKey: globalResourceName("Managed connector key", indexPrefix),
+  contentKey: globalResourceName("Managed Content write key", indexPrefix),
   productConnector: (storeKey: string) =>
     storeResourceName("Managed Product connector", indexPrefix, storeKey),
   productTransformationConfiguration: (storeKey: string) =>
