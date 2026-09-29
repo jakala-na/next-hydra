@@ -7,6 +7,7 @@ export type ArchitectureMetadata = {
   cacheTags?: readonly string[];
   composition?: ArchitectureComposition;
   description?: string;
+  getCaching?: () => string;
   getCacheTags?: () => readonly string[];
   name: string;
   streaming?: boolean;
@@ -24,15 +25,17 @@ const compositionLabels = {
 };
 
 export function ArchitectureBoundary({
-  caching,
+  caching: suppliedCaching,
   cacheTags,
   children,
   composition,
   description,
+  getCaching,
   getCacheTags,
   name,
   streaming,
 }: ArchitectureBoundaryProps) {
+  const caching = suppliedCaching ?? getCaching?.();
   const tags = caching ? (cacheTags ?? getCacheTags?.() ?? []) : [];
   const cacheLabel = [
     caching,

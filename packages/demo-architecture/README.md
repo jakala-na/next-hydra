@@ -16,11 +16,11 @@ A region can participate in multiple views, such as Latest Articles with cached 
 
 Use short, sentence-case names for the thing being shown: `Product collection`, `Product detail`, `Latest articles`. Keep the same name across views and providers for the same responsibility. Use `Product collection block` for the CMS settings wrapper, and provider names only when identifying the page implementation, such as `Contentstack page` or `Drupal page`.
 
-Keep cache badges concise: `Cached · revalidate after 15m`, `Cached · revalidate after 1h`, `Uncached · per request`, or `Bypassed · preview`. Show the revalidation duration rather than only a profile name. Revalidation happens on a subsequent request, not on a timer; it is distinct from expiry. Put the full profile timings in the hover description. Use `Drupal response policy` when Canvas delegates caching to Drupal's response metadata. Put details about the current store, customer, pricing, or availability in a short `description` shown on hover, rather than adding them to the name or badge.
+Keep cache badges concise: `Cached · revalidate after 15m`, `Cached · revalidate after 1h`, `Uncached · per request`, or `Bypassed · preview`. Show the revalidation duration rather than only a profile name. Revalidation happens on a subsequent request, not on a timer; it is distinct from expiry. Put the full profile timings in the hover description. For Canvas, display the Drupal response TTL in seconds, or explicitly show no time-based expiry, an uncacheable response, or unavailable metadata. Put details about the current store, customer, pricing, or availability in a short `description` shown on hover, rather than adding them to the name or badge.
 
 ### Keeping cache timings in sync
 
-These timings are manually authored, not read from a live cache. Check the installed Next.js version's `cacheLife` documentation and resolved application configuration when changing cache calls, overriding profiles, or upgrading Next.js. Update the matching badge and hover description in the same change. Do not import Next.js internal configuration into the demo runtime.
+The Next.js profile timings below are manually authored, not read from a live cache. Check the installed Next.js version's `cacheLife` documentation and resolved application configuration when changing cache calls, overriding profiles, or upgrading Next.js. Update the matching badge and hover description in the same change. Do not import Next.js internal configuration into the demo runtime.
 
 Current annotations use the unmodified Next.js 16.3.1 profiles:
 
@@ -30,12 +30,12 @@ Current annotations use the unmodified Next.js 16.3.1 profiles:
 | Drupal page | `getCachedRouteEntity` in `cms-drupal/components/page.tsx`, `hours` outside preview | 5m | After 1h | After 1d |
 | Latest articles | `cms-drupal/lib/latest-articles.ts`, `hours` | 5m | After 1h | After 1d |
 
-Revalidation starts on the next request after the interval. After expiry, a request waits for fresh content. Invalidation and eviction can remove entries earlier. Canvas pages retain `Drupal response policy` because their timings come from each response rather than a fixed Next.js profile.
+Revalidation starts on the next request after the interval. After expiry, a request waits for fresh content. Invalidation and eviction can remove entries earlier. Canvas labels use `getCaching` to read the same response metadata and cache-policy mapping as the application. Positive `maxAge` values show `Drupal TTL <seconds>s`; permanent responses show `no time-based expiry`; preview, zero max-age, and rejected metadata show a bypass or uncached state. The TTL is the configured lifetime, not a countdown or evidence of a cache hit. The displayed tags are those accepted by the application cache policy.
 
 ## Authoring contract
 
 - Put application layout, keys and refs on application elements inside the boundary. Boundary props must only describe the demo; spreads and application props fail composition.
-- Use literals or side-effect-free metadata values. For already available tags, pass an array, such as `cacheTags={["node_list:article"]}`. For computed tags, use `getCacheTags={() => PageRenderer.getCacheTags(entity)}`. The supplier runs only in the demo runtime. It must not perform work the application needs.
+- Use literals or side-effect-free metadata values. For already available tags, pass an array, such as `cacheTags={["node_list:article"]}`. For computed tags, use `getCacheTags={() => PageRenderer.getCacheTags(entity)}`. For a response-derived cache label, use `getCaching={() => ...}`. These suppliers run only in the demo runtime. They must not perform work the application needs.
 - Keep real `cacheTag`, `cacheLife`, data loading and invalidation outside metadata expressions. Eager calls in metadata fail composition.
 - Do not re-export, dynamically import, pass around, or expose demo components/types through application interfaces. Use explicit JSX at the annotation site.
 - Import styles through `@repo/demo-architecture/styles.css` and render the toolbar as `<ArchitectureToolbar />`, without props.

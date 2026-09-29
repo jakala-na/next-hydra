@@ -28,11 +28,83 @@ interface Edit {
   readonly text: string;
 }
 
+function metadataImportEdits(
+  file: ts.SourceFile,
+  removed: readonly Edit[]
+): Edit[] {
+  const references = new Map<string, ts.Identifier[]>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node)) {
+      return;
+    }
+    if (ts.isIdentifier(node)) {
+      const matches = references.get(node.text) ?? [];
+      matches.push(node);
+      references.set(node.text, matches);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  const edits: Edit[] = [];
+  const printer = ts.createPrinter();
+  for (const statement of file.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      removed.some((edit) => edit.start === statement.getStart(file))
+    ) {
+      continue;
+    }
+    const clause = statement.importClause;
+    const bindings = clause?.namedBindings;
+    if (!(clause && bindings && ts.isNamedImports(bindings))) {
+      continue;
+    }
+    // Retain any binding referenced outside erased metadata. Unused imports
+    // that predate this transform are not part of annotation removal.
+    const retained = bindings.elements.filter((binding) => {
+      const uses = references.get(binding.name.text) ?? [];
+      return (
+        uses.length === 0 ||
+        uses.some(
+          (use) =>
+            !removed.some(
+              (edit) => edit.start <= use.getStart(file) && use.end <= edit.end
+            )
+        )
+      );
+    });
+    if (retained.length === bindings.elements.length) {
+      continue;
+    }
+    let text = "";
+    if (clause.name || retained.length > 0) {
+      const updated = ts.factory.updateImportDeclaration(
+        statement,
+        statement.modifiers,
+        ts.factory.updateImportClause(
+          clause,
+          clause.phaseModifier,
+          clause.name,
+          retained.length > 0
+            ? ts.factory.updateNamedImports(bindings, retained)
+            : undefined
+        ),
+        statement.moduleSpecifier,
+        statement.attributes
+      );
+      text = printer.printNode(ts.EmitHint.Unspecified, updated, file);
+    }
+    edits.push({ end: statement.end, start: statement.getStart(file), text });
+  }
+  return edits;
+}
+
 const metadataProps = new Set([
   "caching",
   "cacheTags",
   "composition",
   "description",
+  "getCaching",
   "getCacheTags",
   "name",
   "streaming",
@@ -336,6 +408,7 @@ export const eraseDemoInstrumentation = (target: string, source: string) =>
         ts.forEachChild(node, check);
       };
       check(file);
+      edits.push(...metadataImportEdits(file, edits));
       let output = source;
       const descendingPosition = Order.mapInput(
         Order.Number,
