@@ -1,8 +1,9 @@
 import { AnalyticsProvider } from "@repo/analytics";
 {{imports}}
 import { DesignSystemProvider } from "@repo/design-system";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
-import { ArchitectureToolbar } from "@repo/design-system/components/architecture/architecture-toolbar";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
+import { ArchitectureToolbar } from "@repo/demo-architecture/toolbar";
+import "@repo/demo-architecture/styles.css";
 import { fonts } from "@repo/design-system/lib/fonts";
 import { cn } from "@repo/design-system/lib/utils";
 
@@ -21,14 +22,9 @@ export function DocumentShell({
     >
       <body>
         <ArchitectureBoundary
-          component="server"
-          description="Build-time application frame around cached and streamed route content."
-          layer="shell"
-          layerLabel="App Router shell"
-          name="ApplicationShell"
-          rendering="static"
-          source="app"
-          sourceLabel="Next.js application"
+          name="Application shell"
+          description="Contains the page layout and application providers."
+          composition="app"
         >
           {{providers.open}}
             <AnalyticsProvider>

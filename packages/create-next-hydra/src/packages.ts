@@ -154,6 +154,7 @@ function internalDependencies(manifest: typeof Manifest.Type): string[] {
 }
 
 interface PackageInputs {
+  readonly omittedDependencies?: ReadonlySet<string>;
   readonly files: readonly string[];
   readonly packageManifests: readonly string[];
   readonly selectedManifests: ReadonlyMap<string, CapturedFile>;
@@ -174,6 +175,7 @@ export const completePackages = Effect.fn("Composition.completePackages")(
     requirements,
     ownedRequirements,
     registryItems,
+    omittedDependencies = new Set<string>(),
   }: PackageInputs) {
     const rootRequirements = yield* registryDependencies(registryItems);
     const unique = new Map<string, PackageRequirement>();
@@ -228,6 +230,20 @@ export const completePackages = Effect.fn("Composition.completePackages")(
       }
       if (target === "package.json") {
         manifest = applyRegistryDependencies(manifest, rootRequirements);
+      }
+      for (const section of [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "peerDependencies",
+      ] as const) {
+        if (manifest[section]) {
+          manifest[section] = Object.fromEntries(
+            Object.entries(manifest[section]).filter(
+              ([name]) => !omittedDependencies.has(name)
+            )
+          );
+        }
       }
       outputManifests.set(target, {
         ...file,

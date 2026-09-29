@@ -3,6 +3,7 @@ import { Effect, FileSystem, Path } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 export type Example =
+  | "demo"
   | "compiled"
   | "registry"
   | "application"

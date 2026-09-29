@@ -12,8 +12,6 @@ export const webCmsServerEnvFields = {
 
 export const webCmsServerEnvSchema = z.object(webCmsServerEnvFields);
 
-export const webClientEnvFields = {
-  NEXT_PUBLIC_ARCHITECTURE_OVERLAYS: z.enum(["true", "false"]).default("false"),
-};
+export const webClientEnvFields = {};
 
 export const webClientEnvSchema = z.object(webClientEnvFields);

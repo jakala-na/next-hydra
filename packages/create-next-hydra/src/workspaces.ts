@@ -315,6 +315,7 @@ export class Workspaces extends Context.Service<
           return {
             definition,
             port: parsed.development?.port,
+            demoArchitecture: parsed.demo?.architecture,
             selection: { addOns: parsed.addOns, providers: parsed.providers },
           };
         });
@@ -326,11 +327,18 @@ export class Workspaces extends Context.Service<
               { directory: destination, sourceRoot },
               (observation) =>
                 Effect.gen(function* () {
-                  const { definition, port, selection } = yield* readDefinition;
+                  const { definition, port, selection, demoArchitecture } =
+                    yield* readDefinition;
                   const prepared = yield* sources.use(
                     { kind: "working-tree", root: sourceRoot },
                     (source) =>
-                      composition.prepare({ name, port, selection, source })
+                      composition.prepare({
+                        name,
+                        port,
+                        selection,
+                        source,
+                        demoArchitecture,
+                      })
                   );
                   const preserved = yield* inspectInitialization(
                     destination,
@@ -449,10 +457,18 @@ export class Workspaces extends Context.Service<
           ) {
             const selectedTarget =
               target === undefined ? undefined : yield* relativeFile(target);
-            const { definition, port, selection } = yield* readDefinition;
+            const { definition, port, selection, demoArchitecture } =
+              yield* readDefinition;
             const prepared = yield* sources.use(
               { kind: "working-tree", root: sourceRoot },
-              (source) => composition.prepare({ name, port, selection, source })
+              (source) =>
+                composition.prepare({
+                  name,
+                  port,
+                  selection,
+                  source,
+                  demoArchitecture,
+                })
             );
             const files: FileExplanation[] = prepared.files
               .filter(
@@ -501,7 +517,8 @@ export class Workspaces extends Context.Service<
               { directory: destination, sourceRoot },
               (access) =>
                 Effect.gen(function* () {
-                  const { definition, port, selection } = yield* readDefinition;
+                  const { definition, port, selection, demoArchitecture } =
+                    yield* readDefinition;
                   const inspect = inspectInitialization(
                     destination,
                     definition
@@ -512,7 +529,13 @@ export class Workspaces extends Context.Service<
                   const prepare = sources.use(
                     { kind: "working-tree", root: sourceRoot },
                     (source) =>
-                      composition.prepare({ name, port, selection, source })
+                      composition.prepare({
+                        name,
+                        port,
+                        selection,
+                        source,
+                        demoArchitecture,
+                      })
                   );
                   let prepared = yield* prepare;
                   // Watch may discover inputs beyond its connected roots. Subscribe

@@ -9,6 +9,10 @@ import {
   normalizeApplicationName,
   readWorkspaceSettings,
 } from "./baseline.ts";
+import {
+  demoArchitecturePackage,
+  eraseDemoInstrumentation,
+} from "./demo-instrumentation.ts";
 import { InvalidComposition, SourceChanged } from "./errors.ts";
 import type {
   RegistryFailure,
@@ -41,6 +45,7 @@ import { applyTypeScriptAliases } from "./typescript-paths.ts";
 import type { WorkspaceSource } from "./workspace-sources.ts";
 
 export interface PreparationRequest {
+  readonly demoArchitecture?: boolean;
   readonly source: WorkspaceSource;
   readonly selection: SelectionRequest;
   readonly name: string;
@@ -300,6 +305,9 @@ export class Composition extends Context.Service<
           capture,
           files: sourceFiles,
           governed,
+          omittedDependencies: request.demoArchitecture
+            ? undefined
+            : new Set([demoArchitecturePackage]),
           ownedRequirements,
           packageManifests: catalog.manifests,
           registryItems: selectedItems,
@@ -536,6 +544,38 @@ export class Composition extends Context.Service<
                 return yield* new InvalidComposition({
                   message: `Unplanned output target: ${file.target}`,
                 });
+              }
+              if (
+                /\.(?:tsx|jsx|ts|js|mts|cts|mjs|cjs)$/u.test(file.target) &&
+                !assets.some((asset) => asset.target === file.target)
+              ) {
+                const source = new TextDecoder().decode(file.content);
+                const erased = yield* eraseDemoInstrumentation(
+                  file.target,
+                  source
+                );
+                if (!request.demoArchitecture && erased !== source) {
+                  const { origin } = claimed;
+                  if (
+                    origin.kind !== "source" &&
+                    origin.kind !== "template" &&
+                    origin.kind !== "registry"
+                  ) {
+                    return yield* new InvalidComposition({
+                      message: `Cannot transform policy output: ${file.target}`,
+                    });
+                  }
+                  output.push({
+                    ...file,
+                    ...claimed,
+                    content: new TextEncoder().encode(erased),
+                    origin: {
+                      ...origin,
+                      transforms: ["remove-demo-architecture"],
+                    },
+                  });
+                  continue;
+                }
               }
               output.push({ ...file, ...claimed });
             }

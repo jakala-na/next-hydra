@@ -18,7 +18,7 @@ function explainFile(
   sourceRoot: string,
   path: Path.Path
 ): string {
-  return Match.value(file.origin).pipe(
+  const explanation = Match.value(file.origin).pipe(
     Match.discriminator("kind")(
       "registry",
       (origin) =>
@@ -53,6 +53,12 @@ function explainFile(
     ),
     Match.exhaustive
   );
+  const transformations =
+    "transforms" in file.origin ? (file.origin.transforms ?? []) : [];
+  return [
+    explanation,
+    ...transformations.map((transform) => `  transform: ${transform}`),
+  ].join("\n");
 }
 
 function synchronizationResult(

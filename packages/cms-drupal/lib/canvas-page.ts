@@ -11,6 +11,7 @@ import { keys } from "../keys";
 import {
   getCanvasCachePolicy,
   getCanvasPageCacheability,
+  UNCACHED_CANVAS_LIFE,
 } from "./canvas-cacheability";
 
 async function getCachedCanvasPage(path: string) {
@@ -22,13 +23,13 @@ async function getCachedCanvasPage(path: string) {
   });
 
   if (!(page && !isPageRedirect(page))) {
-    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
+    cacheLife(UNCACHED_CANVAS_LIFE);
     return page;
   }
 
   const policy = getCanvasCachePolicy(getCanvasPageCacheability(page));
   if (!policy) {
-    cacheLife({ expire: 0, revalidate: 0, stale: 0 });
+    cacheLife(UNCACHED_CANVAS_LIFE);
     return page;
   }
 

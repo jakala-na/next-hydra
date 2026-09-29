@@ -1,0 +1,6 @@
+{
+  "name": "@example/view",
+  "dependencies": {
+    "@repo/demo-architecture": "workspace:*"
+  }
+}

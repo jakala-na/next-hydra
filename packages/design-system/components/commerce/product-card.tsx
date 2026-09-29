@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -39,14 +39,9 @@ function ProductCard({
   const t = useTranslations("web.product");
   return (
     <ArchitectureBoundary
-      component="client"
-      description="Hydrates translations and product interactions in the browser."
-      layer="interactive"
-      layerLabel="Interactive design-system leaf"
-      name="ProductCard"
-      rendering="streamed"
-      source="design-system"
-      sourceLabel="Shared design system"
+      name="Product card"
+      description="Displays a product and its actions in the browser."
+      composition="client"
     >
       <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg">
         <div className="relative h-72 overflow-hidden bg-muted">
@@ -58,7 +53,7 @@ function ProductCard({
           {imageUrl ? (
             <Image
               src={imageUrl}
-              alt={imageTitle || ""}
+              alt={imageTitle ?? ""}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />

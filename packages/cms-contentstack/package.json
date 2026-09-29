@@ -35,6 +35,7 @@
     "@gql.tada/cli-utils": "^1.6.3",
     "@repo/commerce": "workspace:*",
     "@repo/cli-core": "workspace:*",
+    "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",

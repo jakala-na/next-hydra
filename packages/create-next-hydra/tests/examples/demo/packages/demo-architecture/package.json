@@ -1,0 +1,6 @@
+{
+  "name": "@repo/demo-architecture",
+  "dependencies": {
+    "demo-only-library": "1.0.0"
+  }
+}

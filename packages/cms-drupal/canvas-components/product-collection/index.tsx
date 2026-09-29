@@ -1,5 +1,5 @@
 import { ProductCollectionGrid } from "@repo/commerce/product/product-collection";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import {
   ProductCatalogSkeleton,
   ProductCollectionLayout,
@@ -41,25 +41,22 @@ export default function CanvasProductCollection(
 
   return (
     <ArchitectureBoundary
-      component="server"
-      description="Maps Canvas-authored collection settings into the stable Commerce catalog contract."
-      layer="block"
-      layerLabel="Canvas component adapter"
-      name="CanvasProductCollection"
-      rendering="dynamic"
-      source="cms"
-      sourceLabel="Drupal Canvas"
+      name="Product collection block"
+      description="Uses Canvas settings to select the product collection."
+      composition="cms"
     >
       <ProductCollectionLayout
         description={props.description}
         title={props.title}
       >
-        <Suspense fallback={<ProductCatalogSkeleton />}>
-          <ProductCollectionContent
-            categoryId={categoryId.value}
-            limit={props.limit}
-          />
-        </Suspense>
+        <ArchitectureBoundary name="Product collection" streaming>
+          <Suspense fallback={<ProductCatalogSkeleton />}>
+            <ProductCollectionContent
+              categoryId={categoryId.value}
+              limit={props.limit}
+            />
+          </Suspense>
+        </ArchitectureBoundary>
       </ProductCollectionLayout>
     </ArchitectureBoundary>
   );

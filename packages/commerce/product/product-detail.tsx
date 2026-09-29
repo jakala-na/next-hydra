@@ -1,5 +1,5 @@
 import { NextCommerce } from "@repo/commerce/runtime";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ProductDetail as ProductDetailView } from "@repo/design-system/components/commerce/blocks/product-detail";
 import type { Locale } from "@repo/i18n/types";
 import { Effect, Option, Schema } from "effect";
@@ -60,14 +60,10 @@ export async function ProductDetailPage(props: ProductDetailBoundaryProps) {
     <>
       <CommerceContextObservation store={store} />
       <ArchitectureBoundary
-        component="server"
-        description="Uses the request Commerce Context to resolve customer-group pricing, Store availability, and eligible variants."
-        layer="orchestration"
-        layerLabel="Personalized Commerce orchestration"
-        name="DynamicProductDetail"
-        rendering="streamed"
-        source="commerce"
-        sourceLabel="Commerce provider"
+        name="Product detail"
+        description="Loads product pricing, availability, and variants for the current store and customer."
+        caching="Uncached · per request"
+        composition="commerce"
       >
         <script
           type="application/ld+json"

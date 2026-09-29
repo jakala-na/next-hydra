@@ -139,8 +139,7 @@ const explicitServerEnvironment = (
       return (
         !isCmsEnvironmentName(name) &&
         name !== "ARCJET_KEY" &&
-        name !== "FLAGS_SECRET" &&
-        name !== "NEXT_PUBLIC_ARCHITECTURE_OVERLAYS"
+        name !== "FLAGS_SECRET"
       );
     }
 
@@ -153,8 +152,7 @@ const explicitServerEnvironment = (
       !isAnalyticsEnvironmentName(name) &&
       !name.startsWith("REGISTRATION_") &&
       name !== "ARCJET_KEY" &&
-      name !== "FLAGS_SECRET" &&
-      name !== "NEXT_PUBLIC_ARCHITECTURE_OVERLAYS"
+      name !== "FLAGS_SECRET"
     );
   });
 
