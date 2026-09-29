@@ -95,3 +95,7 @@ The baseline recipe owns the ledger content type; migration commands never creat
 pnpm --filter @repo/cms-contentstack typecheck
 pnpm --filter @repo/cms-contentstack test
 ```
+
+## Embedding origins
+
+Set `FRAME_ANCESTORS=https://editor.example.com,https://portal.example.com` in the frontend environment to allow additional sites to embed the application. This shared web setting preserves same-origin framing and Contentstack's regional editor origin. Use comma-separated exact HTTP(S) origins (including ports when needed), without paths, credentials or wildcards. Empty or unset adds nothing; invalid entries fail validation. Restart development or redeploy after changing it.

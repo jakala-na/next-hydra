@@ -4,6 +4,13 @@ import { NextResponse } from "next/server";
 
 export type { NoseconeOptions } from "@nosecone/next";
 
+export function resolveFrameAncestors(
+  providerOrigins: readonly string[],
+  additionalOrigins: readonly string[]
+): string[] {
+  return [...new Set(["'self'", ...providerOrigins, ...additionalOrigins])];
+}
+
 // Nosecone security headers configuration
 // https://docs.arcjet.com/nosecone/quick-start
 export const noseconeOptions: NoseconeOptions = {

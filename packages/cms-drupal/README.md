@@ -1,134 +1,62 @@
 # @repo/cms-drupal
 
-Drupal GraphQL implementation for the Next Hydra CMS interface.
+Drupal provider for `@repo/cms`.
 
-This package owns Drupal-specific OAuth, GraphQL transport, schema generation, preview routing, page and block rendering, native menu navigation, and image configuration. Applications select it through the stable `@repo/cms` dependency name:
+Supports Canvas, page and content templates, multilingual content and navigation, draft previews, automatic cache revalidation, and optional Commerce integration.
 
-```json
-{
-  "dependencies": {
-    "@repo/cms": "workspace:@repo/cms-drupal@*"
-  }
-}
-```
+## Setup
 
-The connector maps Drupal route entity and Paragraph `__typename` values through page and component registries. Unsupported types are ignored until their Hydra renderers are implemented.
+Run these commands from an installed workspace with the Drupal provider selected. For development in this repository, first follow [Named workspaces](../../workspaces/README.md).
 
-## Drupal content model
+1. Provision Drupal using DDEV:
 
-The generated schema now exposes the Drupal-native Hydra structure:
+   ```bash
+   pnpm --filter cli cli cms provision --app-directory ../drupal
+   ```
 
-- `NodeLandingPage` with ordered `components`, display-title fields, and route alias.
-- `NodeArticle` with summary, image, processed Basic HTML body, and route alias.
-- `ParagraphHero` for tagline, heading, description, image, and actions.
-- With Commerce selected, `ParagraphDynamicProductCollection` with an optional external commerce category ID. Omitting it requests products without a category filter.
-- `ParagraphFeaturedArticle` with an ordered set of referenced Articles.
-- `menu(name: MAIN, langcode:)` for translated native Drupal navigation.
+2. Copy the settings from [`.env.example`](.env.example) into the web application's `.env.local`. Set `DRUPAL_BASE_URL` and the viewer and previewer OAuth credentials printed by the installer. Add its `CMS_REVALIDATION_SECRET` to the web environment too.
 
-Base configuration lives in `apps/drupal/recipes/next-hydra-base/config`. Commerce's Paragraph and Canvas configuration lives in `apps/drupal/recipes/next-hydra-commerce`, installed automatically with a Commerce provider. Its recipe adds product blocks and sample pages at `/catalog-example` and `/canvas-catalog-example`; the base homepages remain content-only.
+3. Start the frontend with system certificates enabled for local DDEV HTTPS:
 
-Both `component-registry.ts` and `pages/landing-page-query.ts` are materialized by the shared module-reference renderer. The provider-local block modules own the data mapping and cache-tag behavior. `cms-drupal-commerce` connects Drupal to Commerce core, not Commercetools, and is a composition recipe included with Commerce rather than a selectable Add-on. It includes the `drupal-commerce` registry item, which installs the native `next-hydra-commerce` provisioning recipe.
+   ```bash
+   NODE_OPTIONS=--use-system-ca pnpm --filter web dev
+   ```
 
-## Site announcement
+For schema generation, also put the provider settings in this package's `.env`. Keep credentials out of version control.
 
-The native **Site** page template puts an **Announcement** component in the Site shell’s pre-header slot. It replaces the four placeholder region Text components; the remaining shared slots start empty. The banner uses the design system’s shadcn Alert primitive and exposes Message, Link label, and Link URL in Canvas. The recipe seeds a Next Hydra demo notice linking to `https://next-hydra.dev`.
+For Acquia, set `DRUPAL_FRONTEND_URL` in Drupal's runtime environment and optionally `DRUPAL_REVALIDATE_URL` for an internal callback address. In the frontend deployment, set `DRUPAL_BASE_URL` to Drupal's public URL and `NEXT_PUBLIC_WEB_URL` to the frontend's public URL. See [Acquia setup](../../apps/drupal/README.md#deploy-to-acquia).
 
-Edit and publish the Site template in Canvas to update the announcement across CMS pages and application routes. The announcement is template content, not hardcoded into the application layout.
+## Optional configuration
 
-## Article content template
+| Variable | Purpose |
+| --- | --- |
+| `DRUPAL_AUTH_URI` | Override the default `/oauth/token` endpoint. |
+| `DRUPAL_GRAPHQL_URI` | Override the default `/graphql` endpoint. |
+| `CANVAS_SITE_URL` | Override the Canvas backend URL; defaults to `DRUPAL_BASE_URL`. |
+| `CANVAS_JSONAPI_PREFIX` | JSON:API path fallback when discovery fails; defaults to `/jsonapi`. |
+| `FRAME_ANCESTORS` | Additional origins allowed to embed the frontend, alongside the CMS defaults. |
+| `CANVAS_EDITOR_ORIGINS` | Replace Drupal's default editor allowlist. Leave unset to keep the default; an empty value removes the provider origins. |
 
-The base recipe enables `canvas.content_template.node.article.full` for every Article's full view. Drupal chooses this template by entity type, bundle, and view mode; authors do not assign it to individual articles.
+For framing settings, use comma-separated HTTP(S) origins, including ports where needed, without paths or wildcards. Set them in the frontend environment and restart or redeploy after changes.
 
-The template contains an Article component with a Rich text component in its body slot. Dynamic bindings supply the node's title, summary, creation date, media image, and processed body. Article content and translations remain in their existing Drupal fields. The template selects the shared `site` page template; the Next.js layout renders its global regions once around the article. Article listings and cards continue to use GraphQL.
+For unsaved Drupal form previews, set `GRAPHQL_COMPOSE_PREVIEW_URL` in Drupal to the frontend's `/api/drupal-preview` URL. Preserve the preview UUID, token, and language placeholders in the configured URL.
 
-The Article date uses a date input and can bind to **Authored on** through Canvas’s `unix_to_date` adapter. It is optional and has no example default: Canvas stores literal datetime defaults in a shape that Drupal’s configuration schema rejects. An unbound date starts empty; Workbench mocks supply sample dates. The recipe includes the date field configuration and binding; verify changes by reinstalling a disposable site from the recipe.
-
-Edit the Article full content template in Canvas to change the shared presentation. Preview it against an existing article, then publish the template to update all articles. The recipe configures template cache-tag revalidation, so publishing does not require resaving the articles. Canvas signed previews also render unpublished articles through the template. Existing Next.js for Drupal and GraphQL form previews retain their revision-aware GraphQL rendering.
-
-The matching `content-templates/node.article.full.json` documents the bindings for local tooling. Routine `canvas:push` excludes content templates and page templates, preserving editor changes. Change the recipe when changing the fresh-install defaults, then verify with `ddev install`.
-
-## Environment
-
-For code generation, copy `.env.example` to this package's `.env`. For a Next.js application, put the same values in the consuming application's `.env.local`.
-
-DDEV uses a locally trusted HTTPS certificate. Start Node with the system CA store when the consuming application talks to a `.ddev.site` origin:
+## Development commands
 
 ```bash
-NODE_OPTIONS=--use-system-ca pnpm --filter web dev
-```
-
-`DRUPAL_BASE_URL` identifies the Drupal origin. The auth and GraphQL endpoints default to `/oauth/token` and `/graphql`; the URI variables override those paths. The previewer pair reads draft content, while the viewer pair reads published content.
-
-The Drupal installer prints the prefixed previewer and viewer variables after creating the OAuth consumers. It also prints `CMS_REVALIDATION_SECRET` for the consuming web application. Keep those values out of version control.
-
-Run the installer through the provider-neutral command from the installed workspace root. pnpm runs it in `apps/cli`, so explicitly target the sibling Drupal application:
-
-```bash
-pnpm --filter cli cli cms provision --app-directory ../drupal
-```
-
-This delegates to `ddev install` in `apps/drupal` and inherits stdin, stdout, and stderr, so the DDEV recipe output and prompts remain visible in the current terminal. `--app-directory` resolves relative to the CLI process directory; use an absolute path to target a DDEV project elsewhere.
-
-## Cache revalidation
-
-Published non-Canvas pages use one cached Drupal `route(path:)` query with the `hours` Cache Components profile. The returned entity's `__typename` selects its Hydra page template, and the page template's component renderer maps its Paragraphs. A successful page is tagged with its Drupal entity cache tag, such as `node:1`. Page components can contribute additional dependencies: Featured Articles adds the `node:{id}` tag of every referenced Article. Editing an Article therefore invalidates its own cached route and any cached landing page that renders it, without evicting every landing page or Article. Missing or unsupported routes use a zero-expiry cache life, so they remain dynamic instead of becoming a persistent 404 cache entry. Published main-menu queries use the `days` profile and the `menu` tag. Preview reads bypass shared caches.
-
-Published Canvas responses include Drupal's complete `cacheability` metadata: `tags`, `contexts`, and `maxAge`. The connector caches the anonymous response under its localized path, applies the returned max age, and attaches every returned dependency tag to the Next.js cache entry. Missing metadata, a zero max age, or malformed metadata keeps the response uncached. If Drupal returns more tags than Next.js accepts, the connector falls back to max-age-only caching instead of truncating the dependency list. Tag overflow does not alter Drupal's bubbled max age, including permanent responses. Canvas draft sessions continue to use the authenticated draft-aware fetch outside the published cache.
-
-Drupal's Next module revalidates content after entity changes by calling `/api/revalidate` with the entity tags and its configured shared secret. The route uses eager expiration, so the first request after a publish waits for fresh Drupal content and subsequent requests use the refreshed cache entry.
-
-## Preview
-
-Next.js for Drupal renders saved revisions in the node's View-tab iframe. Its short-lived signed URL is validated against Drupal's `/next/draft-url` endpoint, then translated to the matching GraphQL `current`, `latest`, or exact revision.
-
-GraphQL Compose Preview handles unsaved form previews. Its iframe opens `http://localhost:3001/api/drupal-preview` with the preview UUID and token; set `GRAPHQL_COMPOSE_PREVIEW_URL` in Drupal to override that URL while preserving the `[node:preview:uuid]` and `[node:preview:token]` placeholders and the `langcode=[node:langcode]` query parameter.
-
-## Languages
-
-The connector maps frontend market locales to Drupal's standard catalogue IDs: `en-US` to `en`, `en-GB` to `en-gb`, and the remaining locales to `es`, `fr`, `de`, `it`, `pt-pt`, and `nl`. Route, menu, and preview GraphQL operations receive that langcode explicitly. Canvas page loading retains the equivalent regional language-prefixed Drupal path.
-
-Locale is an input to the cached route and menu functions, so Next.js stores separate entries per locale while Drupal entity and menu tags still invalidate all affected variants. Preview reads remain uncached.
-
-The draft route validates the UUID and token through Drupal's GraphQL `preview` query before enabling Next.js Draft Mode. It stores the validated preview in an HTTP-only cookie, redirects to the node's canonical path, and loads the exact temporary preview entity instead of the latest saved revision.
-
-Drupal Canvas owns `/api/draft`, `/api/draft/renew`, `/api/disable-draft`, and `/api/canvas/components`. `CANVAS_SITE_URL` can override the Drupal origin for Canvas; when omitted it defaults to `DRUPAL_BASE_URL`.
-
-The web application's Nosecone proxy owns the framing policy. The provider exports `cmsFrameAncestors` through `@repo/cms/security`, using the configured Canvas site origin. Set `CANVAS_EDITOR_ORIGINS` to a comma-separated list to override that editor allowlist. The web proxy adds same-origin framing and serializes the policy through Nosecone.
-
-## Canvas component Workbench
-
-Use Canvas Workbench to demonstrate and review the package's Canvas components without running Drupal or the consuming Next.js application:
-
-```bash
-pnpm --filter @repo/cms-drupal canvas:workbench
-```
-
-Open the local URL printed by the command. Workbench discovers components from `canvas-components`, loads the shared Canvas styles, and refreshes previews as their source files change.
-
-Add a component in `canvas-components/<component-name>` with a default-exported `index.tsx` and a `component.yml`. Its built-in preview uses the examples in the component metadata. Add `mocks.json` beside those files when a realistic preview needs authored props or slot content. Workbench shows authored mocks in place of the generated Default preview. Components with content-entity-reference pickers retain Default so authenticated authors can select a real entity; their mock fixture remains available to type generation. Keep one representative preview unless another state adds clear review value.
-
-Composed examples live in `pages`, `content-templates`, and `page-templates`. The Article component's authored mock demonstrates a formatted body without Drupal; the content-template fixture records its Drupal field bindings. Examples may reuse the local recipe images served by the custom Workbench Vite config. Page and template synchronization is disabled in `canvas.config.json` and excluded from `canvas:push`, so component pushes preserve editor-authored content. The base recipe seeds the Site and Article full templates on installation; subsequent template edits belong in Drupal Canvas.
-
-## GraphQL schema
-
-```bash
+# Refresh the GraphQL schema and generated types
 pnpm --filter @repo/cms-drupal generate
-```
 
-Generation authenticates as the viewer, refreshes `gql/schema.graphql`, and updates gql.tada's introspection and document cache artifacts.
+# Preview Canvas components locally
+pnpm --filter @repo/cms-drupal canvas:workbench
 
-## Validation
+# Validate and publish Canvas components
+pnpm --filter @repo/cms-drupal canvas:validate
+pnpm --filter @repo/cms-drupal canvas:push
 
-```bash
+# Check the provider
 pnpm --filter @repo/cms-drupal test
 pnpm --filter @repo/cms-drupal typecheck
 ```
 
-With the Drupal composition selected, a fresh local `ddev install`, and the workspace applications running, exercise shared template publishing and unpublished French article preview:
-
-```bash
-pnpm --filter @repo/e2e exec bddgen
-pnpm --filter @repo/e2e exec playwright test article-templates.feature.spec.js --workers=1
-```
-
-These scenarios use the installed Drupal site's real Canvas auto-save, publish, and signed-preview services. They remove their temporary template notice and draft article afterward and refuse to overwrite an existing article-template draft.
+`canvas:push` publishes components only. Edit and publish pages and templates in Drupal Canvas.
