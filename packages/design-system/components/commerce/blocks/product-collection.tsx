@@ -1,4 +1,3 @@
-import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { ReactNode } from "react";
 
 import ProductCard from "../product-card";
@@ -50,22 +49,11 @@ export function ProductCollectionLayout({
 
 export function ProductGrid({ products }: ProductGridProps) {
   return (
-    <ArchitectureBoundary
-      component="server"
-      description="Provider-neutral presentation receives product card data and composes hydrated cards."
-      layer="presentation"
-      layerLabel="Design-system presentation"
-      name="ProductCatalog"
-      rendering="streamed"
-      source="design-system"
-      sourceLabel="Shared design system"
-    >
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
-          <ProductCard key={product.id} {...product} />
-        ))}
-      </div>
-    </ArchitectureBoundary>
+    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+      {products.map((product) => (
+        <ProductCard key={product.id} {...product} />
+      ))}
+    </div>
   );
 }
 

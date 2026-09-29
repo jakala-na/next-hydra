@@ -1,85 +1,55 @@
 import type { ReactNode } from "react";
 
-export type ArchitectureComponent = "client" | "server";
-export type ArchitectureLayer =
-  | "block"
-  | "interactive"
-  | "orchestration"
-  | "presentation"
-  | "route"
-  | "shell";
-export type ArchitectureRendering =
-  | "cached"
-  | "dynamic"
-  | "static"
-  | "streamed";
-export type ArchitectureSource = "app" | "cms" | "commerce" | "design-system";
+export type ArchitectureComposition = "app" | "cms" | "commerce" | "client";
 
 export type ArchitectureMetadata = {
-  cacheProfile?: string;
-  cacheTags?: () => readonly string[];
-  component: ArchitectureComponent;
+  caching?: string;
+  cacheTags?: readonly string[];
+  composition?: ArchitectureComposition;
   description?: string;
-  layer: ArchitectureLayer;
-  layerLabel: string;
+  getCacheTags?: () => readonly string[];
   name: string;
-  rendering: ArchitectureRendering;
-  source: ArchitectureSource;
-  sourceLabel: string;
+  streaming?: boolean;
 };
 
 type ArchitectureBoundaryProps = ArchitectureMetadata & {
   children: ReactNode;
 };
 
-function renderingLabel({
-  cacheProfile,
-  cacheTags = [],
-  rendering,
-}: {
-  cacheProfile?: string;
-  cacheTags?: readonly string[];
-  rendering: ArchitectureRendering;
-}) {
-  const parts: string[] = [rendering];
-
-  if (cacheProfile) {
-    parts.push(cacheProfile);
-  }
-  if (cacheTags.length > 0) {
-    parts.push(`tags: ${cacheTags.join(", ")}`);
-  }
-
-  return parts.join(" · ");
-}
+const compositionLabels = {
+  app: "Application",
+  client: "Browser interaction",
+  cms: "CMS content",
+  commerce: "Commerce data",
+};
 
 export function ArchitectureBoundary({
-  cacheProfile,
+  caching,
   cacheTags,
   children,
-  component,
+  composition,
   description,
-  layer,
-  layerLabel,
+  getCacheTags,
   name,
-  rendering,
-  source,
-  sourceLabel,
+  streaming,
 }: ArchitectureBoundaryProps) {
-  const resolvedTags = cacheTags?.();
-
-  const renderLabel = renderingLabel({
-    cacheProfile,
-    cacheTags: resolvedTags,
-    rendering,
-  });
+  const tags = caching ? (cacheTags ?? getCacheTags?.() ?? []) : [];
+  const cacheLabel = [
+    caching,
+    tags.length > 0 ? `tags: ${tags.join(", ")}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const compositionLabel = composition
+    ? compositionLabels[composition]
+    : undefined;
   const title = [
     name,
-    `${component} component`,
-    renderLabel,
-    sourceLabel,
-    layerLabel,
+    cacheLabel,
+    streaming ? "Suspense region" : undefined,
+    compositionLabel,
     description,
+    "Authored explanation; not a live execution trace.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -87,38 +57,37 @@ export function ArchitectureBoundary({
   return (
     <div
       className="architecture-boundary"
-      data-architecture-component={component}
-      data-architecture-layer={layer}
-      data-architecture-rendering={rendering}
-      data-architecture-source={source}
+      data-architecture-caching={caching ? "true" : undefined}
+      data-architecture-composition={composition}
+      data-architecture-streaming={streaming ? "true" : undefined}
       title={title}
     >
       <div aria-hidden="true" className="architecture-boundary__label">
         <strong className="architecture-boundary__name">{name}</strong>
-        <span
-          className="architecture-boundary__dimension"
-          data-architecture-label="rendering"
-        >
-          {renderLabel}
-        </span>
-        <span
-          className="architecture-boundary__dimension"
-          data-architecture-label="components"
-        >
-          {component} component
-        </span>
-        <span
-          className="architecture-boundary__dimension"
-          data-architecture-label="sources"
-        >
-          {sourceLabel}
-        </span>
-        <span
-          className="architecture-boundary__dimension"
-          data-architecture-label="layers"
-        >
-          {layerLabel}
-        </span>
+        {caching ? (
+          <span
+            className="architecture-boundary__dimension"
+            data-architecture-label="caching"
+          >
+            {cacheLabel}
+          </span>
+        ) : null}
+        {streaming ? (
+          <span
+            className="architecture-boundary__dimension"
+            data-architecture-label="streaming"
+          >
+            Suspense region
+          </span>
+        ) : null}
+        {compositionLabel ? (
+          <span
+            className="architecture-boundary__dimension"
+            data-architecture-label="composition"
+          >
+            {compositionLabel}
+          </span>
+        ) : null}
       </div>
       {children}
     </div>

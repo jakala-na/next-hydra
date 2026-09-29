@@ -90,14 +90,9 @@ export function ProductDetail({
 
   return (
     <ArchitectureBoundary
-      component="client"
-      description="Hydrates variant selection, personalized price display, quantity controls, Cart actions, and quote requests."
-      layer="interactive"
-      layerLabel="Interactive product detail"
-      name="ProductDetail"
-      rendering="streamed"
-      source="design-system"
-      sourceLabel="Shared design system"
+      name="Product detail"
+      description="Handles variant selection, quantity, cart actions, and quote requests in the browser."
+      composition="client"
     >
       <div className="container py-12">
         <div className="mb-8 flex items-center gap-2 text-muted-foreground text-sm">

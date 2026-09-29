@@ -83,8 +83,12 @@
   display: none;
 }
 
-html[data-architecture-overlay-mode]:not([data-architecture-overlay-mode="off"])
-  .architecture-boundary {
+html[data-architecture-overlay-mode="caching"]
+  .architecture-boundary[data-architecture-caching],
+html[data-architecture-overlay-mode="streaming"]
+  .architecture-boundary[data-architecture-streaming],
+html[data-architecture-overlay-mode="composition"]
+  .architecture-boundary[data-architecture-composition] {
   position: relative;
   display: block;
   padding: 2rem 0.5rem 0.5rem;
@@ -94,8 +98,15 @@ html[data-architecture-overlay-mode]:not([data-architecture-overlay-mode="off"])
   border-radius: var(--radius);
 }
 
-html[data-architecture-overlay-mode]:not([data-architecture-overlay-mode="off"])
-  .architecture-boundary__label {
+html[data-architecture-overlay-mode="caching"]
+  .architecture-boundary[data-architecture-caching]
+  > .architecture-boundary__label,
+html[data-architecture-overlay-mode="streaming"]
+  .architecture-boundary[data-architecture-streaming]
+  > .architecture-boundary__label,
+html[data-architecture-overlay-mode="composition"]
+  .architecture-boundary[data-architecture-composition]
+  > .architecture-boundary__label {
   position: absolute;
   top: 0.35rem;
   left: 0.5rem;
@@ -127,93 +138,41 @@ html[data-architecture-overlay-mode]:not([data-architecture-overlay-mode="off"])
   display: none;
 }
 
-html[data-architecture-overlay-mode="rendering"]
-  [data-architecture-label="rendering"],
-html[data-architecture-overlay-mode="components"]
-  [data-architecture-label="components"],
-html[data-architecture-overlay-mode="sources"]
-  [data-architecture-label="sources"],
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-label="layers"] {
+html[data-architecture-overlay-mode="caching"]
+  [data-architecture-label="caching"],
+html[data-architecture-overlay-mode="streaming"]
+  [data-architecture-label="streaming"],
+html[data-architecture-overlay-mode="composition"]
+  [data-architecture-label="composition"] {
   display: inline-block;
 }
 
-html[data-architecture-overlay-mode="rendering"]
-  [data-architecture-rendering="static"] {
-  --architecture-color: oklch(0.58 0.16 58);
-}
-
-html[data-architecture-overlay-mode="rendering"]
-  [data-architecture-rendering="cached"] {
+html[data-architecture-overlay-mode="caching"]
+  .architecture-boundary[data-architecture-caching] {
   --architecture-color: oklch(0.53 0.15 158);
 }
 
-html[data-architecture-overlay-mode="rendering"]
-  [data-architecture-rendering="streamed"] {
+html[data-architecture-overlay-mode="streaming"]
+  .architecture-boundary[data-architecture-streaming] {
   --architecture-color: oklch(0.58 0.2 285);
 }
 
-html[data-architecture-overlay-mode="rendering"]
-  [data-architecture-rendering="dynamic"] {
-  --architecture-color: oklch(0.58 0.2 250);
-}
-
-html[data-architecture-overlay-mode="components"]
-  [data-architecture-component="server"] {
-  --architecture-color: oklch(0.58 0.22 28);
-}
-
-html[data-architecture-overlay-mode="components"]
-  [data-architecture-component="client"] {
-  --architecture-color: oklch(0.58 0.2 250);
-}
-
-html[data-architecture-overlay-mode="sources"]
-  [data-architecture-source="app"] {
+html[data-architecture-overlay-mode="composition"]
+  [data-architecture-composition="app"] {
   --architecture-color: oklch(0.5 0.03 250);
 }
 
-html[data-architecture-overlay-mode="sources"]
-  [data-architecture-source="cms"] {
+html[data-architecture-overlay-mode="composition"]
+  [data-architecture-composition="cms"] {
   --architecture-color: oklch(0.58 0.2 305);
 }
 
-html[data-architecture-overlay-mode="sources"]
-  [data-architecture-source="commerce"] {
+html[data-architecture-overlay-mode="composition"]
+  [data-architecture-composition="commerce"] {
   --architecture-color: oklch(0.62 0.18 55);
 }
 
-html[data-architecture-overlay-mode="sources"]
-  [data-architecture-source="design-system"] {
-  --architecture-color: oklch(0.54 0.13 190);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="shell"] {
-  --architecture-color: oklch(0.5 0.03 250);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="route"] {
-  --architecture-color: oklch(0.58 0.2 330);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="block"] {
-  --architecture-color: oklch(0.58 0.2 305);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="orchestration"] {
-  --architecture-color: oklch(0.62 0.18 55);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="presentation"] {
-  --architecture-color: oklch(0.54 0.13 190);
-}
-
-html[data-architecture-overlay-mode="layers"]
-  [data-architecture-layer="interactive"] {
+html[data-architecture-overlay-mode="composition"]
+  [data-architecture-composition="client"] {
   --architecture-color: oklch(0.58 0.2 250);
 }

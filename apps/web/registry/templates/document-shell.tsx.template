@@ -22,14 +22,9 @@ export function DocumentShell({
     >
       <body>
         <ArchitectureBoundary
-          component="server"
-          description="Build-time application frame around cached and streamed route content."
-          layer="shell"
-          layerLabel="App Router shell"
-          name="ApplicationShell"
-          rendering="static"
-          source="app"
-          sourceLabel="Next.js application"
+          name="Application shell"
+          description="Contains the page layout and application providers."
+          composition="app"
         >
           {{providers.open}}
             <AnalyticsProvider>

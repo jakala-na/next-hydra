@@ -6,7 +6,12 @@ import "@repo/demo-architecture/styles.css";
 export function View({ tags }: { tags: readonly string[] }) {
   return (
     <main>
-      <ArchitectureBoundary name="Article" cacheTags={() => tags}>
+      <ArchitectureBoundary
+        name="Article"
+        caching="Cached article data"
+        cacheTags={tags}
+        composition="cms"
+      >
         <article>Article</article>
       </ArchitectureBoundary>
       <ArchitectureToolbar />

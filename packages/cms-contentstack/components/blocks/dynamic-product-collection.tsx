@@ -43,41 +43,22 @@ export function DynamicProductCollection(
 
   return (
     <ArchitectureBoundary
-      cacheProfile="inherits CMS route cache"
-      component="server"
-      description="Maps a Contentstack modular block into the stable Commerce catalog contract."
-      layer="block"
-      layerLabel="CMS block adapter"
-      name="ProductCatalogBlock"
-      rendering="cached"
-      source="cms"
-      sourceLabel="Contentstack CMS"
+      name="Product collection block"
+      description="Uses Contentstack settings to select the product collection."
+      composition="cms"
     >
       <ProductCollectionLayout
         description={renderRichText(descriptionJson)}
         title={title}
       >
-        <Suspense
-          fallback={
-            <ArchitectureBoundary
-              component="server"
-              description="The cached CMS shell is visible while buyer-aware Commerce data streams."
-              layer="orchestration"
-              layerLabel="Suspense stream fallback"
-              name="DynamicProductCatalog (pending)"
-              rendering="streamed"
-              source="commerce"
-              sourceLabel="Commerce provider"
-            >
-              <ProductCatalogSkeleton />
-            </ArchitectureBoundary>
-          }
-        >
-          <ProductCollectionGrid
-            categoryId={categoryId.value}
-            locale={locale}
-          />
-        </Suspense>
+        <ArchitectureBoundary name="Product collection" streaming>
+          <Suspense fallback={<ProductCatalogSkeleton />}>
+            <ProductCollectionGrid
+              categoryId={categoryId.value}
+              locale={locale}
+            />
+          </Suspense>
+        </ArchitectureBoundary>
       </ProductCollectionLayout>
     </ArchitectureBoundary>
   );

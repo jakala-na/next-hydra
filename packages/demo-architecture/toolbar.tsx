@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, DatabaseZap, EyeOff, Layers3, Server } from "lucide-react";
+import { Boxes, DatabaseZap, EyeOff, Waves } from "lucide-react";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { MouseEvent } from "react";
 
@@ -9,10 +9,9 @@ const CHANGE_EVENT = "architecture-overlay-change";
 
 const modes = [
   { icon: EyeOff, label: "Off", value: "off" },
-  { icon: DatabaseZap, label: "Rendering", value: "rendering" },
-  { icon: Server, label: "Components", value: "components" },
-  { icon: Boxes, label: "Sources", value: "sources" },
-  { icon: Layers3, label: "Layers", value: "layers" },
+  { icon: DatabaseZap, label: "Caching", value: "caching" },
+  { icon: Waves, label: "Streaming", value: "streaming" },
+  { icon: Boxes, label: "Composition", value: "composition" },
 ] as const;
 
 export type ArchitectureOverlayMode = (typeof modes)[number]["value"];
@@ -65,11 +64,13 @@ export function ArchitectureToolbar() {
     <aside
       aria-label="Architecture overlay controls"
       className="architecture-toolbar"
+      title="Authored explanations, not live cache or rendering measurements"
     >
       <div className="architecture-toolbar__controls">
         <span className="architecture-toolbar__heading">Architecture</span>
         {modes.map(({ icon: Icon, label, value }) => (
           <button
+            aria-label={label}
             aria-pressed={mode === value}
             className="architecture-toolbar__button"
             key={value}

@@ -69,14 +69,10 @@ export const ProductCollectionGrid = async (
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
         <ArchitectureBoundary
-          component="server"
-          description="Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense."
-          layer="orchestration"
-          layerLabel="Commerce orchestration"
-          name="DynamicProductCatalog"
-          rendering="streamed"
-          source="commerce"
-          sourceLabel="Commerce provider"
+          name="Product collection"
+          description="Loads products for the current store and customer on each request."
+          caching="Uncached · per request"
+          composition="commerce"
         >
           <ProductGrid products={products} />
         </ArchitectureBoundary>
@@ -97,14 +93,10 @@ export const ProductCollection = async ({
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
         <ArchitectureBoundary
-          component="server"
-          description="Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense."
-          layer="orchestration"
-          layerLabel="Commerce orchestration"
-          name="DynamicProductCatalog"
-          rendering="streamed"
-          source="commerce"
-          sourceLabel="Commerce provider"
+          name="Product collection"
+          description="Loads products for the current store and customer on each request."
+          caching="Uncached · per request"
+          composition="commerce"
         >
           <ProductCollectionView
             title={title}

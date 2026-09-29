@@ -45,7 +45,7 @@ it.effect(
       const source = `
 import { ArchitectureBoundary } from "./application";
 import { ArchitectureBoundary as Demo } from "@repo/demo-architecture/boundary";
-const view = <Demo cacheTags={() => readDisplayTags()}><ArchitectureBoundary /></Demo>;
+const view = <Demo getCacheTags={() => readDisplayTags()}><ArchitectureBoundary /></Demo>;
 `;
       const output = yield* eraseDemoInstrumentation("lazy.tsx", source);
       expect(output).toContain(
@@ -69,7 +69,7 @@ import { cacheTag } from "next/cache";
 export async function Article({ tags }) {
   "use cache";
   cacheTag(...tags);
-  return <Demo name="Article" cacheTags={tags}><ArticleContent /></Demo>;
+  return <Demo name="Article" caching="Cached article data" cacheTags={tags} composition="cms"><ArticleContent /></Demo>;
 }
 `
       );
@@ -93,7 +93,7 @@ import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ArchitectureToolbar } from "@repo/demo-architecture/toolbar";
 import "@repo/demo-architecture/styles.css";
 export function View() {
-  return <main><ArchitectureBoundary name="View">
+  return <main><ArchitectureBoundary name="View" streaming>
     <Suspense fallback={<ArchitectureBoundary name="Pending"><Skeleton /></ArchitectureBoundary>}>
       <Content /><Actions />
     </Suspense>

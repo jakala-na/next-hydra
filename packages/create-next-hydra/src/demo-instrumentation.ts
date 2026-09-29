@@ -29,16 +29,13 @@ interface Edit {
 }
 
 const metadataProps = new Set([
-  "cacheProfile",
+  "caching",
   "cacheTags",
-  "component",
+  "composition",
   "description",
-  "layer",
-  "layerLabel",
+  "getCacheTags",
   "name",
-  "rendering",
-  "source",
-  "sourceLabel",
+  "streaming",
 ]);
 
 // Values describe the demo, never drive application work. Suppliers are lazy:

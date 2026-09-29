@@ -176,17 +176,10 @@ export async function Page(props: { url: string; locale: Locale }) {
   if (canvasPage?.route.managedByCanvas && !useDrupalPreview) {
     return (
       <ArchitectureBoundary
-        cacheProfile={
-          preview ? "Canvas draft session" : "Drupal cacheability metadata"
-        }
-        component="server"
-        description="Drupal Canvas resolves the stored component tree on the server while registry entries opt into client boundaries as needed."
-        layer="route"
-        layerLabel="Canvas component tree"
-        name="DrupalCanvasPageRoute"
-        rendering={preview ? "dynamic" : "static"}
-        source="cms"
-        sourceLabel="Drupal Canvas"
+        name="Canvas page"
+        description="Renders the component tree stored in Drupal Canvas."
+        caching={preview ? "Bypassed · preview" : "Drupal response policy"}
+        composition="cms"
       >
         <CanvasComponentTree tree={getPageContent(canvasPage.content)} />
       </ArchitectureBoundary>
@@ -203,16 +196,11 @@ export async function Page(props: { url: string; locale: Locale }) {
 
   return (
     <ArchitectureBoundary
-      cacheProfile={preview ? "preview cache bypass" : "hours"}
-      cacheTags={() => (preview ? [] : PageRenderer.getCacheTags(entity))}
-      component="server"
-      description="One route(path:) query resolves the Drupal entity and selects its page template by __typename."
-      layer="route"
-      layerLabel="CMS route and page registry"
-      name="DrupalPageRoute"
-      rendering={preview ? "dynamic" : "cached"}
-      source="cms"
-      sourceLabel="Drupal CMS"
+      name="Drupal page"
+      description="Loads the Drupal content for this URL and selects its page template. Outside preview, the hours profile allows client caching for 5m, background revalidation after 1h, and expiry after 1d."
+      caching={preview ? "Bypassed · preview" : "Cached · revalidate after 1h"}
+      getCacheTags={() => PageRenderer.getCacheTags(entity)}
+      composition="cms"
     >
       <PageRenderer data={entity} locale={locale} />
     </ArchitectureBoundary>
