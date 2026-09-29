@@ -92,7 +92,9 @@ Use a dedicated Algolia key restricted to the exact Content index with `search`,
 
 Drupal owns Content selection, translation tracking, publication filtering, and record delivery. The search provider provisioning command owns the Algolia index settings. `@repo/cms-drupal` translates Drupal's flat records into the shared Content result contract when the application searches them.
 
-New Content saves are normally indexed directly after the request. Drupal cron drains work still marked pending. Operators can inspect or drain that backlog explicitly:
+DDEV keeps the Content index read-only, even with valid credentials or an imported database. For controlled, safe testing with remote search, set `read_only` to `FALSE` in `docroot/sites/settings/integrations/algolia.settings.php` and run `ddev drush cr`. Restore `TRUE` and rebuild caches when finished. Frontend search remains available against existing Algolia records.
+
+Outside DDEV, or after explicitly opting in locally, new Content saves are indexed directly after the request. Drupal cron drains work still marked pending. Operators can inspect or drain that backlog explicitly:
 
 ```bash
 ddev drush search-api:status content
