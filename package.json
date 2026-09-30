@@ -19,6 +19,7 @@
     "format": "ultracite fix",
     "lint": "turbo run workspace:lint --filter=create-next-hydra",
     "prepare": "husky && effect-tsgo patch --typescript --oxlint",
+    "prototype:liquid-layout": "pnpm --dir packages/create-next-hydra/prototype-liquid-layout start",
     "publish:cli": "changeset publish",
     "registry:check": "node scripts/sync-registry-files.ts --check",
     "registry:sync": "node scripts/sync-registry-files.ts",
