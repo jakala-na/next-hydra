@@ -1,0 +1,5 @@
+name: Editorial
+description: Homepage with a hero and featured articles.
+type: Content
+recipes:
+  - next-hydra-base

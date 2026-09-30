@@ -52,6 +52,195 @@ describe("dependency synchronization", () => {
     packageManager(() => installed)
   );
 
+  for (const protocol of ["file", "link", "portal"]) {
+    it.effect(
+      `reconciles ${protocol} dependencies referenced by inherited settings`,
+      () =>
+        Effect.gen(function* () {
+          let installs = 0;
+          const trackedProcesses = Layer.effect(
+            ChildProcessSpawner.ChildProcessSpawner,
+            packageManager(() =>
+              Effect.sync(() => {
+                installs += 1;
+              }).pipe(Effect.andThen(installed))
+            )
+          );
+          const layer = yield* memoryWorkspace("application", {
+            processes: trackedProcesses,
+          });
+          yield* Effect.gen(function* () {
+            const fs = yield* FileSystem.FileSystem;
+            yield* fs.makeDirectory("/external/next", { recursive: true });
+            yield* fs.writeFileString("/external/next/index.js", "original");
+            const override = `${protocol}:/external/next`;
+            yield* fs.writeFileString(
+              "/pnpm-workspace.yaml",
+              `overrides:\n  next: ${override}\n`
+            );
+            vi.stubEnv(
+              "npm_config_overrides",
+              JSON.stringify({ next: override })
+            );
+            const workspace = yield* named;
+            yield* workspace.sync({});
+            expect(installs).toBe(1);
+            yield* fs.writeFileString("/external/next/index.js", "changed");
+            expect((yield* workspace.check()).ready).toBeFalsy();
+            yield* workspace.sync({});
+            expect(installs).toBe(2);
+          }).pipe(Effect.provide(layer));
+        })
+    );
+  }
+
+  for (const patch of [
+    { reference: "/external/next.patch", path: "/external/next.patch" },
+    { reference: "../shared.patch", path: "/source/workspaces/shared.patch" },
+  ]) {
+    it.effect(`tracks patch contents behind inherited ${patch.reference}`, () =>
+      Effect.gen(function* () {
+        const layer = yield* memoryWorkspace("application", { processes });
+        yield* Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          yield* fs.makeDirectory("/external", { recursive: true });
+          yield* fs.writeFileString(patch.path, "original patch");
+          yield* fs.writeFileString(
+            "/pnpm-workspace.yaml",
+            `patchedDependencies:\n  next@16.3.1: ${patch.reference}\n`
+          );
+          vi.stubEnv(
+            "npm_config_patched_dependencies",
+            JSON.stringify({ "next@16.3.1": patch.reference })
+          );
+          const workspace = yield* named;
+          yield* workspace.sync({});
+          expect((yield* workspace.check()).ready).toBeTruthy();
+          yield* fs.writeFileString(patch.path, "changed patch");
+          expect((yield* workspace.check()).ready).toBeFalsy();
+          yield* workspace.sync({});
+          expect((yield* workspace.check()).ready).toBeTruthy();
+          yield* fs.remove(patch.path);
+          expect((yield* workspace.check()).ready).toBeFalsy();
+        }).pipe(Effect.provide(layer));
+      })
+    );
+  }
+
+  it.effect(
+    "reconciles changed settings even when they match an ancestor",
+    () =>
+      Effect.gen(function* () {
+        const layer = yield* memoryWorkspace("application", { processes });
+        yield* Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          const workspace = yield* named;
+          yield* workspace.sync({});
+          expect((yield* workspace.check()).ready).toBeTruthy();
+          yield* fs.writeFileString(
+            "/pnpm-workspace.yaml",
+            "overrides:\n  next: 99.0.0\n"
+          );
+          vi.stubEnv(
+            "npm_config_overrides",
+            JSON.stringify({ next: "99.0.0" })
+          );
+          expect((yield* workspace.check()).ready).toBeFalsy();
+          yield* workspace.sync({});
+          expect((yield* workspace.check()).ready).toBeTruthy();
+          const receipt = yield* fs.readFileString(
+            `${root}/.workspace-composition.json`
+          );
+          expect(receipt).not.toContain("99.0.0");
+          vi.stubEnv("npm_config_overrides", undefined);
+          expect((yield* workspace.check()).ready).toBeFalsy();
+        }).pipe(Effect.provide(layer));
+      })
+  );
+
+  it.effect(
+    "recognizes pnpm script configuration mirrors but rejects overrides",
+    () =>
+      Effect.gen(function* () {
+        const layer = yield* memoryWorkspace("application", { processes });
+        yield* Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          vi.stubEnv("PNPM_SCRIPT_SRC_DIR", "/source/packages/cli");
+          yield* fs.makeDirectory("/source/patches", { recursive: true });
+          yield* fs.writeFileString(
+            "/source/patches/unselected.patch",
+            "original patch"
+          );
+          vi.stubEnv("npm_config_registry", "https://registry.npmjs.org/");
+          vi.stubEnv("npm_config__jsr_registry", "https://npm.jsr.io/");
+          vi.stubEnv("npm_config_frozen_lockfile", "");
+          vi.stubEnv(
+            "npm_config_catalog",
+            JSON.stringify({
+              next: "16.3.1",
+              typescript: "npm:@typescript/typescript6@6.0.2",
+            })
+          );
+          vi.stubEnv(
+            "npm_config_patched_dependencies",
+            JSON.stringify({
+              "unselected@1.0.0": "/source/patches/unselected.patch",
+            })
+          );
+          yield* (yield* named).sync({});
+          expect(yield* (yield* named).check()).toMatchObject({ ready: true });
+          vi.stubEnv("npm_config_catalog", JSON.stringify({ next: "99.0.0" }));
+          expect(yield* (yield* named).check()).toMatchObject({ ready: false });
+          vi.stubEnv("npm_config_catalog", undefined);
+          vi.stubEnv("npm_config_registry", "https://registry.example.test/");
+          expect(yield* (yield* named).check()).toMatchObject({ ready: false });
+          const receipt = yield* fs.readFileString(
+            `${root}/.workspace-composition.json`
+          );
+          expect(receipt).not.toContain("registry.example.test");
+        }).pipe(Effect.provide(layer));
+      })
+  );
+
+  it.effect("rejects an inherited patch changed during installation", () =>
+    Effect.gen(function* () {
+      const patch = "/external/next.patch";
+      const layer = yield* memoryWorkspace("application", {
+        processes: Layer.effect(
+          ChildProcessSpawner.ChildProcessSpawner,
+          packageManager(() =>
+            Effect.gen(function* () {
+              const fs = yield* FileSystem.FileSystem;
+              yield* fs.writeFileString(patch, "changed during install");
+              return yield* installed;
+            }).pipe(Effect.orDie)
+          )
+        ),
+      });
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* fs.makeDirectory("/external", { recursive: true });
+        yield* fs.writeFileString(patch, "original patch");
+        yield* fs.writeFileString(
+          "/pnpm-workspace.yaml",
+          `patchedDependencies:\n  next@16.3.1: ${patch}\n`
+        );
+        vi.stubEnv(
+          "npm_config_patched_dependencies",
+          JSON.stringify({ "next@16.3.1": patch })
+        );
+        expect(yield* (yield* named).sync({}).pipe(Effect.flip)).toMatchObject({
+          _tag: "DependencyInstallationFailed",
+          phase: "inputs",
+        });
+        const receipt = yield* Schema.decodeEffect(
+          Schema.fromJsonString(Schema.JsonObject)
+        )(yield* fs.readFileString(`${root}/.workspace-composition.json`));
+        expect(receipt.installation).toBeNull();
+      }).pipe(Effect.provide(layer));
+    })
+  );
+
   it.effect(
     "keeps installed dependencies current across credential rotation but reconciles registry configuration",
     () =>

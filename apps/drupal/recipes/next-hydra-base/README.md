@@ -14,7 +14,7 @@ This recipe provisions the Drupal content contract used by `@repo/cms-drupal`:
 - cache-tag revalidation for pages and their referenced article dependencies;
 - viewer and previewer roles for OAuth clients;
 - a public PKCE OAuth client (`client_id=cli`) for Canvas CLI and Workbench browser login; and
-- translated regular and Canvas demo homepages, a resource center, articles, and nested native navigation.
+- a resource center, articles, and nested native navigation. The Editorial and Commerce recipes add the translated Paragraph and Canvas homepages and their Home menu link; Commerce includes products alongside the articles.
 
 Next.js for Drupal sends saved View-tab revisions through its short-lived signed Draft Mode URL. The connector validates that URL with Drupal and loads the requested revision through GraphQL. GraphQL Compose Preview separately sends unsaved form previews with their UUID and token; the connector validates that pair through the GraphQL `preview` query. Both flows use `/api/drupal-preview` before redirecting the iframe to the page's canonical path.
 
@@ -28,7 +28,7 @@ Canvas Translate adds a translation workspace at `/canvas/app/canvas_translate`.
 
 Canvas page translations share component-tree structure while retaining independently translatable component inputs. Structural edits such as adding, removing, or reordering a component therefore remain symmetrical across languages without overwriting translated component copy.
 
-The recipe preinstalls the external Canvas component definitions used by its default Canvas homepage and their corresponding derived `canvas.component.js.*` records. Recipe config synchronization suppresses Canvas component discovery, so both layers are included explicitly and a clean install does not require an initial component push. Run the package's `canvas:push` command after changing local component metadata to update Drupal. The Canvas parametrized-width image style is included explicitly so components with image entity-reference props can calculate their dependencies during the same clean recipe installation.
+The recipe preinstalls the external Canvas component definitions used by the Editorial and Commerce Canvas homepages and their corresponding derived `canvas.component.js.*` records. Recipe config synchronization suppresses Canvas component discovery, so both layers are included explicitly and a clean install does not require an initial component push. Run the package's `canvas:push` command after changing local component metadata to update Drupal. The Canvas parametrized-width image style is included explicitly so components with image entity-reference props can calculate their dependencies during the same clean recipe installation.
 
 The Canvas demo homepage mirrors the regular homepage's Hero and Featured Articles blocks. Featured Articles composes Article Card children through its `articles` slot, and each card selects an Article content entity.
 
@@ -36,13 +36,17 @@ The frontend sends the requested Drupal langcode explicitly for GraphQL routes, 
 
 The recipe configures local revalidation through `http://host.docker.internal:3001/api/revalidate` and leaves the secret empty. `ddev install` generates a secret, stores it on the Drupal site, and prints the matching `CMS_REVALIDATION_SECRET` for `apps/web/.env.local`. During local development, run the Drupal package's `dev:web` command so Portless uses port 3001 and Next.js listens on the host for DDEV.
 
-Apply it to a fresh Drupal installation from the web root:
+For a complete site, apply the selected homepage recipe to a fresh Drupal installation from the web root:
 
 ```sh
-drush recipe ../recipes/next-hydra-base -v
+# CMS-only site
+drush recipe ../recipes/next-hydra-editorial -v
+
+# Or, a Commerce site
+drush recipe ../recipes/next-hydra-commerce -v
 ```
 
-The sibling `next-hydra-commerce` recipe includes this base recipe and adds Commerce's Paragraph and Canvas blocks and dedicated catalog sample pages when Commerce is selected. Those samples deliberately omit the category ID to request an unfiltered collection. The base homepages do not require Commerce.
+Both homepage recipes include this shared base recipe. Editorial imports homepages with a hero and featured articles. Commerce imports the same homepages with a product collection between those blocks, in both Paragraphs and Canvas; it does not create separate catalog sample pages. The collection omits the category ID to request an unfiltered collection. Apply only one homepage recipe: importing another recipe does not replace existing content with the same UUID.
 
 The regular homepage, Canvas homepage, and `/resources` page reference the same three demo Articles. Their Featured Articles blocks expose every referenced `node:{id}` dependency through Drupal cacheability. Editing one Article therefore refreshes its Article route and each cached page that embeds it, without invalidating unrelated pages. Canvas page changes likewise invalidate the matching `canvas_page:{id}` frontend cache entry.
 
@@ -54,13 +58,15 @@ Create fields and bundles through Drupal or Drush, export their configuration, a
 pnpm --filter @repo/cms-drupal generate
 ```
 
-Drupal 11.4 can refresh demo content, including referenced media and files, with:
+Drupal 11.4 can export a Commerce homepage, including referenced media and files, with:
 
 ```sh
 php core/scripts/drupal content:export node <node-id> \
   --with-dependencies \
-  --dir=../recipes/next-hydra-base/content
+  --dir=../recipes/next-hydra-commerce/content
 ```
+
+Use `next-hydra-editorial/content` for CMS-only homepages. Keep shared articles, media, files, and the resource-center page in `next-hydra-base/content`; remove their duplicate exports from the homepage recipe. Never put a homepage or its Home menu link back into the base recipe, since that would make Drupal skip the selected homepage variant.
 
 Core's exporter does not currently emit portable embedded values for `entity_reference_revisions` fields. Keep Paragraphs embedded under the parent node's `field_components` values, as the demo landing pages do, rather than committing exported numeric Paragraph IDs.
 
