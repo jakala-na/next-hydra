@@ -60,7 +60,7 @@ echo "Installing Drupal..."
 remote_drush site:install minimal --verbose --yes
 
 echo "Applying the selected Drupal recipe..."
-site_recipe=../recipes/next-hydra-base
+site_recipe=../recipes/next-hydra-editorial
 if remote_ssh test -f recipes/next-hydra-commerce/recipe.yml; then
   site_recipe=../recipes/next-hydra-commerce
 fi

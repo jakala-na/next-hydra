@@ -171,17 +171,12 @@ const validateFileIntent = (receipt: Receipt) =>
         .filter((entry) => !pending.preserved.includes(entry.target))
         .map((entry) => [entry.target, entry])
     );
-    const ownedTargets = receipt.pending.files.flatMap((file) =>
-      file.temporary === null ? [file.target] : [file.target, file.temporary]
-    );
+    const ownedTargets = receipt.pending.files.map((file) => file.target);
     // Temporary siblings can look like runtime env files (for example
     // .env.example.<uuid>.pending). Validate their exact derivation below;
     // only final targets are subject to the owned-file classification.
     yield* validateOwnedTargets(
-      [
-        ...receipt.pending.files.map((file) => file.target),
-        ...receipt.pending.preserved,
-      ],
+      [...ownedTargets, ...receipt.pending.preserved],
       receipt.directory
     );
     yield* validatePreservedFiles(receipt.pending.preserved).pipe(
@@ -189,11 +184,24 @@ const validateFileIntent = (receipt: Receipt) =>
     );
     const allTargets = [
       ...ownedTargets,
+      ...receipt.pending.files.flatMap((file) =>
+        file.temporary === null ? [] : [file.temporary]
+      ),
       ...receipt.pending.initialization.map((file) => file.target),
     ];
     const targets = new Set(allTargets);
     if (targets.size !== allTargets.length) {
       return yield* invalid();
+    }
+    // Staging paths share the filesystem namespace, but are not application files.
+    // Their authority comes from the owned target and the operation ID below.
+    for (const target of allTargets) {
+      const parts = target.split("/");
+      for (let end = 1; end < parts.length; end += 1) {
+        if (targets.has(parts.slice(0, end).join("/"))) {
+          return yield* invalid();
+        }
+      }
     }
     for (const file of receipt.pending.initialization) {
       const target = yield* relativeFile(file.target).pipe(
@@ -246,8 +254,8 @@ const validateFileIntent = (receipt: Receipt) =>
         replaces !== (file.temporary !== null) ||
         (file.temporary !== null &&
           (!file.temporary.startsWith(`${file.target}.`) ||
-            !/^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.pending$/u.test(
-              file.temporary.slice(file.target.length)
+            !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.pending$/u.test(
+              file.temporary.slice(file.target.length + 1)
             )))
       ) {
         return yield* invalid();

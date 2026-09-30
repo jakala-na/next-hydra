@@ -20,7 +20,7 @@ cd apps/drupal
 ddev install
 ```
 
-The command installs Composer dependencies, installs Drupal, applies the selected recipes, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link. The local administrator login is `admin` / `admin`. It applies `recipes/next-hydra-base` for a CMS-only project, or `recipes/next-hydra-commerce` when Commerce is installed; the Commerce recipe includes the base recipe.
+The command installs Composer dependencies, installs Drupal, applies the selected recipes, creates the OAuth consumers, configures revalidation, rebuilds permissions, and prints a one-time login link. The local administrator login is `admin` / `admin`. It applies `recipes/next-hydra-editorial` for a CMS-only project, or `recipes/next-hydra-commerce` when Commerce is installed. Both include the shared base recipe and import their own homepage content.
 
 Copy the generated credentials into `apps/web/.env.local`:
 
@@ -235,7 +235,9 @@ The base recipe (`recipes/next-hydra-base`) installs the demo content model and 
 - Preview and revalidation configuration
 - Previewer and viewer OAuth consumers
 
-The Commerce recipe (`recipes/next-hydra-commerce`) adds product collection blocks for Paragraphs and Canvas, along with catalog sample pages. Product data comes from the selected Commerce provider rather than a Drupal product content type.
+The Editorial recipe (`recipes/next-hydra-editorial`) adds the Paragraph and Canvas homepages with a hero and featured articles. The Commerce recipe (`recipes/next-hydra-commerce`) adds the product collection definitions and imports those same homepages with a hero, product collection, and featured articles. It does not create separate catalog sample pages. Both variants preserve the homepage UUIDs, aliases, translations, and Home menu link. Product data comes from the selected Commerce provider rather than a Drupal product content type.
+
+Choose one top-level recipe for a fresh installation. The shared base recipe deliberately excludes the homepages and their Home menu link: Drupal imports dependent recipes first and skips existing content UUIDs, so Commerce cannot override a homepage already imported by the base recipe. On an existing site, edit the homepage to add the product collection; reapplying a recipe does not update existing homepage content.
 
 The optional Search recipe (`recipes/search-algolia`) installs Search API and its Algolia backend, with configuration for publishing Content records to Algolia.
 
