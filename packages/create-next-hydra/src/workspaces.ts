@@ -31,6 +31,7 @@ import {
   MaterializationFailed,
   SourceChanged,
   SnapshotUnavailable,
+  WorkspaceRecoveryRequired,
   WorkspaceUninitialized,
 } from "./errors.ts";
 import type { EnvironmentInitializationFailed } from "./errors.ts";
@@ -39,6 +40,7 @@ import {
   inspectInitialization,
   listUnregisteredFiles,
   namedInitializationFiles,
+  validatePreservedFiles,
   workspaceSetting,
 } from "./initialization.ts";
 import { WorkspaceDefinition } from "./model.ts";
@@ -119,14 +121,11 @@ export interface NamedWorkspace {
     | SourceChanged
     | WorkspaceUninitialized
   >;
-  readonly check: (
-    options?: Pick<DependencyOptions, "offline">
-  ) => Effect.Effect<
+  readonly check: Effect.Effect<
     CheckReport,
     | PreparationError
     | WorkspaceFileError
     | WorkspaceStateError
-    | DependencyError
     | DestinationNotEmpty
   >;
   readonly explain: (
@@ -312,23 +311,37 @@ export class Workspaces extends Context.Service<
           const parsed = yield* Schema.decodeEffect(
             Schema.fromJsonString(WorkspaceDefinition)
           )(definition, { onExcessProperty: "error" });
+          yield* validatePreservedFiles(parsed.preserve);
           return {
             definition,
             port: parsed.development?.port,
+            preserve: parsed.preserve,
             demoArchitecture: parsed.demo?.architecture,
             selection: { addOns: parsed.addOns, providers: parsed.providers },
           };
         });
         const operations = {
-          check: Effect.fn("NamedWorkspace.check")(function* (
-            options: Pick<DependencyOptions, "offline"> = {}
-          ) {
-            return yield* state.withRead(
+          check: state
+            .withRead(
               { directory: destination, sourceRoot },
               (observation) =>
                 Effect.gen(function* () {
-                  const { definition, port, selection, demoArchitecture } =
-                    yield* readDefinition;
+                  if (
+                    observation.pending !== null &&
+                    (observation.pending.kind !== "installation" ||
+                      !observation.pending.stopped)
+                  ) {
+                    return yield* new WorkspaceRecoveryRequired({
+                      directory: destination,
+                    });
+                  }
+                  const {
+                    definition,
+                    port,
+                    preserve,
+                    selection,
+                    demoArchitecture,
+                  } = yield* readDefinition;
                   const prepared = yield* sources.use(
                     { kind: "working-tree", root: sourceRoot },
                     (source) =>
@@ -346,22 +359,22 @@ export class Workspaces extends Context.Service<
                   );
                   const output = yield* namedInitializationFiles(
                     prepared.files,
-                    preserved
+                    preserved,
+                    preserve
                   );
                   const files = output.filter(
                     (file) => file.target !== ".gitignore"
                   );
                   const changes = [
-                    ...(yield* workspaceFiles.inspect(observation, files)),
+                    ...(yield* workspaceFiles.inspect(
+                      observation,
+                      files,
+                      preserve
+                    )),
                   ];
                   if (!preserved.has(".gitignore")) {
                     changes.push({ kind: "setting", target: ".gitignore" });
                   }
-                  const dependencyState = yield* dependencies.inspect(
-                    observation,
-                    files,
-                    options
-                  );
                   if (
                     (yield* fs.readFileString(definitionPath)) !== definition
                   ) {
@@ -370,21 +383,18 @@ export class Workspaces extends Context.Service<
                     });
                   }
                   return {
-                    ...dependencyState,
                     changes,
                     destination,
                     initialized: observation.initialized,
-                    ready:
-                      observation.initialized &&
-                      changes.length === 0 &&
-                      dependencyState.dependencies === "current",
+                    ready: observation.initialized && changes.length === 0,
                   };
                 }).pipe(
                   Effect.provideService(FileSystem.FileSystem, fs),
                   Effect.provideService(Path.Path, path)
-                )
-            );
-          }),
+                ),
+              { allowIncomplete: true }
+            )
+            .pipe(Effect.withSpan("NamedWorkspace.check")),
           diff: state
             .withRead(
               { directory: destination, sourceRoot },
@@ -412,6 +422,7 @@ export class Workspaces extends Context.Service<
                   ];
                   const owned = new Set([
                     ...targets,
+                    ...observation.preserved,
                     ...pending.flatMap((entry) =>
                       entry.temporary === null ? [] : [entry.temporary]
                     ),
@@ -517,8 +528,13 @@ export class Workspaces extends Context.Service<
               { directory: destination, sourceRoot },
               (access) =>
                 Effect.gen(function* () {
-                  const { definition, port, selection, demoArchitecture } =
-                    yield* readDefinition;
+                  const {
+                    definition,
+                    port,
+                    preserve,
+                    selection,
+                    demoArchitecture,
+                  } = yield* readDefinition;
                   const inspect = inspectInitialization(
                     destination,
                     definition
@@ -546,7 +562,8 @@ export class Workspaces extends Context.Service<
                   const preserved = yield* inspect;
                   const output = yield* namedInitializationFiles(
                     prepared.files,
-                    preserved
+                    preserved,
+                    preserve
                   );
                   // Ignore rules are seeded once and become workspace-owned settings.
                   const settings = output.filter(
@@ -562,10 +579,15 @@ export class Workspaces extends Context.Service<
                       ? yield* inventory.localEnvironment(sourceRoot)
                       : []
                   );
-                  const applied = yield* workspaceFiles.apply(access, files, [
-                    ...settings.map((file) => file.target),
-                    ...environment.map((file) => file.target),
-                  ]);
+                  const applied = yield* workspaceFiles.apply(
+                    access,
+                    files,
+                    [
+                      ...settings.map((file) => file.target),
+                      ...environment.map((file) => file.target),
+                    ],
+                    preserve
+                  );
                   for (const setting of settings) {
                     yield* access.initialize(
                       setting.target,

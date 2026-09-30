@@ -1,6 +1,5 @@
 "use client";
 import { Bolt } from "lucide-react";
-import type { Route } from "next";
 import Link from "next/link";
 
 export type NavItem = {
@@ -66,10 +65,7 @@ export function SiteHeader({
       <div className="container flex h-16 items-center justify-between gap-4 py-2">
         <div className="flex h-full items-center gap-6">
           <Link
-            href={
-              // SAFETY: The locale proxy resolves the site root to the localized catch-all route.
-              "/" as Route
-            }
+            href={{ pathname: "/" }}
             className="flex items-center space-x-2"
           >
             <Bolt className="h-8 w-8" />
@@ -79,7 +75,7 @@ export function SiteHeader({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden lg:block">{Search}</div>
+          <div className="w-10 lg:w-96">{Search}</div>
           {CartSlot}
           {MobileMenuSlot}
         </div>

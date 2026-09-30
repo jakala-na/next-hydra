@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import type {
   ProductAttributes,
   ProductDetail as ProductDetailType,
+  ProductFieldPath,
   ProductTypeKey,
 } from "./index";
 import {
@@ -13,6 +14,7 @@ import {
   ProductAttributeTime,
   ProductCard,
   ProductDetail,
+  productFieldPath,
 } from "./index";
 
 describe("ProductCard", () => {
@@ -75,6 +77,15 @@ describe("ProductCard", () => {
 });
 
 describe("Product Attributes", () => {
+  it("makes generated Product Attributes available to typed domain paths", () => {
+    const path = productFieldPath("variants.attributes.capacity");
+    type TypoIsProductFieldPath =
+      "variants.attributes.capcity" extends ProductFieldPath ? true : false;
+
+    expectTypeOf(path).toEqualTypeOf<"variants.attributes.capacity">();
+    expectTypeOf<TypoIsProductFieldPath>().toEqualTypeOf<false>();
+  });
+
   it("decodes effective Attributes for a generated Product Type", () => {
     const attributes = Schema.decodeUnknownSync(
       ProductAttributesSchemaByProductType[

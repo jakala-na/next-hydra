@@ -92,7 +92,7 @@ export function command(cwd: string) {
           check: Flag.Boolean("check").pipe(
             Flag.withDefault(false),
             Flag.withDescription(
-              "Check applied files and dependency evidence without changing the workspace."
+              "Check composed files without changing the workspace or checking installed dependencies."
             )
           ),
           copyEnv: Flag.Boolean("copy-env").pipe(
@@ -243,7 +243,7 @@ export function command(cwd: string) {
                 return;
               }
               if (check) {
-                const report = yield* workspace.check({ offline });
+                const report = yield* workspace.check;
                 yield* Console.log(
                   [
                     `${name}: ${report.ready ? "current" : "needs attention"}.`,
@@ -253,8 +253,6 @@ export function command(cwd: string) {
                     ...report.changes.map(
                       (change) => `${change.kind}: ${change.target}`
                     ),
-                    `Dependencies ${report.dependencies}.`,
-                    ...report.dependencyReasons,
                   ].join("\n")
                 );
                 if (!report.ready) {

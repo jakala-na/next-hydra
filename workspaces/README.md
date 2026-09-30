@@ -15,10 +15,10 @@ The same command updates an existing workspace. All application files are physic
 
 | Name | Selection | Web hostname |
 | --- | --- | --- |
-| cms-contentstack | Contentstack | web.cms-contentstack.localhost |
+| cms-contentstack | Contentstack, navigation search | web.cms-contentstack.localhost |
 | cms-drupal | Drupal | web.cms-drupal.localhost |
-| storefront-contentstack | Contentstack, WorkOS, commercetools, navigation search | web.storefront-contentstack.localhost |
-| storefront-drupal | Drupal, WorkOS, commercetools, navigation search | web.storefront-drupal.localhost |
+| storefront-contentstack | Contentstack, WorkOS, commercetools, Algolia search | web.storefront-contentstack.localhost |
+| storefront-drupal | Drupal, WorkOS, commercetools, Algolia search | web.storefront-drupal.localhost |
 
 These four demonstrations explicitly set `"demo": { "architecture": true }` in their definitions to retain architecture overlays, including in production builds. Omit that setting (or set it to `false`) for clean named output. Customer creation always produces clean source: composition removes the demo JSX, imports, toolbar, stylesheet and package dependency. No runtime environment switch or customer-side preprocessing is required. See the [annotation contract](../packages/demo-architecture/README.md) when editing demo boundaries.
 
@@ -26,7 +26,9 @@ The folder name determines the stable Portless name for each installed Next app:
 
 Do **not** commit generated `package.json` files to customize these names. Composition names apps that explicitly declare Portless configuration and includes the source checkout's pinned Portless dependency. It preserves package-owned build, test, typecheck, start and development commands; external apps without Portless configuration keep their scripts unchanged. Copied customer output also keeps Portless, using the sanitized customer project name for its hosts. The four definitions need no host or port settings. Names must be DNS labels (1–63 lowercase letters, numbers and hyphens; no leading/trailing hyphen). Optional `development.port` fixes the internal web port, with API/admin on the next two ports; normally Portless allocates these automatically. `pnpm run dev:app` in an app bypasses Portless when troubleshooting.
 
-The existing Portless environment adapter derives sibling app URLs and local auth callbacks from the actual `PORTLESS_URL`, preserving worktree prefixes, scheme and proxy port. It changes the process environment, not copied credential files. `PORTLESS_AUTO_ENV=0` keeps explicit URLs for mixed local/remote development. Remote authentication callback allowlists still need configuration; copying credentials does not update provider dashboards. Portless may require a one-time local proxy/certificate setup before the first dev run. Drupal's backend remains governed by its own DDEV configuration, not these Next-app hostnames.
+The existing Portless environment adapter derives sibling app URLs and local auth callbacks from the actual `PORTLESS_URL`, preserving worktree prefixes, scheme and proxy port. It changes the process environment, not copied credential files. `PORTLESS_AUTO_ENV=0` keeps explicit URLs for mixed local/remote development. Remote authentication callback allowlists still need configuration; copying credentials does not update provider dashboards. Portless may require a one-time local proxy/certificate setup before the first dev run.
+
+DDEV uses the workspace name directly, so `storefront-drupal` runs at `https://storefront-drupal.ddev.site:8443`. Composition scopes the selected app's `.ddev/config.yaml` and matching URLs in generated files, including environment examples. Existing private environment files and databases are untouched; update `DRUPAL_BASE_URL` yourself. For an existing DDEV installation, changing the name does not migrate its database: back it up before switching, or keep the old project and install a separate new site. A local DDEV name override takes precedence. Only one DDEV app per workspace is supported. The Drupal `dev:web` command still uses frontend port 3001, so these names isolate backends but do not enable simultaneous `dev:web` sessions.
 
 ## Author and refresh
 
@@ -45,6 +47,20 @@ pnpm --filter create-next-hydra compose storefront-drupal --explain packages/cms
 Refresh prepares the actual registry composition in isolation, preflights all owned files, then applies changes. Template-only edits do not reinstall dependencies. Changed dependency inputs or missing `node_modules` require an install; `--no-install` leaves that work pending, and `--offline` uses the local pnpm store. Watch serializes the same refresh and installation operation for each source change. Run the application's dev server separately. External CMS/search provisioning is a separate operation, never an initialization/update side effect.
 
 `--explain <workspace-relative-file>` is read-only: it shows the selected registry owner, absolute canonical source/template path, and the source to edit before refreshing. It also works before initialization. Applied state retains this provenance, and conflict reports include the edit location. The watcher tracks additions, edits, renames and deletions in selected source trees, along with registry files, templates and dependency inputs. It excludes dependencies, caches, ignored output and local environment files. New registry-owned files still require registration; watching does not infer ownership.
+
+### Files managed by other tools
+
+List exact workspace-relative files in a definition's `preserve` array:
+
+```json
+"preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"]
+```
+
+Compose seeds missing files once from the selected composition, then leaves their contents and deliberate deletions alone. Existing files are retained, including edits to files previously managed by Compose. They are excluded from freshness checks and subsequent composition snapshots; recipe source files remain synchronized.
+
+Removing a path resumes synchronization only when its local contents match the current composed output. Otherwise Compose reports a conflict for you to reconcile. If the file is no longer selected, it is left in place as an ordinary local file.
+
+This is a named-workspace setting, not registry metadata. Drupal definitions preserve their Composer files so native recipe installation can update dependencies. If you preserve a pnpm installation input, Compose skips automatic installation; run `pnpm install` in that workspace yourself. Git visibility is separate: new ignore files expose preserved paths; existing `.gitignore` files are never rewritten. Add allow rules there if you want to commit those files. Do not put credentials in `preserve`; runtime environment files already have their own handling.
 
 ### Inspect workspace changes
 
@@ -70,7 +86,7 @@ For agent-driven editing, use the known canonical path or search source first. W
 
 These snapshots are local inspection history, not a backup of unregistered work. They are never included in newly scaffolded projects. `--check` still answers whether the current definition and source require refresh; `--diff` answers what changed locally since the last composition snapshot.
 
-`--check` reports stale output, missing workspace ignore files, modified/deleted managed files, collisions at intended output paths and pending dependency installation, and exits nonzero if any need attention. Unrelated local files do not make a workspace stale. `--diff` can list eligible unowned files as informational; its exclusions are not a requirement for refresh. `--all` processes each named definition independently and reports failures without preventing the others from updating. Definitions must be direct children of `workspaces/` and visible to Git (tracked or new); explicitly ignored definitions and nested scratch definitions are not discovered.
+`--check` reports stale output, missing workspace ignore files, modified/deleted managed files and collisions at intended output paths, and exits nonzero if any need attention. It does not inspect package-manager configuration or installed dependencies. Unrelated local files do not make a workspace stale. `--diff` can list eligible unowned files as informational; its exclusions are not a requirement for refresh. `--all` processes each named definition independently and reports failures without preventing the others from updating. Definitions must be direct children of `workspaces/` and visible to Git (tracked or new); explicitly ignored definitions and nested scratch definitions are not discovered.
 
 ### Freshness before application verification
 
@@ -79,7 +95,7 @@ These checks answer different questions:
 | Command | What it establishes |
 | --- | --- |
 | `compose <name> --explain <file>` | Which canonical source or template owns an application file. |
-| `compose <name> --check` | Whether the selected workspace needs refresh, reconciliation or dependency installation against the current definition and source. This is the application freshness gate. |
+| `compose <name> --check` | Whether composed files need refresh or reconciliation against the current definition and source. This checks file freshness, not dependency installation. |
 | `compose <name> --diff` | Which workspace files changed locally since the last composition snapshot. It prints diagnostics and patches; a successful exit or an empty diff does not certify source freshness. |
 
 After editing canonical source, refresh the workspace and check immediately before running application tests or inspecting its browser UI. For example, from the repository root:
@@ -92,11 +108,13 @@ pnpm --dir workspaces/storefront-contentstack --filter web test
 
 If refresh or check reports local changes, inspect `compose storefront-contentstack --diff` and use the source mappings to reconcile them before retrying. Preserve unregistered work. A clean snapshot diff can coexist with stale application copies when only canonical source changed. Newly added source files must also be covered by registry ownership; use `pnpm registry:check` when changing that inventory.
 
-Application commands do not refresh source. Refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts or pending installation, so its presence does not replace the gate. `--no-install` is only appropriate when the workspace dependencies are already current.
+Application commands do not refresh source. Refresh explicitly or run `compose <name> --watch` separately. Wait for an in-progress refresh to finish before checking; a lock failure is not a passing check. A watcher can report conflicts, so its presence does not replace the gate. Use `--no-install` to manage installation yourself, and run pnpm in the workspace when needed. A passing Check does not establish dependency readiness.
 
 Passing the gate describes files on disk. Confirm the resolved server URL belongs to that workspace and allow development compilation to finish. Restart or rebuild when needed for configuration, dependency or runtime changes. If relevant source or output changes during verification, refresh and repeat affected checks; a previous pass does not cover later edits. See the [E2E guide](../docs/agents/e2e.md#freshness-before-application-verification) for the browser-suite workflow and the limits of current enforcement.
 
 ## Run and verify the composition
+
+Search is optional for CMS sites and required for Commerce. `cms-search-contentstack` and `cms-search-drupal` exercise Content-only Search; the storefront workspaces add Product search. Search's collection/card registries, provider strategy and CLI contribution are composed from the same selection. Without Commerce, Product pages, cards, connector transformations, type generation and pricing credentials are omitted. Drupal's Algolia recipe is likewise installed only with Search.
 
 Packages own their environment schemas in `keys.ts`; applications aggregate the selected packages' validators in `env.ts`. The Commerce API's `next.config.ts` imports `env.ts`, validating Auth (including admin and webhook settings), Commerce, Email, Payments and registration settings when Next loads the application configuration. Provider aliases determine which credentials are required: a WorkOS composition does not require Clerk credentials. Lazy service validation provides additional checks when services initialize; there is no separate environment-validation startup hook.
 

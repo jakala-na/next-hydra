@@ -1,0 +1,390 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "search-algolia",
+      "type": "registry:item",
+      "title": "Algolia Search provider",
+      "description": "Installs the Algolia InstantSearch provider adapter.",
+      "docs": "Run `pnpm --filter cli cli search provision --locale en-US` and repeat --locale for the deployment languages. Set ALGOLIA_APPLICATION_ID, ALGOLIA_ADMIN_API_KEY and ALGOLIA_REGION. An omitted --index-prefix uses unprefixed names. Provisioning configures the selected CMS Content indices, locale-isolated Query Suggestions, a scoped runtime search key, and a separate Content write key. All generated Search and Content credentials use one destination: --store local writes one private --output file, while --store vercel publishes them to the linked web project as server-side configuration with sensitive keys. Use local output for manual CMS setup because sensitive keys cannot be read back from Vercel. Commerce selections additionally install Product indexing, connectors, pricing configuration and `search types generate`. CMS indexing setup is owned by the selected CMS integration.",
+      "registryDependencies": [
+        "jakala-na/next-hydra/search-contract",
+        "search-web"
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/algolia",
+          "kind": "provider",
+          "slot": "search",
+          "binding": {
+            "specifier": "workspace:@repo/search-algolia@*",
+            "sourcePath": "packages/search-algolia"
+          },
+          "conditionalDependencies": [
+            { "providers": ["commerce"], "items": ["search-algolia-commerce"] }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "packages/search-algolia/registry/templates/composition.template.ts",
+              "target": "packages/search-algolia/composition.ts",
+              "slots": { "products": "members" }
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.example",
+          "target": "~/packages/search-algolia/.env.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "analytics-tags.ts",
+          "target": "~/packages/search-algolia/analytics-tags.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-indexing-handoff.test.ts",
+          "target": "~/packages/search-algolia/cli/content-indexing-handoff.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-indexing-handoff.ts",
+          "target": "~/packages/search-algolia/cli/content-indexing-handoff.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app-hook.ts",
+          "target": "~/packages/search-algolia/cli/content-search-app-hook.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/error-message.ts",
+          "target": "~/packages/search-algolia/cli/error-message.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.ts",
+          "target": "~/packages/search-algolia/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/layer.ts",
+          "target": "~/packages/search-algolia/cli/layer.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-api-keys-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-api-keys-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-authentications-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-authentications-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-commercetools-connector-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-commercetools-connector-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-index-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-index-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-ingestion-catalog-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-ingestion-catalog-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-live-clients.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-live-clients.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-live-shared.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-live-shared.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-live.test.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-live.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration-query-suggestions-live.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration-query-suggestions-live.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/administration.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/administration.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/config.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/content-only.test.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/content-only.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/managed-resource-names.test.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/managed-resource-names.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/managed-resource-names.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/managed-resource-names.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/model.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/plan.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/plan.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/provision.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/provision.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/runtime-credentials.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/runtime-credentials.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-mapping.ts",
+          "target": "~/packages/search-algolia/content-mapping.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-only.test.ts",
+          "target": "~/packages/search-algolia/content-only.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index-graph.ts",
+          "target": "~/packages/search-algolia/index-graph.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/search-algolia/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "keys.ts",
+          "target": "~/packages/search-algolia/keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/search-algolia/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.ts",
+          "target": "~/packages/search-algolia/provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-record.ts",
+          "target": "~/packages/search-algolia/search-record.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/search-algolia/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/search-algolia/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "search-algolia-commerce",
+      "type": "registry:item",
+      "title": "search-algolia-commerce",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/algolia-commerce",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/search-algolia",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "packages/search-algolia/composition.ts",
+              "slot": "products",
+              "module": "./product-provider",
+              "export": "productStrategiesFromEnvironment",
+              "order": 0
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": ".env.commerce.example",
+          "target": "~/packages/search-algolia/.env.commerce.example",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/index.test.ts",
+          "target": "~/packages/search-algolia/cli/index.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/commerce-connector-source.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/commerce-connector-source.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/provision.test.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/provision.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/transform-generator.test.ts",
+          "target": "~/packages/search-algolia/cli/transform-generator.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/transform-generator.ts",
+          "target": "~/packages/search-algolia/cli/transform-generator.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/typegen.test.ts",
+          "target": "~/packages/search-algolia/cli/typegen.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/typegen.ts",
+          "target": "~/packages/search-algolia/cli/typegen.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/generated-product.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/generated-product.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/generated-transform.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/generated-transform.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/scopes.test.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/scopes.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/scopes.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/scopes.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/transform.test.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/transform.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "connector/commercetools/transform.ts",
+          "target": "~/packages/search-algolia/connector/commercetools/transform.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index-graph.test.ts",
+          "target": "~/packages/search-algolia/index-graph.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index-settings.test.ts",
+          "target": "~/packages/search-algolia/index-settings.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "index-settings.ts",
+          "target": "~/packages/search-algolia/index-settings.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "price-audience.ts",
+          "target": "~/packages/search-algolia/price-audience.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-facet-fields.ts",
+          "target": "~/packages/search-algolia/product-facet-fields.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-hit.ts",
+          "target": "~/packages/search-algolia/product-hit.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "provider.test.ts",
+          "target": "~/packages/search-algolia/provider.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "route.test.ts",
+          "target": "~/packages/search-algolia/route.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-provider.ts",
+          "target": "~/packages/search-algolia/product-provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-keys.ts",
+          "target": "~/packages/search-algolia/product-keys.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/commerce.ts",
+          "target": "~/packages/search-algolia/cli/commerce.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provisioning/provision-products.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/provision-products.ts",
+          "type": "registry:file"
+        }
+      ],
+      "docs": "Run `pnpm --filter cli cli search provision --locale en-US` and repeat `--locale` for every locale this deployment should index. Add `--index-prefix <namespace>` only when the Algolia application needs namespaced indices; without it, provisioning uses base Product, Content, and Query Suggestions names and does not publish ALGOLIA_INDEX_PREFIX. Provide ALGOLIA_APPLICATION_ID, ALGOLIA_ADMIN_API_KEY, ALGOLIA_REGION, and a CTP_* management API Client scoped for manage_api_clients plus Store, Channel, and Customer Group reads. Set ALGOLIA_PRICE_CUSTOMER_GROUP_IDS to the comma-separated commercetools Customer Group IDs whose prices should receive indexed audience slices; leave it empty for public pricing only. Provisioning validates those IDs through the commercetools API and stores only the deployment-specific pricing Customer Group IDs in a managed transformation secret. Each native connector source is bound to one commerce Store and already projects Store-eligible prices and Store inventory. The transformation therefore treats its projected prices as authoritative, consumes the connector's Store-projected `isInStock` value directly, accepts the connector's default image URL strings as well as image objects, and performs no Store or channel filtering. It preserves every localized field supplied by the connector and projects prices by currency; price replicas are therefore shared by locales in the same Store and currency. The same audience allowlist is published as server-only runtime configuration so the search proxy falls back to the public price audience when a customer's group was not provisioned. The selected provider maps each explicit locale through application Store configuration; a locale without its own mapping reuses the default en-US Store projection. It derives Product primaries, Store-and-currency price replicas, and Store-and-locale Query Suggestions configurations from that mapping. The selected CMS projection maps each logical Content audience to exactly one physical index; provisioning configures each distinct selected index once, so a CMS connector can share one localized Content index without exposing that storage choice to the Search contract. Runtime Product and Content queries share a locale analytics tag, extended with the selected index namespace when present. Each locale-specific Query Suggestions configuration consumes both the Store's Product primary and the CMS-selected Content index through that tag. The CMS projection owns its indexed record paths, audience filters, searchable fields, and hit normalization, while Algolia compiles that projection into provider settings and requests. Provisioning reconciles the dedicated documented-scope commercetools API Client and its Algolia authentication, configures native connector resources and initial reindexes, then publishes an index-restricted ALGOLIA_SEARCH_API_KEY, the pricing audience allowlist, and the optional ALGOLIA_INDEX_PREFIX for the server-side proxy. Run `pnpm --filter cli cli search types generate` after changing commercetools Product Type schemas or configured currencies/locales so the connector input, typed Algolia field paths, and uploaded transformation remain schema-backed. A dedicated Content write key is reconciled using the selected CMS indexing operations and published alongside Search credentials to the selected destination. Contentstack app setup consumes that generated key when --install-content-search-app is requested; Drupal uses ALGOLIA_CONTENT_WRITE_API_KEY in its backend environment. Bootstrap and connector credentials are not exported. With Vercel output, the Content write key is available to the web server runtime and stored as sensitive; use local output when credentials need to be copied to Drupal."
+    }
+  ]
+}

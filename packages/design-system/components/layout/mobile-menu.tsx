@@ -21,6 +21,11 @@ import Link from "next/link";
 
 import type { NavigationItem } from "./navigation";
 
+const navigationHref = (href: string): Route =>
+  // SAFETY: NavigationItem hrefs come from the CMS navigation adapter and are
+  // application destinations accepted by the catch-all route.
+  href as Route;
+
 type MobileMenuProps = {
   navigationItems: NavigationItem[];
   Search?: React.ReactNode;
@@ -72,10 +77,7 @@ export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
                         <div className="flex flex-col gap-1">
                           {item.href ? (
                             <Link
-                              href={
-                                // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
-                                item.href as Route
-                              }
+                              href={navigationHref(item.href)}
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 font-medium text-sm transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               <span className="text-primary">
@@ -87,10 +89,7 @@ export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
                             <Link
                               // eslint-disable-next-line react/no-array-index-key
                               key={`child-${childIndex.toString()}`}
-                              href={
-                                // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
-                                child.href as Route
-                              }
+                              href={navigationHref(child.href)}
                               className="group flex gap-3 rounded-md border-transparent border-l-2 p-3 transition-colors hover:border-primary hover:bg-neutral-100"
                             >
                               {child.icon ? (
@@ -125,10 +124,7 @@ export function MobileMenu({ navigationItems, Search }: MobileMenuProps) {
                   <Link
                     // eslint-disable-next-line react/no-array-index-key
                     key={`link-${index.toString()}`}
-                    href={
-                      // SAFETY: CMS navigation URLs are resolved at runtime, outside the generated route inventory.
-                      item.href as Route
-                    }
+                    href={navigationHref(item.href)}
                     className="py-2 font-medium text-lg transition-colors hover:text-primary"
                   >
                     {item.title}

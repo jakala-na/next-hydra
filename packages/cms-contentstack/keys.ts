@@ -9,6 +9,7 @@ export const keys = () =>
     },
     runtimeEnv: {
       CONTENTSTACK_API_KEY: process.env.CONTENTSTACK_API_KEY,
+      CONTENTSTACK_BRANCH: process.env.CONTENTSTACK_BRANCH ?? "main",
       CONTENTSTACK_DELIVERY_TOKEN: process.env.CONTENTSTACK_DELIVERY_TOKEN,
       CONTENTSTACK_ENVIRONMENT: process.env.CONTENTSTACK_ENVIRONMENT,
       CONTENTSTACK_GRAPHQL_HOST_NAME:
@@ -27,6 +28,7 @@ export const keys = () =>
     },
     server: {
       CONTENTSTACK_API_KEY: z.string(),
+      CONTENTSTACK_BRANCH: z.string().min(1),
       CONTENTSTACK_DELIVERY_TOKEN: z.string().startsWith("cs"),
       CONTENTSTACK_ENVIRONMENT: z.string(),
       CONTENTSTACK_GRAPHQL_HOST_NAME: z.string(),

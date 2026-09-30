@@ -197,4 +197,34 @@ describe("schema type generation", () => {
       preservesTypeKey: true,
     });
   });
+
+  it("generates Product Attribute paths from Product Type schemas", async () => {
+    const schemaDirectory = await createTemporaryDirectory();
+    const outputDirectory = await createTemporaryDirectory();
+
+    await writeFile(
+      path.join(schemaDirectory, "equipment.json"),
+      JSON.stringify({
+        attributes: [
+          {
+            isRequired: true,
+            name: "capacity",
+            type: { name: "number" },
+          },
+        ],
+        key: "equipment",
+      }),
+      "utf-8"
+    );
+
+    await generateProductTypes(schemaDirectory, outputDirectory);
+
+    const attributes = await readFile(
+      path.join(outputDirectory, "attributes.ts"),
+      "utf-8"
+    );
+    expect(attributes).toContain(
+      "export type ProductAttributePath =\n  | FieldPath<EquipmentAttributes>;"
+    );
+  });
 });

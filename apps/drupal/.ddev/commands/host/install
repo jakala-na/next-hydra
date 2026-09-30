@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Description: Installs Drupal with the selected base or Commerce recipe.
+# Description: Installs Drupal with the selected Editorial or Commerce recipe.
 
 set -euo pipefail
 
@@ -13,12 +13,15 @@ ddev composer install
 ## Install Drupal
 ddev drush site:install minimal --account-name=admin --account-pass=admin --verbose -y
 
-## Apply the selected recipe (Commerce includes the base recipe)
-site_recipe=../recipes/next-hydra-base
+## Apply the selected homepage recipe (both include the shared base recipe)
+site_recipe=../recipes/next-hydra-editorial
 if [[ -f recipes/next-hydra-commerce/recipe.yml ]]; then
   site_recipe=../recipes/next-hydra-commerce
 fi
 ddev drush recipe "$site_recipe" -v
+if [[ -f .ddev/commands/host/install-search ]]; then
+  ddev install-search
+fi
 ddev drush cr
 
 ### Generate scopes

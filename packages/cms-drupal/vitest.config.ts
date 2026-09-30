@@ -7,5 +7,12 @@ export default defineConfig({
       "server-only": serverOnlyShim,
     },
   },
-  test: { server: { deps: { inline: ["@drupal-canvas/headless-next"] } } },
+  test: {
+    server: {
+      deps: {
+        // Resolve Next's extensionless imports through Vite, without mocking navigation.
+        inline: ["next-intl", "@drupal-canvas/headless-next"],
+      },
+    },
+  },
 });

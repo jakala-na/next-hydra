@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Add to Basket",
       "quoteRequest": "Request a Quote",
+      "priceStartsAt": "Price starts at {price}",
       "badgeNew": "New",
       "titlePlaceholder": "Product Variant Title",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Home",
       "products": "Products",
       "categoryFallback": "Category"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Category",
+          "availability": "Availability",
+          "price": "Price"
+        },
+        "showLess": "Show less",
+        "showMore": "Show more"
+      }
     },
     "article": {
       "readGuide": "Read guide"

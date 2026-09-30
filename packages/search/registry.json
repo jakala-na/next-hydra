@@ -1,0 +1,431 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "name": "search-contract",
+      "type": "registry:item",
+      "title": "Search contract",
+      "description": "Provider-neutral search transport, Content results, and composed search collections.",
+      "files": [
+        {
+          "path": "autocomplete-routing.ts",
+          "target": "~/packages/search/autocomplete-routing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "autocomplete.module.css",
+          "target": "~/packages/search/autocomplete.module.css",
+          "type": "registry:file"
+        },
+        {
+          "path": "autocomplete.tsx",
+          "target": "~/packages/search/autocomplete.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.ts",
+          "target": "~/packages/search/client.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "collections.test.tsx",
+          "target": "~/packages/search/collections.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-config.ts",
+          "target": "~/packages/search/combined-search-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-root.tsx",
+          "target": "~/packages/search/combined-search-root.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-routing.ts",
+          "target": "~/packages/search/combined-search-routing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-server.tsx",
+          "target": "~/packages/search/combined-search-server.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-skeleton.tsx",
+          "target": "~/packages/search/combined-search-skeleton.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-view.tsx",
+          "target": "~/packages/search/combined-search-view.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search.tsx",
+          "target": "~/packages/search/combined-search.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-collection.ts",
+          "target": "~/packages/search/content-collection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-indexing.ts",
+          "target": "~/packages/search/content-indexing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-search-app.ts",
+          "target": "~/packages/search/content-search-app.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "content-search-projection.ts",
+          "target": "~/packages/search/content-search-projection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "contract.ts",
+          "target": "~/packages/search/contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "icons/LICENSE",
+          "target": "~/packages/search/icons/LICENSE",
+          "type": "registry:file"
+        },
+        {
+          "path": "icons/search.svg",
+          "target": "~/packages/search/icons/search.svg",
+          "type": "registry:file"
+        },
+        {
+          "path": "icons/x.svg",
+          "target": "~/packages/search/icons/x.svg",
+          "type": "registry:file"
+        },
+        {
+          "path": "index.ts",
+          "target": "~/packages/search/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instant-search-history.test.ts",
+          "target": "~/packages/search/instant-search-history.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instant-search-history.ts",
+          "target": "~/packages/search/instant-search-history.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "instant-search-server.ts",
+          "target": "~/packages/search/instant-search-server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "package.json",
+          "target": "~/packages/search/package.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "presentation.ts",
+          "target": "~/packages/search/presentation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "resource-card.tsx",
+          "target": "~/packages/search/resource-card.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime.ts",
+          "target": "~/packages/search/runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-search-runtime.ts",
+          "target": "~/packages/search/runtime/make-search-runtime.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-collection.ts",
+          "target": "~/packages/search/search-collection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-field.module.css",
+          "target": "~/packages/search/search-field.module.css",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-page.tsx",
+          "target": "~/packages/search/search-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-pagination.tsx",
+          "target": "~/packages/search/search-pagination.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-query.tsx",
+          "target": "~/packages/search/search-query.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-route.ts",
+          "target": "~/packages/search/search-route.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.ts",
+          "target": "~/packages/search/server.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "tsconfig.json",
+          "target": "~/packages/search/tsconfig.json",
+          "type": "registry:file"
+        },
+        {
+          "path": "validation.ts",
+          "target": "~/packages/search/validation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.config.ts",
+          "target": "~/packages/search/vitest.config.ts",
+          "type": "registry:file"
+        }
+      ],
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/core",
+          "kind": "package",
+          "conditionalDependencies": [
+            { "providers": ["commerce"], "items": ["search-commerce"] }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "packages/search/registry/templates/collections.template.ts",
+              "target": "packages/search/collections.ts",
+              "slots": { "collections": "members" }
+            },
+            {
+              "source": "packages/search/registry/templates/cards.template.ts",
+              "target": "packages/search/cards.ts",
+              "slots": { "cards": "members" }
+            }
+          ],
+          "slotBindings": [
+            {
+              "target": "packages/search/collections.ts",
+              "slot": "collections",
+              "module": "./content-collection",
+              "export": "contentCollection",
+              "order": 20
+            },
+            {
+              "target": "packages/search/cards.ts",
+              "slot": "cards",
+              "module": "./resource-card",
+              "export": "ContentResultCard",
+              "as": "content"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "search-commerce",
+      "type": "registry:item",
+      "title": "search-commerce",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/commerce",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/search",
+              "name": "@repo/commerce",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "packages/search/collections.ts",
+              "slot": "collections",
+              "module": "./product-collection",
+              "export": "productCollection",
+              "order": 10
+            },
+            {
+              "target": "packages/search/cards.ts",
+              "slot": "cards",
+              "module": "./product-card",
+              "export": "ProductResultCard",
+              "as": "products"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "autocomplete-routing.test.ts",
+          "target": "~/packages/search/autocomplete-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "client.test.ts",
+          "target": "~/packages/search/client.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-routing.test.ts",
+          "target": "~/packages/search/combined-search-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "combined-search-server.test.tsx",
+          "target": "~/packages/search/combined-search-server.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/combined-search.feature",
+          "target": "~/packages/search/e2e/@search/combined-search.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/combined-search.steps.ts",
+          "target": "~/packages/search/e2e/@search/combined-search.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/product-search.feature",
+          "target": "~/packages/search/e2e/@search/product-search.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/product-search.steps.ts",
+          "target": "~/packages/search/e2e/@search/product-search.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-autocomplete.feature",
+          "target": "~/packages/search/e2e/@search/search-autocomplete.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-autocomplete.steps.ts",
+          "target": "~/packages/search/e2e/@search/search-autocomplete.steps.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@search/search-context.ts",
+          "target": "~/packages/search/e2e/@search/search-context.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-card.tsx",
+          "target": "~/packages/search/product-card.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-discovery.ts",
+          "target": "~/packages/search/product-discovery.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-config.ts",
+          "target": "~/packages/search/product-listing-config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-page.tsx",
+          "target": "~/packages/search/product-listing-page.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-root.tsx",
+          "target": "~/packages/search/product-listing-root.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-routing.test.ts",
+          "target": "~/packages/search/product-listing-routing.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-routing.ts",
+          "target": "~/packages/search/product-listing-routing.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-server.test.tsx",
+          "target": "~/packages/search/product-listing-server.test.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-server.tsx",
+          "target": "~/packages/search/product-listing-server.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-skeleton.tsx",
+          "target": "~/packages/search/product-listing-skeleton.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing-view.tsx",
+          "target": "~/packages/search/product-listing-view.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-listing.tsx",
+          "target": "~/packages/search/product-listing.tsx",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-search-audience.ts",
+          "target": "~/packages/search/product-search-audience.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "runtime/make-search-runtime.test.ts",
+          "target": "~/packages/search/runtime/make-search-runtime.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "server.test.ts",
+          "target": "~/packages/search/server.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "validation.test.ts",
+          "target": "~/packages/search/validation.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-contract.ts",
+          "target": "~/packages/search/product-contract.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product-collection.ts",
+          "target": "~/packages/search/product-collection.ts",
+          "type": "registry:file"
+        }
+      ]
+    }
+  ]
+}

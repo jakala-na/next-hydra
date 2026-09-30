@@ -129,7 +129,7 @@
           "enum": ["provider", "add-on", "preset", "package", "recipe"]
         },
         "slot": {
-          "enum": ["auth", "cms", "commerce"]
+          "enum": ["auth", "cms", "commerce", "search"]
         },
         "binding": {
           "type": "object",
@@ -188,7 +188,12 @@
                 "type": "string",
                 "minLength": 1,
                 "not": {
-                  "enum": ["@repo/auth", "@repo/cms", "@repo/commerce-provider"]
+                  "enum": [
+                    "@repo/auth",
+                    "@repo/cms",
+                    "@repo/commerce-provider",
+                    "@repo/search-provider"
+                  ]
                 }
               },
               "specifier": {
@@ -216,7 +221,7 @@
                 ]
               },
               "slot": {
-                "enum": ["auth", "cms", "commerce"]
+                "enum": ["auth", "cms", "commerce", "search"]
               }
             }
           }
@@ -232,6 +237,9 @@
               "enum": ["optional", "required", "forbidden"]
             },
             "commerce": {
+              "enum": ["optional", "required", "forbidden"]
+            },
+            "search": {
               "enum": ["optional", "required", "forbidden"]
             }
           }
@@ -308,6 +316,10 @@
                 "commerce": {
                   "type": "string",
                   "minLength": 1
+                },
+                "search": {
+                  "type": "string",
+                  "minLength": 1
                 }
               }
             },
@@ -332,7 +344,7 @@
                 "type": "array",
                 "minItems": 1,
                 "items": {
-                  "enum": ["auth", "cms", "commerce"]
+                  "enum": ["auth", "cms", "commerce", "search"]
                 }
               },
               "items": {

@@ -9,7 +9,7 @@
         "nextHydra": {
           "id": "next-hydra/commerce/core",
           "kind": "package",
-          "providerSlots": { "auth": "required" },
+          "providerSlots": { "auth": "required", "search": "required" },
           "providerDependencies": [
             {
               "cwd": "apps/web",
@@ -843,6 +843,11 @@
           "type": "registry:file"
         },
         {
+          "path": "product/field-path.ts",
+          "target": "~/packages/commerce/product/field-path.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "product/generated/attributes-boundary.test.ts",
           "target": "~/packages/commerce/product/generated/attributes-boundary.test.ts",
           "type": "registry:file"
@@ -900,6 +905,11 @@
         {
           "path": "product/product-discovery.ts",
           "target": "~/packages/commerce/product/product-discovery.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "product/product-field-path.ts",
+          "target": "~/packages/commerce/product/product-field-path.ts",
           "type": "registry:file"
         },
         {
@@ -965,6 +975,11 @@
         {
           "path": "scripts/commerce-boundaries.ts",
           "target": "~/packages/commerce/scripts/commerce-boundaries.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-indexing.ts",
+          "target": "~/packages/commerce/search-indexing.ts",
           "type": "registry:file"
         },
         {

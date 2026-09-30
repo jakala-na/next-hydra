@@ -53,6 +53,8 @@ jobs:
         workspace:
           - cms-contentstack
           - cms-drupal
+          - cms-search-contentstack
+          - cms-search-drupal
           - storefront-contentstack
           - storefront-drupal
     steps:

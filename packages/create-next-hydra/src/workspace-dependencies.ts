@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
+import { isDeepStrictEqual } from "node:util";
 
 import {
   Array as EffectArray,
@@ -9,6 +10,7 @@ import {
   FileSystem,
   Layer,
   Order,
+  Option,
   Path,
   Schema,
   Stream,
@@ -91,7 +93,21 @@ const hasUnboundedInputs = (value: Schema.Json): boolean => {
   return false;
 };
 
-const inputsFor = (directory: string, files: readonly PreparedFile[]) =>
+// These structured pnpm settings can be mirrored into scripts from workspace YAML.
+// They affect installation even when they match an ancestor's configuration.
+const structuredPnpmSettings = {
+  npm_config_catalog: "catalog",
+  npm_config_catalogs: "catalogs",
+  npm_config_overrides: "overrides",
+  npm_config_patched_dependencies: "patchedDependencies",
+};
+
+const inputsFor = (
+  directory: string,
+  files: readonly PreparedFile[],
+  fs: FileSystem.FileSystem,
+  path: Path.Path
+) =>
   Effect.gen(function* () {
     const settings = files.find(
       (file) => file.target === "pnpm-workspace.yaml"
@@ -166,6 +182,56 @@ const inputsFor = (directory: string, files: readonly PreparedFile[]) =>
         .update(String(file.content.length))
         .update("\0")
         .update(file.content);
+    }
+    hash.update("pnpm-environment\0");
+    for (const name of EffectArray.sort(
+      Object.keys(process.env),
+      Order.String
+    )) {
+      if (Object.hasOwn(structuredPnpmSettings, name.toLowerCase())) {
+        hash
+          .update(name.toLowerCase())
+          .update("\0")
+          .update(process.env[name] ?? "")
+          .update("\0");
+        const decoded = Schema.decodeUnknownOption(
+          Schema.fromJsonString(Schema.Json)
+        )(process.env[name]);
+        if (Option.isNone(decoded)) {
+          unbounded = true;
+          continue;
+        }
+        unbounded ||= hasUnboundedInputs(decoded.value);
+        if (name.toLowerCase() === "npm_config_patched_dependencies") {
+          const environmentPatches = Schema.decodeUnknownOption(
+            Schema.Record(Schema.String, Schema.String)
+          )(decoded.value);
+          if (Option.isNone(environmentPatches)) {
+            unbounded = true;
+            continue;
+          }
+          for (const patch of EffectArray.sort(
+            Object.values(environmentPatches.value),
+            Order.String
+          )) {
+            const patchPath = path.resolve(directory, patch);
+            if (
+              !(yield* fs.exists(patchPath)) ||
+              (yield* fs.stat(patchPath)).type !== "File"
+            ) {
+              unbounded = true;
+              continue;
+            }
+            const content = yield* fs.readFile(patchPath);
+            hash
+              .update(patchPath)
+              .update("\0")
+              .update(String(content.length))
+              .update("\0")
+              .update(content);
+          }
+        }
+      }
     }
     return { files: selected, key: hash.digest("hex"), outputs, unbounded };
   });
@@ -331,7 +397,44 @@ export class WorkspaceDependencies extends Context.Service<
             }
             parent = next;
           }
+          const mirrored = new Map<string, unknown[]>();
           for (const root of roots) {
+            const settingsPath = path.join(root, "pnpm-workspace.yaml");
+            if (yield* fs.exists(settingsPath)) {
+              const document = parseDocument(
+                yield* fs.readFileString(settingsPath)
+              );
+              if (document.errors.length) {
+                return true;
+              }
+              const decodedSettings = Schema.decodeUnknownOption(
+                Schema.JsonObject
+              )(document.toJS());
+              if (Option.isNone(decodedSettings)) {
+                return true;
+              }
+              const settings = decodedSettings.value;
+              for (const [name, key] of Object.entries(
+                structuredPnpmSettings
+              )) {
+                const values = mirrored.get(name) ?? [];
+                values.push(settings[key]);
+                const patches = Schema.decodeUnknownOption(
+                  Schema.Record(Schema.String, Schema.String)
+                )(settings[key]);
+                if (key === "patchedDependencies" && Option.isSome(patches)) {
+                  values.push(
+                    Object.fromEntries(
+                      Object.entries(patches.value).map(([name, file]) => [
+                        name,
+                        path.resolve(root, file),
+                      ])
+                    )
+                  );
+                }
+                mirrored.set(name, values);
+              }
+            }
             if (yield* fs.exists(path.join(root, ".pnpmfile.cjs"))) {
               return true;
             }
@@ -365,13 +468,44 @@ export class WorkspaceDependencies extends Context.Service<
             "npm_config_manage_package_manager_versions",
             "npm_config_verify_deps_before_run",
           ]);
-          return Object.keys(process.env).some(
-            (name) =>
-              (name.toLowerCase().startsWith("npm_config_") &&
-                !metadata.has(name.toLowerCase())) ||
+          return Object.entries(process.env).some(([name, value]) => {
+            const key = name.toLowerCase();
+            // pnpm run exports workspace objects as JSON, plus default registries.
+            // Accept mirrors only when they equal declared configuration; overrides
+            // and unknown settings must still be reconciled by pnpm.
+            const candidates = mirrored.get(key);
+            if (candidates) {
+              const decoded = Schema.decodeUnknownOption(
+                Schema.fromJsonString(Schema.Json)
+              )(value);
+              if (
+                Option.isSome(decoded) &&
+                candidates.some((candidate) =>
+                  isDeepStrictEqual(candidate, decoded.value)
+                )
+              ) {
+                return false;
+              }
+            }
+            if (
+              (key === "npm_config_registry" &&
+                value === "https://registry.npmjs.org/") ||
+              (key === "npm_config__jsr_registry" &&
+                value === "https://npm.jsr.io/") ||
+              (key === "npm_config_frozen_lockfile" && value === "")
+            ) {
+              return false;
+            }
+            return (
+              (key.startsWith("npm_config_") && !metadata.has(key)) ||
               (name.startsWith("PNPM_") &&
-                !["PNPM_HOME", "PNPM_PACKAGE_NAME"].includes(name))
-          );
+                ![
+                  "PNPM_HOME",
+                  "PNPM_PACKAGE_NAME",
+                  "PNPM_SCRIPT_SRC_DIR",
+                ].includes(name))
+            );
+          });
         });
       const inspect = Effect.fn("WorkspaceDependencies.inspect")(function* (
         observation: Pick<
@@ -390,7 +524,7 @@ export class WorkspaceDependencies extends Context.Service<
         }
         const failure = () =>
           new DependencyInstallationFailed({ directory, phase: "inputs" });
-        const inputs = yield* inputsFor(directory, files).pipe(
+        const inputs = yield* inputsFor(directory, files, fs, path).pipe(
           Effect.mapError(failure)
         );
         const reasons: string[] = [];
@@ -416,7 +550,7 @@ export class WorkspaceDependencies extends Context.Service<
           Config.withDefault("development"),
           Effect.mapError(failure)
         );
-        // Check verifies recorded installation, not the executable a future install
+        // Inspection verifies recorded installation, not the executable a future install
         // might select. Never bootstrap a package manager during read-only inspection.
         if (
           !previous.toolchain.startsWith(
@@ -472,9 +606,21 @@ export class WorkspaceDependencies extends Context.Service<
         if (process.platform === "win32") {
           return yield* failure("launch");
         }
-        const inputs = yield* inputsFor(directory, files).pipe(
+        const inputs = yield* inputsFor(directory, files, fs, path).pipe(
           Effect.mapError(() => failure("inputs"))
         );
+        const preserved = access ? (yield* access.observation).preserved : [];
+        const workspaceOwnedInputs = inputs.files.filter((file) =>
+          preserved.includes(file.target)
+        );
+        if (workspaceOwnedInputs.length > 0) {
+          return {
+            dependencies: "pending",
+            dependencyReasons: [
+              `Installation skipped for preserved pnpm inputs: ${workspaceOwnedInputs.map((file) => file.target).join(", ")}. Run pnpm install in the workspace`,
+            ],
+          };
+        }
         const expected = access
           ? new Map(
               (yield* access.appliedEntries).map((entry) => [
@@ -500,6 +646,12 @@ export class WorkspaceDependencies extends Context.Service<
               if (!sameFingerprint(actual, expected.get(file.target) ?? null)) {
                 return yield* failure("inputs");
               }
+            }
+            const current = yield* inputsFor(directory, files, fs, path).pipe(
+              Effect.mapError(() => failure("inputs"))
+            );
+            if (current.key !== inputs.key) {
+              return yield* failure("inputs");
             }
           });
         yield* verifyInputs(true);

@@ -92,12 +92,18 @@ export const renderTemplate = Effect.fn("Composition.renderTemplate")(
         message: `Conflicting imports for ${template.target}`,
       });
     }
+    const importsByModule = new Map<string, string[]>();
+    for (const binding of selected) {
+      const imports = importsByModule.get(binding.module) ?? [];
+      imports.push(`${binding.export}${binding.as ? ` as ${binding.as}` : ""}`);
+      importsByModule.set(binding.module, imports);
+    }
     const context: TemplateContext = {
       enabled: {},
-      imports: selected
+      imports: [...importsByModule]
         .map(
-          (binding) =>
-            `import { ${binding.export}${binding.as ? ` as ${binding.as}` : ""} } from ${JSON.stringify(binding.module)};`
+          ([module, imports]) =>
+            `import { ${imports.join(", ")} } from ${JSON.stringify(module)};`
         )
         .join("\n"),
       slots: {},

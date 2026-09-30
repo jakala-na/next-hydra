@@ -8,6 +8,7 @@ import {
   CommercetoolsProductRequestFailure,
 } from "./client";
 import type {
+  CommercetoolsProductContext,
   CommercetoolsProductProjection,
   CommercetoolsProductSelectionRule,
   CommercetoolsProductVariant,
@@ -103,9 +104,11 @@ const resolveStoreQuery = graphql(`
     store(key: $storeKey) {
       distributionChannels {
         id
+        key
       }
       supplyChannels {
         id
+        key
       }
     }
   }
@@ -116,6 +119,7 @@ const resolveCustomerGroupQuery = graphql(`
     customer(id: $customerId) {
       customerGroup {
         id
+        key
       }
     }
   }
@@ -435,26 +439,42 @@ export const commercetoolsProductDiscoveryClientLayer = Layer.effect(
               message: `Commercetools Store ${input.storeKey} was not found`,
             });
           }
-          const distributionChannelId = store.distributionChannels[0]?.id;
-          if (distributionChannelId === undefined) {
+          const distributionChannel = store.distributionChannels[0];
+          if (distributionChannel === undefined) {
             throw new CommercetoolsProductRequestFailure({
               message: `Commercetools Store ${input.storeKey} has no distribution channel`,
             });
           }
-          const customerGroupId =
+          if (distributionChannel.key === null) {
+            throw new CommercetoolsProductRequestFailure({
+              message: `Commercetools Store ${input.storeKey} has a distribution channel without a key`,
+            });
+          }
+          const supplyChannels = store.supplyChannels.map((channel) => {
+            if (channel.key === null) {
+              throw new CommercetoolsProductRequestFailure({
+                message: `Commercetools Store ${input.storeKey} has a supply channel without a key`,
+              });
+            }
+            return channel;
+          });
+          const customerGroup =
             input.customerId === undefined
               ? undefined
               : failOnGraphqlError(
                   await client.query(resolveCustomerGroupQuery, {
                     customerId: input.customerId,
                   })
-                ).data?.customer?.customerGroup?.id;
-
-          return {
-            distributionChannelId,
-            supplyChannelIds: store.supplyChannels.map(({ id }) => id),
-            ...(customerGroupId === undefined ? {} : { customerGroupId }),
+                ).data?.customer?.customerGroup;
+          const resolvedContext: CommercetoolsProductContext = {
+            distributionChannelId: distributionChannel.id,
+            distributionChannelKey: distributionChannel.key,
+            supplyChannelIds: supplyChannels.map(({ id }) => id),
+            supplyChannelKeys: supplyChannels.map(({ key }) => key),
           };
+          return customerGroup === undefined || customerGroup === null
+            ? resolvedContext
+            : { ...resolvedContext, customerGroupId: customerGroup.id };
         })
       ),
     });

@@ -18,6 +18,7 @@ export const config = {
     "/((?!api|_next/|_static|_vercel|ingest|monitoring).*)",
     /*{% if enabled.proxy %}*/
     "/api/auth/:path*",
+    "/api/search/:path*",
     /*{% endif %}*/
   ],
 };

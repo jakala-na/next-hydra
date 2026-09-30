@@ -85,6 +85,10 @@ type RegistryIndex = Effect.Success<ReturnType<typeof registryIndex>>;
 // keep a composition receipt. Custom providers are described by the acquired graph.
 const knownProviders = new Map([
   [
+    "next-hydra/search/algolia",
+    { alias: "@repo/search-provider", package: "@repo/search-algolia" },
+  ],
+  [
     "next-hydra/auth/clerk",
     { alias: "@repo/auth", package: "@repo/auth-clerk" },
   ],
@@ -205,7 +209,7 @@ const installedRequirements = Effect.fn(
     );
   };
   for (const metadata of selections.values()) {
-    for (const slot of ["auth", "cms", "commerce"] as const) {
+    for (const slot of ["auth", "cms", "commerce", "search"] as const) {
       const requirement = metadata.providerSlots?.[slot];
       const present =
         manifest.dependencies?.[providerAliases[slot]] !== undefined;

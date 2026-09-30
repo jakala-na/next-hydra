@@ -2,7 +2,7 @@
   "providers": {
     "cms": "contentstack"
   },
-  "addOns": [],
+  "addOns": ["app-web-navigation-search"],
   "demo": {
     "architecture": true
   }

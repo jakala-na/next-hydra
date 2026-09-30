@@ -5,7 +5,7 @@ import { InvalidComposition } from "./errors.ts";
 import type { SelectionRequest } from "./model.ts";
 import { Workspaces } from "./workspaces.ts";
 
-const slots = ["auth", "cms", "commerce"] as const;
+const slots = ["auth", "cms", "commerce", "search"] as const;
 const choices = {
   auth: [
     { title: "WorkOS", value: "workos" },
@@ -16,6 +16,7 @@ const choices = {
     { title: "Contentstack", value: "contentstack" },
   ],
   commerce: [{ title: "Commercetools", value: "commercetools" }],
+  search: [{ title: "Algolia", value: "algolia" }],
 };
 
 export const createCommand = (cwd: string) =>
@@ -26,6 +27,7 @@ export const createCommand = (cwd: string) =>
       auth: Flag.String("auth").pipe(Flag.optional),
       cms: Flag.String("cms").pipe(Flag.optional),
       commerce: Flag.String("commerce").pipe(Flag.optional),
+      search: Flag.String("search").pipe(Flag.optional),
       commit: Flag.Boolean("commit").pipe(Flag.withDefault(true)),
       directory: Argument.String("project-directory").pipe(Argument.optional),
       preset: Flag.String("preset").pipe(Flag.optional),
@@ -69,6 +71,7 @@ export const createCommand = (cwd: string) =>
           auth: Option.getOrUndefined(options.auth),
           cms: Option.getOrUndefined(options.cms),
           commerce: Option.getOrUndefined(options.commerce),
+          search: Option.getOrUndefined(options.search),
         };
         if (
           slots.some(

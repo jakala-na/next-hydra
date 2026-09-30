@@ -17,6 +17,7 @@
     "./lib/navigation": "./lib/navigation/index.ts",
     "./next-config": "./next-config.ts",
     "./proxy": "./proxy.ts",
+    "./search": "./search.ts",
     "./security": "./security.ts",
     "./routes/canvas": "./routes/canvas.ts",
     "./routes/disable-draft": "./routes/disable-draft.ts",
@@ -34,6 +35,7 @@
     "canvas:workbench": "pnpm run canvas:css && canvas-workbench --config scripts/canvas-workbench.config.mjs",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "generate": "node --use-system-ca scripts/gql-sync.ts",
+    "lint:prepare": "pnpm run canvas:registry",
     "test": "NODE_ENV=test vitest run",
     "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/cms-drupal/tsconfig.json"
   },
@@ -45,6 +47,7 @@
     "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
+    "@repo/search": "workspace:*",
     "@t3-oss/env-nextjs": "catalog:",
     "@urql/core": "^5.1.2",
     "effect": "catalog:",

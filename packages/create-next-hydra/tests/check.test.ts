@@ -24,7 +24,7 @@ it.effect(
         const workspace = yield* named;
         yield* workspace.sync({ install: "skip" });
         yield* fs.remove(`${root}/.gitignore`);
-        expect((yield* workspace.check()).changes).toEqual([
+        expect((yield* workspace.check).changes).toEqual([
           { kind: "setting", target: ".gitignore" },
         ]);
         expect(yield* fs.exists(`${root}/.gitignore`)).toBeFalsy();
@@ -33,29 +33,29 @@ it.effect(
 );
 
 it.effect(
-  "reports files-only synchronization as needing installation without writing state or running a package manager",
+  "accepts files-only synchronization without inspecting package configuration, writing state or running a package manager",
   () =>
     Effect.gen(function* () {
       const layer = yield* memoryWorkspace("application");
       yield* Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* (yield* named).sync({ install: "skip" });
+        yield* fs.writeFileString(
+          "/source/.npmrc",
+          "@example:registry=https://registry.example.test\n"
+        );
         const before = yield* fs.readFile(
           `${root}/.workspace-composition.json`
         );
         const report = yield* named.pipe(
-          Effect.flatMap((workspace) => workspace.check()),
+          Effect.flatMap((workspace) => workspace.check),
           Effect.provide(memoryWorkspaceServices())
         );
         expect(report).toMatchObject({
           changes: [],
-          dependencies: "pending",
           initialized: true,
-          ready: false,
+          ready: true,
         });
-        expect(report.dependencyReasons).toEqual([
-          "No successful installation recorded",
-        ]);
         expect(
           yield* fs.readFile(`${root}/.workspace-composition.json`)
         ).toEqual(before);
@@ -80,7 +80,7 @@ it.effect(
           `${root}/apps/web`,
           "Local file replacing app directory\n"
         );
-        expect((yield* workspace.check()).changes).toEqual([
+        expect((yield* workspace.check).changes).toEqual([
           { kind: "conflict", target: "apps/web" },
         ]);
         expect(yield* fs.readFileString(`${root}/apps/web`)).toBe(
@@ -98,13 +98,13 @@ it.effect(
       yield* Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const workspace = yield* named;
-        expect(yield* workspace.check()).toMatchObject({
+        expect(yield* workspace.check).toMatchObject({
           initialized: false,
           ready: false,
         });
         yield* workspace.sync({ install: "skip" });
         yield* fs.remove(`${root}/.workspace-composition.json`);
-        const missing = yield* workspace.check();
+        const missing = yield* workspace.check;
         expect(missing).toMatchObject({ initialized: false, ready: false });
         expect(missing.changes).toContainEqual({
           kind: "unregistered",
@@ -117,7 +117,7 @@ it.effect(
           `${root}/.workspace-composition.json`,
           "{broken receipt"
         );
-        expect(yield* workspace.check().pipe(Effect.flip)).toMatchObject({
+        expect(yield* workspace.check.pipe(Effect.flip)).toMatchObject({
           _tag: "WorkspaceStateInvalid",
         });
       }).pipe(Effect.provide(layer));
@@ -149,7 +149,7 @@ it.effect(
         const workspace = yield* named;
         yield* workspace.sync({ install: "skip" });
         pause = true;
-        const checking = yield* workspace.check().pipe(Effect.forkChild);
+        const checking = yield* workspace.check.pipe(Effect.forkChild);
         yield* Deferred.await(entered);
         yield* workspace.sync({ install: "skip" });
         yield* Deferred.succeed(release, undefined);
@@ -185,7 +185,7 @@ it.effect("does not inspect an actively synchronizing workspace", () =>
         .sync({ install: "skip" })
         .pipe(Effect.forkChild);
       yield* Deferred.await(entered);
-      expect(yield* workspace.check().pipe(Effect.flip)).toMatchObject({
+      expect(yield* workspace.check.pipe(Effect.flip)).toMatchObject({
         _tag: "WorkspaceBusy",
       });
       yield* Deferred.succeed(release, undefined);
@@ -210,7 +210,7 @@ it.effect(
           `${target}/draft.ts`,
           "Keep this nested draft\n"
         );
-        const report = yield* workspace.check();
+        const report = yield* workspace.check;
         expect(report.ready).toBeFalsy();
         expect(report.changes).toEqual([
           { kind: "conflict", target: "apps/web/layout.tsx" },
@@ -244,7 +244,7 @@ it.effect(
           `${root}/apps/web/draft.ts`,
           "Keep my draft\n"
         );
-        const report = yield* workspace.check();
+        const report = yield* workspace.check;
         expect(report.changes).toEqual([
           { kind: "update", target: "apps/web/layout.tsx" },
         ]);

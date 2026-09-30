@@ -10,18 +10,21 @@ Interactive scaffolding asks for every required Provider:
 pnpm dlx create-next-hydra@latest my-project
 ```
 
+Search is an optional Provider Slot. Selecting Algolia adds the storefront search pages, header autocomplete, proxy runtime, and `search` CLI command through registry recipes; it currently requires Commerce. CMS-only sites omit Search. The local navigation-search add-on is an alternative header binding and cannot be selected alongside Algolia.
+
 For a non-interactive scaffold, select a Provider or explicitly omit each optional slot, or use a Preset:
 
 ```bash
 pnpm dlx create-next-hydra@latest my-project --yes \
   --auth workos \
   --cms drupal \
-  --commerce commercetools
+  --commerce commercetools \
+  --search algolia
 
 pnpm dlx create-next-hydra@latest my-project --yes --preset standard
 
 pnpm dlx create-next-hydra@latest content-site --yes \
-  --cms contentstack --without auth --without commerce
+  --cms contentstack --without auth --without commerce --without search
 ```
 
 Use `--add-on <selection>` more than once to include compatible Add-ons. A selection can be an official shorthand, a local registry-item JSON file, a URL, a public GitHub address such as `owner/repository/item#ref`, or a configured ShadCN registry name.
@@ -49,7 +52,9 @@ pnpm --dir workspaces/cms-contentstack typecheck
 pnpm --dir workspaces/cms-contentstack dev
 ```
 
-The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Unowned local files remain untouched and do not block refresh or `--check`. Conflicting edits to managed files and unowned files occupying new output targets still block changes. `--diff` lists eligible unowned files for optional reconciliation without adopting them. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch uses the same synchronization and installation policy on every refresh; it does not run an application server. External provisioning is separate.
+The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Unowned local files remain untouched and do not block refresh or `--check`. Conflicting edits to managed files and unowned files occupying new output targets still block changes. `--diff` lists eligible unowned files for optional reconciliation without adopting them. `--no-install` lets you manage installation yourself with pnpm inside the workspace, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch uses the same synchronization and installation policy on every refresh; it does not run an application server. External provisioning is separate.
+
+`--check` verifies that composed files match the current definition and source. It does not inspect `.npmrc` or installed dependencies, and it does not run pnpm. A files-only composition can pass Check before dependencies are installed. Install dependencies separately before running application commands.
 
 See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, workspace-owned `.gitignore` files, optional READMEs, app-local `vercel.json` settings are tracked; materialized runtime manifests, installed files and applied state are ignored. Compose preserves these ignore rules rather than regenerating them. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree).
 
@@ -96,6 +101,8 @@ Named workspaces maintain `.workspace-composition.json` ownership fingerprints f
 ## Verification
 
 The implementation uses one shared planner and module-reference renderer. Composition recipes bind normal modules into shared templates; materialized modules have ordinary filenames. The CLI builds with its own pinned TypeScript compiler rather than depending on a root-level executable.
+
+Composition lint runs optional package `lint:prepare` scripts in its disposable workspace before checking types. Use these for local generated modules, such as the Drupal Canvas component registry; they must not require credentials or provision external services.
 
 Run the bounded local suite before accepting composition changes:
 
@@ -171,16 +178,16 @@ Project creation and named `compose` record those standard dependency fields thr
 
 Use `meta.composition.templates` for shared-file structure and `meta.composition.slotBindings` for references to ordinary module exports. This renderer is shared by `compose` and initial scaffolding. Modules remain normal TypeScript/TSX source, and targets have ordinary filenames with no ongoing generation step in scaffolded projects. A selection may declare `typeScriptAliases` for application-level module overrides that must persist in both named and scaffolded workspaces. Both target and alias are catalog-governed. `add` rejects composition recipes and template recomposition because it cannot safely regenerate files you may have edited.
 
-Author composition templates as `name.template.ts` or `name.template.tsx`. Editors and GitHub recognize the native language. LiquidJS parses ordinary block-comment directives; use JSX comments for inserted JSX and an empty-object placeholder for inserted JavaScript expressions:
+Author composition templates as `name.template.ts` or `name.template.tsx`. Editors and GitHub recognize the native language. LiquidJS parses ordinary block-comment directives; use JSX comments for inserted JSX and `echo` for inserted JavaScript:
 
 ```tsx
 /*{% echo imports %}*/
 export const content = <main>{/*{{ slots.account }}*/}</main>;
 ```
 
-The renderer supplies `imports`, `enabled.<slot>` booleans, and `slots.<slot>` source. Wrapper/call slots expose `.open` and `.close`; GraphQL slots expose `.spreads` and `.documents`. Use `/*{% if enabled.account %}*/` and `/*{% endif %}*/` around statements or object properties. Optional JSX attributes belong in a literal object spread so the authored file remains valid TSX. Keep each optional array element's comma inside its conditional block, on a line before `endif`. For a call wrapper, place its closing directive before the inner call's final `)` so formatters cannot move it past the statement's semicolon.
+The renderer supplies `imports`, `enabled.<slot>` booleans, and `slots.<slot>` source. Wrapper/call slots expose `.open` and `.close`; GraphQL slots expose `.spreads` and `.documents`. Use `/*{% if enabled.account %}*/` and `/*{% endif %}*/` around statements or object properties. Optional JSX attributes belong in a literal object spread so the authored file remains valid TSX. Keep each optional array element's comma inside its conditional block, on a line before `endif`. Keep inserted JavaScript expressions in `echo` comments; `prepend` and `append` can emit the surrounding statement or property syntax without a placeholder that formatting might split. For a call wrapper, place its closing directive before the inner call's final `)` so formatters cannot move it past the statement's semicolon.
 
-Composition validates native syntax, every template variable (including inactive branches), and exactly one output for each declared slot. Only the primary output path counts toward that requirement; referencing a slot in a filter argument does not emit it. Paths preserve property boundaries: `slots["commerce.open"]` differs from `slots.commerce.open`. The supported Liquid tags are `if`, `unless`, and `echo`; locals, partials, loops and dynamic paths are rejected so static validation remains complete. Formatting must preserve rendering; tests cover every production template with empty and selected bindings and all 32 layout combinations. GraphQL directives inside template strings remain opaque to TypeScript until rendered.
+Composition validates native syntax, every template variable (including inactive branches), and exactly one output for each declared slot. Only the primary output path counts toward that requirement; referencing a slot in a filter argument does not emit it. Paths preserve property boundaries: `slots["commerce.open"]` differs from `slots.commerce.open`. The supported Liquid tags are `if`, `unless`, and `echo`; locals, partials, loops and dynamic paths are rejected so static validation remains complete. Formatting must preserve rendering; tests cover every production template with empty and selected bindings and all 64 layout combinations. GraphQL directives inside template strings remain opaque to TypeScript until rendered.
 
 Raw templates are excluded from semantic TypeScript/lint checks and package copying. Normal code completion and formatting work for the visible source, but comment contents have no TypeScript completion or diagnostics. After composition, run the same preflight used by CI:
 

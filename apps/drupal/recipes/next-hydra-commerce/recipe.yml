@@ -7,6 +7,20 @@ config:
   strict:
     - field.storage.paragraph.field_product_category
   actions:
+    canvas_headless.settings:
+      simpleConfigUpdate:
+        # Extend the base frontend's component list for this fresh-install recipe.
+        frontends.0.components:
+          - js.announcement
+          - js.article
+          - js.article-card
+          - js.featured-articles
+          - js.hero
+          - js.latest-articles
+          - js.product-collection
+          - js.rich-text
+          - js.site-shell
+          - js.text
     field.field.node.landing_page.field_components:
       setProperties:
         settings.handler_settings.target_bundles.dynamic_product_collection: dynamic_product_collection

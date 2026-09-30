@@ -166,6 +166,8 @@ export const content = <main>
           "apps/cli",
           "packages/cms-contentstack",
           "packages/cms-drupal",
+          "packages/search",
+          "packages/search-algolia",
           "tests/e2e",
         ]) {
           const decoded = yield* Schema.decodeEffect(
@@ -191,7 +193,7 @@ export const content = <main>
             )
           );
         }
-        expect(definitions).toHaveLength(13);
+        expect(definitions).toHaveLength(18);
         for (const template of definitions) {
           const authored = yield* fs.readFileString(
             path.join(root, template.source)
@@ -226,7 +228,7 @@ export const content = <main>
   );
 
   it.effect(
-    "renders all 32 optional layout combinations without leaking inactive properties or directives",
+    "renders all 64 optional layout combinations without leaking inactive properties or directives",
     () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
@@ -237,6 +239,7 @@ export const content = <main>
             businessUnit: "element",
             cart: "element",
             commerce: "wrapper",
+            mobileSearch: "element",
             search: "element",
           },
           source: "apps/web/registry/templates/layout.template.tsx",
@@ -246,7 +249,7 @@ export const content = <main>
           path.resolve(import.meta.dirname, "../../../", template.source)
         );
         const slots = Object.keys(template.slots);
-        for (let mask = 0; mask < 32; mask += 1) {
+        for (let mask = 0; mask < 64; mask += 1) {
           const selected: Binding[] = slots
             .filter((_, index) => Math.floor(mask / 2 ** index) % 2 === 1)
             .map((slot) => ({
@@ -277,7 +280,8 @@ export const content = <main>
             businessUnit: "BusinessUnitSwitcher",
             cart: "CartSlot",
             commerce: "Selected_commerce",
-            search: "Search",
+            mobileSearch: "Selected_mobileSearch",
+            search: "headerSearch",
           })) {
             expect({ mask, present: identifiers.has(property), slot }).toEqual({
               mask,

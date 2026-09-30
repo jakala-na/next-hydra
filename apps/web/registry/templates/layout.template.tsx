@@ -55,8 +55,12 @@ async function PageShell({ children }: { children: ReactNode }) {
             <MobileMenu
               navigationItems={navigation.navigationItems}
               {...{
-                /*{% if enabled.search %}*/
-                Search: headerSearch,
+                /*{% if enabled.mobileSearch %}*/
+                Search: (
+                  <Suspense fallback={null}>
+                    {/*{{ slots.mobileSearch }}*/}
+                  </Suspense>
+                ),
                 /*{% endif %}*/
               }}
             />

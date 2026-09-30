@@ -66,7 +66,8 @@ export const prepareApplicationTypes = Effect.fn(
       yield* fs.makeDirectory(path.join(web, ".next"), { recursive: true });
       yield* fs.copy(
         path.join(project, ".next/types"),
-        path.join(web, ".next/types")
+        path.join(web, ".next/types"),
+        { overwrite: true }
       );
       const environment = path.join(web, "next-env.d.ts");
       if (!(yield* fs.exists(environment))) {

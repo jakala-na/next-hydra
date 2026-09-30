@@ -20,6 +20,8 @@ export const workspaceEnvironment = (nodeEnv: "test" | "production") => ({
   ADMIN_CLERK_PUBLISHABLE_KEY: "pk_test_admin_publishable",
   ADMIN_CLERK_SECRET_KEY: "sk_test_admin_secret",
   ADMIN_URL: "https://admin.customer-project.localhost",
+  ALGOLIA_APPLICATION_ID: "test-app",
+  ALGOLIA_SEARCH_API_KEY: "test-search-key",
   ADMIN_WORKOS_API_KEY: "sk_test_admin",
   ADMIN_WORKOS_CLIENT_ID: "client_test_admin",
   CI: "1",

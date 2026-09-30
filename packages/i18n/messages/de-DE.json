@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "In den Warenkorb",
       "quoteRequest": "Angebot anfordern",
+      "priceStartsAt": "Preis ab {price}",
       "badgeNew": "Neu",
       "titlePlaceholder": "Produktvariantenbezeichnung",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Startseite",
       "products": "Produkte",
       "categoryFallback": "Kategorie"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Kategorie",
+          "availability": "Verfügbarkeit",
+          "price": "Preis"
+        },
+        "showLess": "Weniger anzeigen",
+        "showMore": "Mehr anzeigen"
+      }
     },
     "article": {
       "readGuide": "Ratgeber lesen"

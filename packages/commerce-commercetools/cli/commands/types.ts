@@ -10,7 +10,7 @@ import { generateCustomTypes, generateProductTypes } from "../typegen";
 const CUSTOM_TYPE_SCHEMA_DIRECTORY = fileURLToPath(
   new URL("../../schema/types", import.meta.url)
 );
-const PRODUCT_TYPE_SCHEMA_DIRECTORY = fileURLToPath(
+export const PRODUCT_TYPE_SCHEMA_DIRECTORY = fileURLToPath(
   new URL("../../schema/product-types", import.meta.url)
 );
 const CUSTOM_FIELD_OUTPUT_DIRECTORY = fileURLToPath(

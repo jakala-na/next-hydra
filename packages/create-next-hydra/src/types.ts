@@ -9,7 +9,8 @@ export type CreateOptions = {
   auth?: string;
   cms?: string;
   commerce?: string;
-  without?: ("auth" | "cms" | "commerce")[];
+  search?: string;
+  without?: ("auth" | "cms" | "commerce" | "search")[];
   addOns?: string[];
   preset?: string;
 };

@@ -84,18 +84,35 @@ jobs:
           git config --global user.email "acquia-deploy@users.noreply.github.com"
           git config --global user.name "Next Hydra Acquia deployment"
 
-      - name: Deploy affected Drupal app
+      - name: Check whether Drupal source is affected
+        id: drupal
         if: github.event_name == 'push'
         env:
-          ACQUIA_ENVIRONMENT_ALIAS: ${{ vars.ACQUIA_ENVIRONMENT_ALIAS }}
-          COMPOSER_MEMORY_LIMIT: -1
           TURBO_SCM_BASE: ${{ github.event.before }}
           TURBO_SCM_HEAD: ${{ github.sha }}
-        run: pnpm exec turbo run deploy:acquia --affected --filter=@repo/drupal
+        run: |
+          pnpm exec turbo run deploy:acquia --affected --filter=@repo/drupal --dry=json |
+            jq -r '"affected=\(.tasks | length > 0)"' >> "$GITHUB_OUTPUT"
 
-      - name: Deploy Drupal app manually
-        if: github.event_name == 'workflow_dispatch'
+      - name: Sync Drupal storefront
+        if: github.event_name == 'workflow_dispatch' || steps.drupal.outputs.affected == 'true'
+        run: |
+          pnpm --filter create-next-hydra compose storefront-drupal --no-install
+          pnpm --filter create-next-hydra compose storefront-drupal --check
+
+      - name: Prepare Algolia Search dependencies
+        if: github.event_name == 'workflow_dispatch' || steps.drupal.outputs.affected == 'true'
+        working-directory: workspaces/storefront-drupal/apps/drupal
+        env:
+          COMPOSER_MEMORY_LIMIT: -1
+        run: |
+          composer install --no-interaction --no-scripts
+          bash scripts/prepare-search.sh
+
+      - name: Deploy composed Drupal storefront
+        if: github.event_name == 'workflow_dispatch' || steps.drupal.outputs.affected == 'true'
+        working-directory: workspaces/storefront-drupal
         env:
           ACQUIA_ENVIRONMENT_ALIAS: ${{ vars.ACQUIA_ENVIRONMENT_ALIAS }}
           COMPOSER_MEMORY_LIMIT: -1
-        run: pnpm exec turbo run deploy:acquia --filter=@repo/drupal
+        run: pnpm --filter @repo/drupal deploy:acquia

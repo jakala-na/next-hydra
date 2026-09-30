@@ -42,7 +42,8 @@
             {
               "providers": ["commerce"],
               "items": ["cms-contentstack-commerce"]
-            }
+            },
+            { "providers": ["search"], "items": ["cms-contentstack-search"] }
           ]
         },
         "composition": {
@@ -522,6 +523,69 @@
         {
           "path": "recipe/recipes/product-collection.json",
           "target": "~/packages/cms-contentstack/recipe/recipes/product-collection.json",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "cms-contentstack-search",
+      "type": "registry:item",
+      "title": "Contentstack search app integration",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/cms/contentstack-search",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/cms-contentstack",
+              "section": "dependencies",
+              "name": "@repo/search",
+              "specifier": "workspace:*"
+            }
+          ],
+          "compatibility": { "requires": ["next-hydra/cms/contentstack"] }
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/cli/src/search-command.ts",
+              "slot": "contentSearchApp",
+              "module": "@repo/cms/content-search-app",
+              "export": "installContentSearchApp",
+              "as": "installCmsSearchApp"
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "cli/content-search-app/index.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/installation.test.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/installation.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/installation.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/installation.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/model.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search.test.ts",
+          "target": "~/packages/cms-contentstack/search.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search.ts",
+          "target": "~/packages/cms-contentstack/search.ts",
           "type": "registry:file"
         }
       ]

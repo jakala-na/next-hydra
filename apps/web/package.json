@@ -39,6 +39,8 @@
     "@repo/rate-limit": "workspace:*",
     "@repo/registration": "workspace:*",
     "@repo/security": "workspace:*",
+    "@repo/search": "workspace:*",
+    "@repo/search-provider": "workspace:@repo/search-algolia@*",
     "@repo/seo": "workspace:*",
     "@sentry/nextjs": "^10.22.0",
     "@t3-oss/env-nextjs": "catalog:",

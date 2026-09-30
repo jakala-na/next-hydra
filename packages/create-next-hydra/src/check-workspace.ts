@@ -20,7 +20,7 @@ const program = Effect.gen(function* () {
   const sourceRoot = yield* findSourceRoot(process.cwd());
   const path = yield* Path.Path;
   const workspace = yield* (yield* Workspaces).named({ name, sourceRoot });
-  const before = yield* workspace.check();
+  const before = yield* workspace.check;
   if (!before.ready) {
     return yield* new InvalidComposition({
       message: `Compose ${name} and install its dependencies before checking generated code.`,
@@ -28,7 +28,7 @@ const program = Effect.gen(function* () {
   }
   const destination = path.join(sourceRoot, "workspaces", name);
   yield* prepareApplicationTypes(destination);
-  const after = yield* workspace.check();
+  const after = yield* workspace.check;
   if (!after.ready) {
     return yield* new InvalidComposition({
       message: `Workspace ${name} changed during type generation.`,

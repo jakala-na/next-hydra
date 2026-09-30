@@ -49,6 +49,78 @@ describe.each([
 });
 
 it.effect(
+  "isolates DDEV projects and their URLs across named workspaces without changing local credentials",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const workspaces = yield* Workspaces;
+        for (const name of ["editorial-site", "storefront-site"]) {
+          const root = `/source/workspaces/${name}`;
+          yield* fs.makeDirectory(root, { recursive: true });
+          yield* fs.writeFileString(
+            `${root}/next-hydra.json`,
+            '{"addOns":["ddev"],"providers":{}}'
+          );
+          const workspace = yield* workspaces.named({
+            name,
+            sourceRoot: "/source",
+          });
+          yield* workspace.sync({ install: "skip" });
+          yield* fs.writeFileString(
+            `${root}/apps/backend/.env.local`,
+            "DRUPAL_BASE_URL=https://existing-site.ddev.site:8443\n"
+          );
+          yield* workspace.sync({ install: "skip" });
+          const config = yield* fs.readFileString(
+            `${root}/apps/backend/.ddev/config.yaml`
+          );
+          expect(parse(config)).toEqual({
+            docroot: "docroot",
+            name,
+            router_https_port: "8443",
+            type: "drupal11",
+          });
+          expect(config).toContain("# Keep the router separate");
+          expect(
+            yield* fs.readFileString(`${root}/apps/backend/.env.example`)
+          ).toBe(
+            `DRUPAL_BASE_URL=https://${name}.ddev.site:8443\nOTHER_SITE=https://another-shared-backend.ddev.site:8443\n`
+          );
+          expect(
+            yield* fs.readFileString(`${root}/apps/backend/.env.local`)
+          ).toBe("DRUPAL_BASE_URL=https://existing-site.ddev.site:8443\n");
+        }
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect("uses the customer project identity for DDEV too", () =>
+  Effect.gen(function* () {
+    const layer = yield* memoryWorkspace("application");
+    yield* Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const workspace = yield* (yield* Workspaces).fresh({
+        destination: "/customer",
+        name: "Garden Shop",
+        selection: { addOns: ["ddev"], providers: {} },
+        source: { kind: "working-tree", root: "/source" },
+      });
+      yield* workspace.materialize({ install: "skip" });
+      expect(
+        parse(
+          yield* fs.readFileString("/customer/apps/backend/.ddev/config.yaml")
+        )
+      ).toHaveProperty("name", "garden-shop");
+      expect(
+        yield* fs.readFileString("/customer/apps/backend/.env.example")
+      ).toContain("https://garden-shop.ddev.site:8443");
+    }).pipe(Effect.provide(layer));
+  })
+);
+
+it.effect(
   "initializes an empty definition with the shared application and no providers",
   () =>
     Effect.gen(function* () {

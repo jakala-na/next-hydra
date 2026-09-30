@@ -14,7 +14,7 @@ import {
 } from "./errors.ts";
 import { cacheDirectories, isEnvironmentFile } from "./file-policy.ts";
 import { relativeFile } from "./files.ts";
-import { workspaceSetting } from "./initialization.ts";
+import { validatePreservedFiles, workspaceSetting } from "./initialization.ts";
 import { FileOrigin } from "./model.ts";
 import { withWriteLock } from "./workspace-lock.ts";
 
@@ -61,6 +61,9 @@ const Initialization = Schema.Struct({
   status: Schema.Literals(["planned", "started", "completed"]),
   target: Schema.String,
 });
+const PreservedFiles = Schema.Array(Schema.String).pipe(
+  Schema.withDecodingDefaultKey(Effect.succeed([]))
+);
 export type Installation = typeof Installation.Type;
 const Receipt = Schema.Struct({
   directory: Schema.String,
@@ -74,6 +77,7 @@ const Receipt = Schema.Struct({
         files: Schema.Array(Intent),
         initialization: Schema.Array(Initialization),
         kind: Schema.Literal("files"),
+        preserved: PreservedFiles,
       }),
       Schema.Struct({
         inputs: Schema.String,
@@ -82,6 +86,7 @@ const Receipt = Schema.Struct({
       }),
     ])
   ),
+  preserved: PreservedFiles,
   revision: Schema.Int,
   snapshot: Schema.NullOr(Snapshot),
   sourceRoot: Schema.String,
@@ -109,6 +114,7 @@ export interface WorkspaceObservation {
   readonly revision: number;
   readonly filesRevision: number;
   readonly pending: Receipt["pending"];
+  readonly preserved: readonly string[];
 }
 
 function validFingerprint(value: Fingerprint | null): boolean {
@@ -159,20 +165,43 @@ const validateFileIntent = (receipt: Receipt) =>
     }
     const invalid = () =>
       new WorkspaceStateInvalid({ directory: receipt.directory });
+    const { pending } = receipt;
     const previous = new Map(
-      receipt.entries.map((entry) => [entry.target, entry])
+      receipt.entries
+        .filter((entry) => !pending.preserved.includes(entry.target))
+        .map((entry) => [entry.target, entry])
     );
-    const ownedTargets = receipt.pending.files.flatMap((file) =>
-      file.temporary === null ? [file.target] : [file.target, file.temporary]
+    const ownedTargets = receipt.pending.files.map((file) => file.target);
+    // Temporary siblings can look like runtime env files (for example
+    // .env.example.<uuid>.pending). Validate their exact derivation below;
+    // only final targets are subject to the owned-file classification.
+    yield* validateOwnedTargets(
+      [...ownedTargets, ...receipt.pending.preserved],
+      receipt.directory
     );
-    yield* validateOwnedTargets(ownedTargets, receipt.directory);
+    yield* validatePreservedFiles(receipt.pending.preserved).pipe(
+      Effect.mapError(invalid)
+    );
     const allTargets = [
       ...ownedTargets,
+      ...receipt.pending.files.flatMap((file) =>
+        file.temporary === null ? [] : [file.temporary]
+      ),
       ...receipt.pending.initialization.map((file) => file.target),
     ];
     const targets = new Set(allTargets);
     if (targets.size !== allTargets.length) {
       return yield* invalid();
+    }
+    // Staging paths share the filesystem namespace, but are not application files.
+    // Their authority comes from the owned target and the operation ID below.
+    for (const target of allTargets) {
+      const parts = target.split("/");
+      for (let end = 1; end < parts.length; end += 1) {
+        if (targets.has(parts.slice(0, end).join("/"))) {
+          return yield* invalid();
+        }
+      }
     }
     for (const file of receipt.pending.initialization) {
       const target = yield* relativeFile(file.target).pipe(
@@ -180,7 +209,9 @@ const validateFileIntent = (receipt: Receipt) =>
       );
       if (
         target !== file.target ||
-        (target !== ".gitignore" && !isEnvironmentFile(target)) ||
+        (target !== ".gitignore" &&
+          !isEnvironmentFile(target) &&
+          !receipt.pending.preserved.includes(target)) ||
         target.startsWith(".workspace-composition") ||
         target.split("/").some((part) => cacheDirectories.has(part))
       ) {
@@ -207,7 +238,11 @@ const validateFileIntent = (receipt: Receipt) =>
         (entry
           ? !sameFingerprint(file.before, entry.applied) &&
             !sameFingerprint(file.before, file.after)
-          : file.before !== null)
+          : file.before !== null &&
+            !(
+              receipt.preserved.includes(file.target) &&
+              sameFingerprint(file.before, file.after)
+            ))
       ) {
         return yield* invalid();
       }
@@ -219,7 +254,9 @@ const validateFileIntent = (receipt: Receipt) =>
         replaces !== (file.temporary !== null) ||
         (file.temporary !== null &&
           (!file.temporary.startsWith(`${file.target}.`) ||
-            !file.temporary.endsWith(".pending")))
+            !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.pending$/u.test(
+              file.temporary.slice(file.target.length + 1)
+            )))
       ) {
         return yield* invalid();
       }
@@ -265,8 +302,11 @@ const decodeReceipt = (
       return yield* invalid();
     }
     yield* validateOwnedTargets(
-      decoded.entries.map((entry) => entry.target),
+      [...decoded.entries.map((entry) => entry.target), ...decoded.preserved],
       directory
+    );
+    yield* validatePreservedFiles(decoded.preserved).pipe(
+      Effect.mapError(invalid)
     );
     if (decoded.snapshot) {
       yield* validateOwnedTargets(
@@ -300,7 +340,8 @@ export interface WorkspaceWriteAccess {
   ) => Effect.Effect<void, WorkspaceStateError>;
   readonly begin: (
     files: readonly FileIntent[],
-    initialization: readonly string[]
+    initialization: readonly string[],
+    preserved?: readonly string[]
   ) => Effect.Effect<void, WorkspaceStateError>;
   readonly complete: Effect.Effect<void, WorkspaceStateError>;
   readonly initialize: <A, E, R>(
@@ -379,6 +420,7 @@ export class WorkspaceState extends Context.Service<
             initialized: decoded !== null,
             installation: decoded?.installation ?? null,
             pending: decoded?.pending ?? null,
+            preserved: decoded?.preserved ?? [],
             revision: decoded?.revision ?? 0,
             snapshot: decoded?.snapshot ?? null,
           });
@@ -419,6 +461,7 @@ export class WorkspaceState extends Context.Service<
                   format: "effect-workspace",
                   installation: null,
                   pending: null,
+                  preserved: [],
                   revision: 0,
                   snapshot: null,
                   sourceRoot,
@@ -454,7 +497,8 @@ export class WorkspaceState extends Context.Service<
                 }).pipe(Effect.uninterruptible);
               const begin = (
                 files: readonly FileIntent[],
-                initialization: readonly string[]
+                initialization: readonly string[],
+                preserved: readonly string[] = []
               ) =>
                 Effect.gen(function* () {
                   const state = yield* Ref.get(current);
@@ -472,6 +516,7 @@ export class WorkspaceState extends Context.Service<
                         target,
                       })),
                       kind: "files",
+                      preserved,
                     },
                     revision: state.revision + 1,
                   };
@@ -544,6 +589,10 @@ export class WorkspaceState extends Context.Service<
                   state.entries.map((entry) => [entry.target, entry])
                 );
                 const changed =
+                  !isDeepStrictEqual(
+                    state.preserved,
+                    state.pending.preserved
+                  ) ||
                   entries.length !== previous.size ||
                   entries.some((entry) => {
                     const old = previous.get(entry.target);
@@ -559,6 +608,7 @@ export class WorkspaceState extends Context.Service<
                   entries,
                   filesRevision: state.filesRevision + Number(changed),
                   pending: null,
+                  preserved: state.pending.preserved,
                   revision: state.revision + 1,
                 });
               });
@@ -575,8 +625,13 @@ export class WorkspaceState extends Context.Service<
                   ) {
                     return yield* invalid();
                   }
+                  const { pending } = state;
                   const previous = new Map(
-                    state.entries.map((entry) => [entry.target, entry])
+                    state.entries
+                      .filter(
+                        (entry) => !pending.preserved.includes(entry.target)
+                      )
+                      .map((entry) => [entry.target, entry])
                   );
                   const entries: (typeof Entry.Type)[] = [];
                   for (const file of state.pending.files) {
@@ -623,6 +678,14 @@ export class WorkspaceState extends Context.Service<
                     filesRevision: state.filesRevision + 1,
                     installation: null,
                     pending: null,
+                    preserved: pending.preserved.filter(
+                      (target) =>
+                        !pending.initialization.some(
+                          (file) =>
+                            file.target === target &&
+                            file.status !== "completed"
+                        )
+                    ),
                     revision: state.revision + 1,
                   });
                 });
@@ -729,6 +792,7 @@ export class WorkspaceState extends Context.Service<
                     initialized: state.revision > 0,
                     installation: state.installation,
                     pending: state.pending,
+                    preserved: state.preserved,
                     revision: state.revision,
                     snapshot: state.snapshot,
                   }))

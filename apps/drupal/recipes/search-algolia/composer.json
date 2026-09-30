@@ -1,0 +1,10 @@
+{
+  "name": "application/algolia-content-search",
+  "description": "Optional Algolia Content indexing recipe.",
+  "type": "drupal-recipe",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "drupal/search_api": "^1.41",
+    "drupal/search_api_algolia": "^3.1"
+  }
+}

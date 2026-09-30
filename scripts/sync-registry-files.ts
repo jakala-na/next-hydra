@@ -66,6 +66,16 @@ const manifests = [
     sourceRoot: "packages/commerce-commercetools",
   },
   {
+    item: "search-contract",
+    manifest: "packages/search/registry.json",
+    sourceRoot: "packages/search",
+  },
+  {
+    item: "search-algolia",
+    manifest: "packages/search-algolia/registry.json",
+    sourceRoot: "packages/search-algolia",
+  },
+  {
     item: "drupal",
     manifest: "apps/drupal/registry.json",
     sourceRoot: "apps/drupal",

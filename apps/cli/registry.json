@@ -65,6 +65,79 @@
           "type": "registry:file"
         }
       ]
+    },
+    {
+      "name": "search-cli",
+      "type": "registry:item",
+      "title": "Search administration CLI",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/cli",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "apps/cli", "slot": "search", "section": "dependencies" }
+          ],
+          "packages": [
+            {
+              "cwd": "apps/cli",
+              "name": "@repo/search",
+              "specifier": "workspace:*",
+              "section": "dependencies"
+            }
+          ]
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "apps/cli/registry/templates/search-command.template.ts",
+              "target": "apps/cli/src/search-command.ts",
+              "slots": { "contentSearchApp": "members", "products": "members" }
+            }
+          ],
+          "slotBindings": [
+            {
+              "target": "apps/cli/src/program.ts",
+              "slot": "commands",
+              "module": "./search-command",
+              "export": "createWorkspaceSearchCommand",
+              "order": 40
+            }
+          ]
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "commerce-search-cli",
+      "type": "registry:item",
+      "title": "commerce-search-cli",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/search/commerce-cli",
+          "kind": "recipe",
+          "providerDependencies": [
+            { "cwd": "apps/cli", "slot": "commerce", "section": "dependencies" }
+          ]
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "apps/cli/src/search-command.ts",
+              "slot": "products",
+              "module": "./commerce-search",
+              "export": "commerceSearch",
+              "order": 0
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "src/commerce-search.ts",
+          "target": "~/apps/cli/src/commerce-search.ts",
+          "type": "registry:file"
+        }
+      ]
     }
   ]
 }

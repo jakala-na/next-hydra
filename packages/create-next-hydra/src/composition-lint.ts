@@ -198,6 +198,12 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
           source: { kind: "working-tree", root: sourceRoot },
         });
         const result = yield* fresh.materialize({ git: "initialize" });
+        yield* executeLintCommand(destination, "pnpm", [
+          "-r",
+          "--if-present",
+          "run",
+          "lint:prepare",
+        ]);
         yield* prepareApplicationTypes(destination);
         const encodeString = Schema.encodeEffect(
           Schema.fromJsonString(Schema.String)

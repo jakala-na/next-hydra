@@ -26,6 +26,138 @@ const sync = Effect.gen(function* () {
 });
 
 it.effect(
+  "refreshes an environment example without treating its temporary file as a runtime secret",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* sync;
+        yield* fs.writeFileString(
+          `${root}/apps/web/.env.local`,
+          "PRIVATE_TOKEN=preserve\n"
+        );
+        yield* fs.writeFileString(
+          "/source/apps/web/.env.example",
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        yield* sync;
+        const workspace = yield* (yield* Workspaces).named({
+          name: "configured-site",
+          sourceRoot: "/source",
+        });
+        expect((yield* workspace.check).changes).toEqual([]);
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.example`)).toBe(
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.local`)).toBe(
+          "PRIVATE_TOKEN=preserve\n"
+        );
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
+  "recovers suffixed environment-example staging without claiming credentials",
+  () =>
+    Effect.gen(function* () {
+      let interrupt = false;
+      const layer = yield* memoryWorkspace("application", {
+        fileSystem: (fs) => ({
+          ...fs,
+          rename: (source, destination) =>
+            interrupt && destination === `${root}/apps/web/.env.example`
+              ? Effect.fail(
+                  PlatformError.systemError({
+                    _tag: "PermissionDenied",
+                    method: "rename",
+                    module: "FileSystem",
+                    pathOrDescriptor: destination,
+                  })
+                )
+              : fs.rename(source, destination),
+        }),
+      });
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* sync;
+        yield* fs.writeFileString(
+          `${root}/apps/web/.env.local`,
+          "SECRET=local\n"
+        );
+        yield* fs.writeFileString(
+          "/source/apps/web/.env.example",
+          "PUBLIC_URL=https://example.test\n"
+        );
+        interrupt = true;
+        expect(yield* sync.pipe(Effect.flip)).toMatchObject({
+          _tag: "MaterializationFailed",
+        });
+        const staged = (yield* fs.readDirectory(`${root}/apps/web`)).filter(
+          (name) => name.endsWith(".pending")
+        );
+        expect(staged).toEqual([
+          expect.stringMatching(/^\.env\.example\.[a-f0-9-]+\.pending$/u),
+        ]);
+        interrupt = false;
+        const receiptPath = `${root}/.workspace-composition.json`;
+        const original = yield* fs.readFileString(receiptPath);
+        const record = Schema.Record(Schema.String, Schema.Unknown);
+        const receipt = yield* Schema.decodeUnknownEffect(
+          Schema.fromJsonString(record)
+        )(original);
+        const pending = yield* Schema.decodeUnknownEffect(record)(
+          receipt.pending
+        );
+        const files = yield* Schema.decodeUnknownEffect(Schema.Array(record))(
+          pending.files
+        );
+        for (const temporary of [
+          "apps/web/.env.local",
+          "apps/web/layout.tsx",
+          "apps/web/.env.example.fake/../.env.local.pending",
+        ]) {
+          const damaged = JSON.stringify({
+            ...receipt,
+            pending: {
+              ...pending,
+              files: files.map((file) =>
+                file.target === "apps/web/.env.example"
+                  ? { ...file, temporary }
+                  : file
+              ),
+            },
+          });
+          yield* fs.writeFileString(receiptPath, damaged);
+          expect(
+            yield* sync.pipe(
+              Effect.provide(memoryWorkspaceServices()),
+              Effect.flip
+            )
+          ).toMatchObject({ _tag: "WorkspaceStateInvalid" });
+          expect(yield* fs.readFileString(receiptPath)).toBe(damaged);
+          expect(yield* fs.readFileString(`${root}/apps/web/.env.local`)).toBe(
+            "SECRET=local\n"
+          );
+        }
+        yield* fs.writeFileString(receiptPath, original);
+        yield* sync.pipe(Effect.provide(memoryWorkspaceServices()));
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.example`)).toBe(
+          "PUBLIC_URL=https://example.test\n"
+        );
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.local`)).toBe(
+          "SECRET=local\n"
+        );
+        expect(
+          (yield* fs.readDirectory(`${root}/apps/web`)).some((name) =>
+            name.endsWith(".pending")
+          )
+        ).toBeFalsy();
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
   "initializes, checks and refreshes beside unreadable unrelated output",
   () =>
     Effect.gen(function* () {
@@ -66,11 +198,11 @@ it.effect(
           "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
-        expect((yield* workspace.check()).changes).toEqual([
+        expect((yield* workspace.check).changes).toEqual([
           { kind: "update", target: "apps/web/layout.tsx" },
         ]);
         yield* workspace.sync({ install: "skip" });
-        expect((yield* workspace.check()).changes).toEqual([]);
+        expect((yield* workspace.check).changes).toEqual([]);
         expect(
           yield* fs.readFileString(`${root}/apps/web/layout.tsx`)
         ).toContain("Welcome");
@@ -290,7 +422,7 @@ for (const kind of ["file", "directory", "parent"] as const) {
             name: "configured-site",
             sourceRoot: "/source",
           });
-          const check = yield* workspace.check();
+          const check = yield* workspace.check;
           expect(check.ready).toBeFalsy();
           expect(check.changes).toContainEqual({
             kind: kind === "file" ? "unregistered" : "conflict",
@@ -421,7 +553,7 @@ it.effect(
             Effect.flatMap((api) =>
               api.named({ name: "configured-site", sourceRoot: "/source" })
             ),
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices()),
             Effect.flip
           )

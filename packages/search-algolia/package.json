@@ -1,0 +1,38 @@
+{
+  "name": "@repo/search-algolia",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./cli": "./cli/index.ts",
+    "./cli/commerce": "./cli/commerce.ts",
+    "./composition": "./composition.ts",
+    "./content-mapping": "./content-mapping.ts",
+    "./keys": "./keys.ts",
+    "./product-keys": "./product-keys.ts",
+    "./provider": "./provider.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "test": "NODE_ENV=test vitest run",
+    "typecheck": "pnpm --workspace-root exec tsc --noEmit --project packages/search-algolia/tsconfig.json"
+  },
+  "dependencies": {
+    "@algolia/ingestion": "^1.57.0",
+    "@repo/cli-core": "workspace:*",
+    "@repo/search": "workspace:*",
+    "@t3-oss/env-nextjs": "catalog:",
+    "algoliasearch": "^5.57.0",
+    "effect": "catalog:",
+    "server-only": "catalog:",
+    "typescript": "catalog:",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@repo/testing": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -10,8 +10,10 @@ export const REFERENCE_PROVIDERS = {
   auth: "workos",
   cms: "contentstack",
   commerce: "commercetools",
+  search: "algolia",
 } as const;
 export const referenceBindings = [
+  { alias: "@repo/search-provider", app: "web", provider: "search-algolia" },
   { alias: "@repo/auth", app: "web", provider: "auth-workos" },
   { alias: "@repo/cms", app: "web", provider: "cms-contentstack" },
   {
