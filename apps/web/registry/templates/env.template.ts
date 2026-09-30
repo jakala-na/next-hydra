@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { webClientEnvFields, webCmsServerEnvFields } from "./env-schema";
 
-{{imports}}
+/*{% echo imports %}*/
 
 configurePortlessEnvironment("web");
 
@@ -16,7 +16,9 @@ export const env = createEnv({
   client: { ...webClientEnvFields, NEXT_PUBLIC_WEB_URL: z.string().url() },
   extends: [
     cms(),
-    {{#environment}}{{environment}},{{/environment}}
+    /*{% if enabled.environment %}*/
+    {/*{{ slots.environment }}*/},
+    /*{% endif %}*/
     observability(),
     security(),
     rateLimit(),

@@ -48,12 +48,12 @@
         "composition": {
           "templates": [
             {
-              "source": "packages/cms-contentstack/registry/templates/component-registry.ts.template",
+              "source": "packages/cms-contentstack/registry/templates/component-registry.template.ts",
               "target": "packages/cms-contentstack/components/component-registry.ts",
               "slots": { "blocks": "members" }
             },
             {
-              "source": "packages/cms-contentstack/registry/templates/landing-page-query.ts.template",
+              "source": "packages/cms-contentstack/registry/templates/landing-page-query.template.ts",
               "target": "packages/cms-contentstack/components/pages/landing-page-query.ts",
               "slots": { "pageBlocks": "graphql" }
             }

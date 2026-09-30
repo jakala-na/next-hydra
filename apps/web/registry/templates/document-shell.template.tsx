@@ -1,8 +1,9 @@
 import { AnalyticsProvider } from "@repo/analytics";
-{{imports}}
-import { DesignSystemProvider } from "@repo/design-system";
 import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ArchitectureToolbar } from "@repo/demo-architecture/toolbar";
+/*{% echo imports %}*/
+import { DesignSystemProvider } from "@repo/design-system";
+
 import "@repo/demo-architecture/styles.css";
 import { fonts } from "@repo/design-system/lib/fonts";
 import { cn } from "@repo/design-system/lib/utils";
@@ -26,14 +27,14 @@ export function DocumentShell({
           description="Contains the page layout and application providers."
           composition="app"
         >
-          {{providers.open}}
-            <AnalyticsProvider>
-              <DesignSystemProvider>{children}</DesignSystemProvider>
-            </AnalyticsProvider>
-          {{providers.close}}
+          {/*{{ slots.providers.open }}*/}
+          <AnalyticsProvider>
+            <DesignSystemProvider>{children}</DesignSystemProvider>
+          </AnalyticsProvider>
+          {/*{{ slots.providers.close }}*/}
         </ArchitectureBoundary>
         <ArchitectureToolbar />
-        {{toolbar}}
+        {/*{{ slots.toolbar }}*/}
       </body>
     </html>
   );

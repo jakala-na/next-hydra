@@ -92,12 +92,12 @@
         "composition": {
           "templates": [
             {
-              "source": "tests/e2e/registry/templates/composition.ts.template",
+              "source": "tests/e2e/registry/templates/composition.template.ts",
               "target": "tests/e2e/composition.ts",
               "slots": { "fixtures": "members" }
             },
             {
-              "source": "tests/e2e/registry/templates/global.setup.ts.template",
+              "source": "tests/e2e/registry/templates/global.setup.template.ts",
               "target": "tests/e2e/global.setup.ts",
               "slots": { "setup": "members" }
             }

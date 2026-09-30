@@ -41,12 +41,16 @@ export function isCanonicalSource(file: string): boolean {
   );
 }
 
+export function isCompositionTemplate(file: string): boolean {
+  return file.endsWith(".template") || /\.template\.[^/]+$/u.test(file);
+}
+
 export function eligiblePackageFile(file: string): boolean {
   const name = file.slice(file.lastIndexOf("/") + 1);
   return (
     !file.includes("/registry/") &&
     name !== "registry.json" &&
-    !name.endsWith(".template") &&
+    !isCompositionTemplate(name) &&
     !isEnvironmentFile(file)
   );
 }

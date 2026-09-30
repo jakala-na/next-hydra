@@ -16,7 +16,7 @@
         "composition": {
           "templates": [
             {
-              "source": "apps/cli/registry/templates/program.ts.template",
+              "source": "apps/cli/registry/templates/program.template.ts",
               "target": "apps/cli/src/program.ts",
               "slots": { "commands": "members" }
             }

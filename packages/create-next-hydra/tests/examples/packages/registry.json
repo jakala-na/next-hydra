@@ -10,7 +10,7 @@
         "composition": {
           "templates": [
             {
-              "source": "tokens.ts.template",
+              "source": "tokens.template.ts",
               "target": "packages/tokens/index.ts",
               "slots": {}
             }

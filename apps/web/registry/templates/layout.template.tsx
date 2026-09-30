@@ -14,6 +14,7 @@ import { routing } from "@repo/i18n/routing";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { ReactNode } from "react";
+
 import { DocumentShell } from "@/components/layout/document-shell";
 /*{% echo imports %}*/
 
@@ -29,7 +30,7 @@ async function PageShell({ children }: { children: ReactNode }) {
   const navigation = await getNavigation(locale);
   /*{% if enabled.search %}*/
   const headerSearch = (
-    <Suspense fallback={null}>{/*{{ elements.search }}*/}</Suspense>
+    <Suspense fallback={null}>{/*{{ slots.search }}*/}</Suspense>
   );
   /*{% endif %}*/
   return (
@@ -63,16 +64,16 @@ async function PageShell({ children }: { children: ReactNode }) {
           {...{
             /*{% if enabled.account %}*/
             AccountSlot: (
-              <Suspense fallback={null}>{/*{{ elements.account }}*/}</Suspense>
+              <Suspense fallback={null}>{/*{{ slots.account }}*/}</Suspense>
             ),
             /*{% endif %}*/
             /*{% if enabled.cart %}*/
-            CartSlot: {/*{{ elements.cart }}*/},
+            CartSlot: {/*{{ slots.cart }}*/},
             /*{% endif %}*/
             /*{% if enabled.businessUnit %}*/
             BusinessUnitSwitcher: (
               <Suspense fallback={null}>
-                {/*{{ elements.businessUnit }}*/}
+                {/*{{ slots.businessUnit }}*/}
               </Suspense>
             ),
             /*{% endif %}*/
@@ -102,10 +103,10 @@ export default async function RootLayout({
   return (
     <DocumentShell lang={locale}>
       <NextIntlClientProvider>
-        {/*{{ wrappers.commerce.open }}*/}
+        {/*{{ slots.commerce.open }}*/}
         <PageShell>{children}</PageShell>
         <CmsLayoutIntegration />
-        {/*{{ wrappers.commerce.close }}*/}
+        {/*{{ slots.commerce.close }}*/}
       </NextIntlClientProvider>
     </DocumentShell>
   );

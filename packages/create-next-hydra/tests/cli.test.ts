@@ -62,7 +62,7 @@ describe.each([
           const fs = yield* FileSystem.FileSystem;
           yield* runCommand("/source", args, "0.3.0");
           const output = (yield* TestConsole.logLines).join("\n");
-          expect(output).toContain("/source/layout.tsx.template");
+          expect(output).toContain("/source/layout.template.tsx");
           expect(output).not.toContain("source: /source/controls.tsx");
           expect(
             yield* fs.exists(
@@ -98,7 +98,7 @@ it.effect(
           "0.3.0"
         );
         expect((yield* TestConsole.logLines).join("\n")).toContain(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         expect(
           yield* fs.exists(

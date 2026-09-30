@@ -1,5 +1,5 @@
 import { withCMS } from "@repo/cms/next-config";
-{{imports}}
+/*{% echo imports %}*/
 import { withI18n } from "@repo/i18n/next-config";
 import { config, withAnalyzer } from "@repo/next-config";
 import { withLogging, withSentry } from "@repo/observability/next-config";
@@ -17,5 +17,8 @@ if (env.ANALYZE === "true") {
   nextConfig = withAnalyzer(nextConfig);
 }
 
-
-export default withCMS({{configuration.open}}withI18n(nextConfig){{configuration.close}});
+export default withCMS(
+  /*{% echo slots.configuration.open %}*/ withI18n(
+    nextConfig
+  ) /*{% echo slots.configuration.close %}*/
+);

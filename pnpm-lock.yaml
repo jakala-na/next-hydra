@@ -1350,6 +1350,9 @@ importers:
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
+      liquidjs:
+        specifier: 10.29.0
+        version: 10.29.0
       oxfmt:
         specifier: 0.61.0
         version: 0.61.0
@@ -11763,6 +11766,11 @@ packages:
   lint-staged@16.2.7:
     resolution: {integrity: sha512-lDIj4RnYmK7/kXMya+qJsmkRFkGolciXjrsZ6PC25GdTfWOAWetR0ZbsNXRAj1EHHImRSalc+whZFg56F5DVow==}
     engines: {node: '>=20.17'}
+    hasBin: true
+
+  liquidjs@10.29.0:
+    resolution: {integrity: sha512-pCVOhs6FLAR8su3ItJ07diN26t6W5dHQRnmTMy8HPyTFuv1+oSCVJIGp5pGjfQyOZfh50KswvKtMTp6p4JEIdw==}
+    engines: {node: '>=16'}
     hasBin: true
 
   listr-silent-renderer@1.1.1:
@@ -26039,6 +26047,10 @@ snapshots:
       pidtree: 0.6.0
       string-argv: 0.3.2
       yaml: 2.8.2
+
+  liquidjs@10.29.0:
+    dependencies:
+      commander: 10.0.1
 
   listr-silent-renderer@1.1.1: {}
 

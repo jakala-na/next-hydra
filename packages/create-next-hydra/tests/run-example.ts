@@ -97,7 +97,7 @@ const main = Effect.scoped(
       );
     }
     if (example === "application") {
-      const template = path.join(source, "layout.tsx.template");
+      const template = path.join(source, "layout.template.tsx");
       yield* fs.writeFileString(
         template,
         (yield* fs.readFileString(template)).replace("Hello", "Welcome")
