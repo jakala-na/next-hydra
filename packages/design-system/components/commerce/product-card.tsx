@@ -2,7 +2,7 @@
 
 import type { UrlObject } from "node:url";
 
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
   Card,
@@ -62,14 +62,9 @@ function ProductCard({
 
   return (
     <ArchitectureBoundary
-      component="client"
-      description="Hydrates translations and product interactions in the browser."
-      layer="interactive"
-      layerLabel="Interactive design-system leaf"
-      name="ProductCard"
-      rendering="streamed"
-      source="design-system"
-      sourceLabel="Shared design system"
+      name="Product card"
+      description="Displays a product and its actions in the browser."
+      composition="client"
     >
       <Card
         className={cn(

@@ -44,6 +44,7 @@
     "@drupal-canvas/headless-next": "^0.6.1",
     "@drupal-canvas/headless-react": "^0.4.3",
     "@repo/commerce": "workspace:*",
+    "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/i18n": "workspace:*",
     "@repo/search": "workspace:*",

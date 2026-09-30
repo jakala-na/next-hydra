@@ -1,6 +1,6 @@
 import type { CanvasComponentProps } from "@repo/cms-drupal/canvas-component-props";
 import { getLatestArticles } from "@repo/cms-drupal/lib/latest-articles";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ArticleCard } from "@repo/design-system/components/cms/article-card";
 import {
   ArticleCollectionLayout,
@@ -39,15 +39,12 @@ export default function CanvasLatestArticles({
 }: CanvasLatestArticlesProps) {
   return (
     <ArchitectureBoundary
-      cacheProfile="hours; Drupal node_list:article revalidation"
-      component="server"
-      description="Queries the newest published Articles from Drupal GraphQL and maps them into the shared article-card presentation."
-      layer="block"
-      layerLabel="Canvas component adapter"
-      name="CanvasLatestArticles"
-      rendering="streamed"
-      source="cms"
-      sourceLabel="Drupal GraphQL"
+      name="Latest articles"
+      description="Loads the latest published Drupal articles and displays article cards. Hours profile: client cache 5m; background revalidation after 1h; expiry after 1d."
+      composition="cms"
+      caching="Cached · revalidate after 1h"
+      cacheTags={["node_list:article"]}
+      streaming
     >
       <ArticleCollectionLayout
         className={className}

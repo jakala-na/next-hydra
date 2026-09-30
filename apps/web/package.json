@@ -26,6 +26,7 @@
     "@repo/cms": "workspace:@repo/cms-contentstack@*",
     "@repo/commerce": "workspace:*",
     "@repo/commerce-provider": "workspace:@repo/commerce-commercetools@*",
+    "@repo/demo-architecture": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@repo/email": "workspace:*",
     "@repo/errors": "workspace:*",

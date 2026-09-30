@@ -1,5 +1,5 @@
 import { toProductCardPresentation } from "@repo/commerce/product";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import ProductCard from "@repo/design-system/components/commerce/product-card";
 import type { ProductCardProps } from "@repo/design-system/components/commerce/product-card";
 import type { Locale } from "@repo/i18n";
@@ -37,14 +37,9 @@ export function SearchProductCard({
 }: SearchProductCardProps): ReactElement {
   return (
     <ArchitectureBoundary
-      component="client"
+      composition="commerce"
       description="Presents the canonical commerce Product Card carried by a provider-normalized Product search hit."
-      layer="presentation"
-      layerLabel="Search hit presentation adapter"
       name="SearchProductCard"
-      rendering="streamed"
-      source="search"
-      sourceLabel="Search provider"
     >
       <ProductCard {...toProductCardProps(hit, headingLevel, locale)} />
     </ArchitectureBoundary>

@@ -1,4 +1,5 @@
 import { CatalogRuntime } from "@repo/commerce/product/catalog-runtime";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import {
   ProductCollection as ProductCollectionView,
   ProductGrid,
@@ -27,18 +28,6 @@ type ProductCollectionGridProps = Omit<
   ProductCollectionProps,
   "description" | "title"
 >;
-
-const productCollectionArchitecture = {
-  component: "server",
-  description:
-    "Uses connection() and the buyer-specific Commerce request Layer, so it executes at request time behind Suspense.",
-  layer: "orchestration",
-  layerLabel: "Commerce orchestration",
-  name: "DynamicProductCatalog",
-  rendering: "streamed",
-  source: "commerce",
-  sourceLabel: "Commerce provider",
-} as const;
 
 const getProductCards = async ({
   categoryId,
@@ -79,10 +68,14 @@ export const ProductCollectionGrid = async (
     <>
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
-        <ProductGrid
-          architecture={productCollectionArchitecture}
-          products={products}
-        />
+        <ArchitectureBoundary
+          name="Product collection"
+          description="Loads products for the current store and customer on each request."
+          caching="Uncached · per request"
+          composition="commerce"
+        >
+          <ProductGrid products={products} />
+        </ArchitectureBoundary>
       )}
     </>
   );
@@ -99,12 +92,18 @@ export const ProductCollection = async ({
     <>
       <CommerceContextObservation store={store} />
       {products.length === 0 ? null : (
-        <ProductCollectionView
-          architecture={productCollectionArchitecture}
-          title={title}
-          description={description}
-          products={products}
-        />
+        <ArchitectureBoundary
+          name="Product collection"
+          description="Loads products for the current store and customer on each request."
+          caching="Uncached · per request"
+          composition="commerce"
+        >
+          <ProductCollectionView
+            title={title}
+            description={description}
+            products={products}
+          />
+        </ArchitectureBoundary>
       )}
     </>
   );

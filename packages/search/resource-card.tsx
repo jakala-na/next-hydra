@@ -1,4 +1,4 @@
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { ArticleCard } from "@repo/design-system/components/cms/article-card";
 import type { ArticleTeaser } from "@repo/design-system/components/cms/article-card";
 import type { Locale } from "@repo/i18n";
@@ -43,14 +43,9 @@ export function SearchResourceCard({
 }: SearchResourceCardProps): ReactElement {
   return (
     <ArchitectureBoundary
-      component="client"
+      composition="cms"
       description="Presents the canonical Resource card carried by a provider-normalized search hit."
-      layer="presentation"
-      layerLabel="Resource search hit presentation adapter"
       name="SearchResourceCard"
-      rendering="streamed"
-      source="search"
-      sourceLabel="Search provider"
     >
       <ArticleCard
         article={toSearchResourceCardPresentation(hit, locale)}

@@ -70,6 +70,14 @@ Keep `CMS_REVALIDATION_SECRET` in `apps/web/.env.local` equal to the secret gene
 
 Port 3001 is fixed only for `dev:web`, so only one workspace can run that DDEV-compatible command at a time. Do not pin another app to the same port simultaneously. The regular `pnpm --filter web dev` command retains Portless's dynamic application ports. Configure saved and unsaved browser preview URLs to the workspace's actual Portless origin; the fixed port is only for the container callback. Hosted environments should configure their frontend and revalidation URLs with the Drupal-enabled Vercel project URL.
 
+To override local URLs, add these to `.ddev/config.local.yaml`, using your workspace's Portless origin, then run `ddev restart`:
+
+```yaml
+web_environment:
+  - DRUPAL_FRONTEND_URL=https://web.cms-drupal.localhost
+  - DRUPAL_REVALIDATE_URL=http://host.docker.internal:3001/api/revalidate
+```
+
 ## Configure Algolia Content indexing
 
 Run provisioning from the composed workspace's `apps/cli` directory with your deployment locales and provisioning credentials:
@@ -122,6 +130,15 @@ Search API directly indexes later saves and publication changes, removes deleted
 6. Create an automation user with SSH access to the application.
 7. Add the automation user's RSA public key to Acquia.
 8. Create an Acquia Cloud API key and secret for the automation user.
+
+Set these variables in the Acquia environment, available to both Drupal web requests and Drush. Configure them during provisioning or manually before installation:
+
+| Name | Value |
+| --- | --- |
+| `DRUPAL_FRONTEND_URL` | Public frontend origin, such as `https://demo.example.com`; used for Canvas and browser previews. |
+| `DRUPAL_REVALIDATE_URL` | Optional full HTTP(S) callback URL for an internal address; defaults to `DRUPAL_FRONTEND_URL` plus `/api/revalidate`. |
+
+Drupal reads these directly in `settings.php`. Both accept HTTP or HTTPS for local development. Rebuild Drupal caches after changing them.
 
 ### 2. Configure GitHub
 
@@ -194,9 +211,12 @@ Retrieve that file through an Acquia SSH session and add its values to the Drupa
 
 ```dotenv
 DRUPAL_BASE_URL="https://your-drupal-domain.example"
+NEXT_PUBLIC_WEB_URL="https://demo.example.com"
 ```
 
 Delete `next-hydra-bootstrap.env` from Acquia after storing the credentials securely.
+
+On the frontend, `DRUPAL_BASE_URL` configures the Drupal backend and default Canvas framing origin. Set `CANVAS_SITE_URL` only if Canvas uses a different backend URL. `NEXT_PUBLIC_WEB_URL` is the frontend's own public origin. Keep `CMS_REVALIDATION_SECRET` equal on both sides, then redeploy the frontend.
 
 ### 5. Maintain the hosted site
 

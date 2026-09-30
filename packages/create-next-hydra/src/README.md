@@ -8,6 +8,8 @@ Package discovery uses the source checkout's `pnpm-workspace.yaml` declarations 
 
 Workspace-owned settings are declared once in `initialization.ts`; both ownership checks and the initial `.gitignore` are derived from that policy. `file-policy.ts` classifies runtime environment files, examples and caches for copying, observation and snapshots. Each operation retains its own preservation and exclusion rules. Environment-related TypeScript filenames are ordinary source, not runtime env files.
 
+Architecture instrumentation is a maintainer composition policy. Named definitions can retain it with `demo.architecture: true`; fresh customer creation always removes it. `demo-instrumentation.ts` validates the explicit demo imports and JSX contract, then erases annotations from source and rendered templates before output snapshots. Package closure excludes the demo runtime for clean output. Transformed file origins retain their canonical source and record `remove-demo-architecture` for Explain; refresh, conflicts and freshness use the ordinary workspace lifecycle. See [the annotation contract](../../demo-architecture/README.md).
+
 From the repository root:
 
 ```sh

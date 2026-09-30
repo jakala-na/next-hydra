@@ -1,0 +1,28 @@
+{
+  "name": "example",
+  "homepage": "https://example.com",
+  "items": [
+    {
+      "name": "app-web",
+      "type": "registry:item",
+      "dependencies": ["@example/view@workspace:*"],
+      "meta": {
+        "nextHydra": {
+          "id": "example/app/web",
+          "kind": "package"
+        },
+        "composition": {
+          "templates": [
+            {
+              "source": "shell.tsx.template",
+              "target": "packages/view/shell.tsx",
+              "slots": {
+                "content": "element"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

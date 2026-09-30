@@ -5,5 +5,8 @@
     "commerce": "commercetools",
     "search": "algolia"
   },
-  "addOns": []
+  "addOns": [],
+  "demo": {
+    "architecture": true
+  }
 }

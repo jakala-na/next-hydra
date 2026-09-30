@@ -1,5 +1,5 @@
 import "server-only";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { Locale } from "@repo/i18n";
 import { searchRuntime } from "@repo/search/runtime";
 import { unstable_rethrow } from "next/navigation";
@@ -86,14 +86,10 @@ export function ProductListingPage({
 }: ProductListingPageProps) {
   return (
     <ArchitectureBoundary
-      component="server"
+      composition="app"
       description="Prerenders the Product listing shell while audience-aware InstantSearch results stream at request time."
-      layer="route"
-      layerLabel="Search Product listing page"
       name="ProductListingPage"
-      rendering="streamed"
-      source="search"
-      sourceLabel="Search package"
+      streaming
     >
       <div className="container py-10 lg:py-14">
         <div className="mb-10 max-w-3xl">

@@ -6,5 +6,8 @@
     "search": "algolia"
   },
   "addOns": [],
-  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"]
+  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"],
+  "demo": {
+    "architecture": true
+  }
 }

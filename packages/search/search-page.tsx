@@ -1,5 +1,5 @@
 import "server-only";
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import type { Locale } from "@repo/i18n";
 import { searchRuntime } from "@repo/search/runtime";
 import { unstable_rethrow } from "next/navigation";
@@ -95,14 +95,10 @@ async function CombinedSearchResults({
 export function SearchPage({ locale, searchParams }: SearchPageProps) {
   return (
     <ArchitectureBoundary
-      component="server"
+      composition="app"
       description="Streams provider-neutral Product and Resource search results into a shared InstantSearch experience."
-      layer="route"
-      layerLabel="Search results page"
       name="SearchPage"
-      rendering="streamed"
-      source="search"
-      sourceLabel="Search package"
+      streaming
     >
       <div className="container py-10 lg:py-14">
         <div className="mb-10 max-w-3xl">

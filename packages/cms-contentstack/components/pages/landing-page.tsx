@@ -1,4 +1,4 @@
-import { ArchitectureBoundary } from "@repo/design-system/components/architecture/architecture-boundary";
+import { ArchitectureBoundary } from "@repo/demo-architecture/boundary";
 import { cn } from "@repo/design-system/lib/utils";
 import type { Locale } from "@repo/i18n";
 import { hasLocale } from "@repo/i18n";
@@ -66,15 +66,10 @@ export async function LandingPage(props: { url: string; locale: Locale }) {
 
   return (
     <ArchitectureBoundary
-      cacheProfile="default use cache"
-      component="server"
-      description="A cached Contentstack query resolves the landing page and modular block registry."
-      layer="route"
-      layerLabel="CMS route and page registry"
-      name="ContentstackPageRoute"
-      rendering="cached"
-      source="cms"
-      sourceLabel="Contentstack CMS"
+      name="Contentstack page"
+      description="Loads a Contentstack page and renders its blocks. Default profile: client cache 5m; the next request after 15m triggers background revalidation; no time-based expiry."
+      caching="Cached · revalidate after 15m"
+      composition="cms"
     >
       {pageData.display_title ? (
         <h1 className={cn(pageData.hide_display_title && "hidden")}>
