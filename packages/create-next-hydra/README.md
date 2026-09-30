@@ -10,18 +10,21 @@ Interactive scaffolding asks for every required Provider:
 pnpm dlx create-next-hydra@latest my-project
 ```
 
+Search is an optional Provider Slot. Selecting Algolia adds the storefront search pages, header autocomplete, proxy runtime, and `search` CLI command through registry recipes; it currently requires Commerce. CMS-only sites omit Search. The local navigation-search add-on is an alternative header binding and cannot be selected alongside Algolia.
+
 For a non-interactive scaffold, select a Provider or explicitly omit each optional slot, or use a Preset:
 
 ```bash
 pnpm dlx create-next-hydra@latest my-project --yes \
   --auth workos \
   --cms drupal \
-  --commerce commercetools
+  --commerce commercetools \
+  --search algolia
 
 pnpm dlx create-next-hydra@latest my-project --yes --preset standard
 
 pnpm dlx create-next-hydra@latest content-site --yes \
-  --cms contentstack --without auth --without commerce
+  --cms contentstack --without auth --without commerce --without search
 ```
 
 Use `--add-on <selection>` more than once to include compatible Add-ons. A selection can be an official shorthand, a local registry-item JSON file, a URL, a public GitHub address such as `owner/repository/item#ref`, or a configured ShadCN registry name.
@@ -49,7 +52,9 @@ pnpm --dir workspaces/cms-contentstack typecheck
 pnpm --dir workspaces/cms-contentstack dev
 ```
 
-The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Unowned local files remain untouched and do not block refresh or `--check`. Conflicting edits to managed files and unowned files occupying new output targets still block changes. `--diff` lists eligible unowned files for optional reconciliation without adopting them. `--no-install` leaves dependency installation pending, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch uses the same synchronization and installation policy on every refresh; it does not run an application server. External provisioning is separate.
+The same command initializes or updates the same folder. All files are physical copies, including ordinary source and template output. Refresh preserves caches and does not reinstall unchanged dependencies. Unowned local files remain untouched and do not block refresh or `--check`. Conflicting edits to managed files and unowned files occupying new output targets still block changes. `--diff` lists eligible unowned files for optional reconciliation without adopting them. `--no-install` lets you manage installation yourself with pnpm inside the workspace, `--offline` uses the local store, and `--copy-env` explicitly copies only missing local env files. Omit it for deployment. Watch uses the same synchronization and installation policy on every refresh; it does not run an application server. External provisioning is separate.
+
+`--check` verifies that composed files match the current definition and source. It does not inspect `.npmrc` or installed dependencies, and it does not run pnpm. A files-only composition can pass Check before dependencies are installed. Install dependencies separately before running application commands.
 
 See [Named workspaces](../../workspaces/README.md) for the four definitions, stable Portless hostnames, deployment settings, interruption recovery, and reconciliation instructions. Definitions, workspace-owned `.gitignore` files, optional READMEs, app-local `vercel.json` settings are tracked; materialized runtime manifests, installed files and applied state are ignored. Compose preserves these ignore rules rather than regenerating them. The workspace name determines each Next app's `<app>.<workspace>.localhost` hostname (with Portless's branch prefix inside a Git worktree).
 
@@ -96,6 +101,8 @@ Named workspaces maintain `.workspace-composition.json` ownership fingerprints f
 ## Verification
 
 The implementation uses one shared planner and module-reference renderer. Composition recipes bind normal modules into shared templates; materialized modules have ordinary filenames. The CLI builds with its own pinned TypeScript compiler rather than depending on a root-level executable.
+
+Composition lint runs optional package `lint:prepare` scripts in its disposable workspace before checking types. Use these for local generated modules, such as the Drupal Canvas component registry; they must not require credentials or provision external services.
 
 Run the bounded local suite before accepting composition changes:
 

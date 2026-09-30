@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Adicionar ao Carrinho",
       "quoteRequest": "Solicitar um Orçamento",
+      "priceStartsAt": "Preço a partir de {price}",
       "badgeNew": "Novo",
       "titlePlaceholder": "Título da Variante do Produto",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Início",
       "products": "Produtos",
       "categoryFallback": "Categoria"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Categoria",
+          "availability": "Disponibilidade",
+          "price": "Preço"
+        },
+        "showLess": "Mostrar menos",
+        "showMore": "Mostrar mais"
+      }
     },
     "article": {
       "readGuide": "Ler o guia"

@@ -10,6 +10,7 @@ export const Selection = Schema.Struct({
     auth: Schema.optionalKey(Schema.NonEmptyString),
     cms: Schema.optionalKey(Schema.NonEmptyString),
     commerce: Schema.optionalKey(Schema.NonEmptyString),
+    search: Schema.optionalKey(Schema.NonEmptyString),
   }).pipe(Schema.withDecodingDefaultKey(Effect.succeed({}))),
 });
 export type Selection = typeof Selection.Type;
@@ -32,6 +33,9 @@ export const WorkspaceDefinition = Schema.Struct({
   demo: Schema.optionalKey(Schema.Struct({ architecture: Schema.Boolean })),
   development: Schema.optionalKey(
     Schema.Struct({ port: Schema.optionalKey(DevelopmentPort) })
+  ),
+  preserve: Schema.Array(Schema.NonEmptyString).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([]))
   ),
 });
 
@@ -148,8 +152,6 @@ export interface CheckReport {
   readonly initialized: boolean;
   readonly ready: boolean;
   readonly changes: readonly FileChange[];
-  readonly dependencies: "pending" | "current";
-  readonly dependencyReasons: readonly string[];
 }
 
 export interface DiffReport {

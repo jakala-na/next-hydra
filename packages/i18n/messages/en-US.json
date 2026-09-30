@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Add to Cart",
       "quoteRequest": "Request a Quote",
+      "priceStartsAt": "Price starts at {price}",
       "viewDetails": "View Details",
       "errorLoadingProduct": "Error loading product",
       "inStock": "In Stock",
@@ -27,6 +28,17 @@
       "home": "Home",
       "products": "Products",
       "categoryFallback": "Category"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Category",
+          "availability": "Availability",
+          "price": "Price"
+        },
+        "showLess": "Show less",
+        "showMore": "Show more"
+      }
     },
     "article": {
       "readGuide": "Read guide"

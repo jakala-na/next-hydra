@@ -24,7 +24,7 @@ it.effect(
           });
           yield* workspace.materialize({ install: "skip" });
           expect(yield* fs.readFileString(`/${name}/apps/web/layout.tsx`)).toBe(
-            'import { Account } from "./controls";\nimport { Frame } from "./controls";\nimport { Outer } from "./outer";\n\nexport function Layout() {\n  return (\n    <Outer>\n      <Frame>\n        <main>\n          <header>\n            <Account />\n          </header>\n          Hello\n        </main>\n      </Frame>\n    </Outer>\n  );\n}\n'
+            'import { Account, Frame } from "./controls";\nimport { Outer } from "./outer";\n\nexport function Layout() {\n  return (\n    <Outer>\n      <Frame>\n        <main>\n          <header>\n            <Account />\n          </header>\n          Hello\n        </main>\n      </Frame>\n    </Outer>\n  );\n}\n'
           );
         }
       }).pipe(Effect.provide(layer));
@@ -130,7 +130,7 @@ it.effect(
           "/application/apps/web/configuration.ts"
         );
         expect(output).toBe(
-          'import { configure } from "./configuration-support";\nimport { keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
+          'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
         );
       }).pipe(Effect.provide(layer));
     })
@@ -179,7 +179,7 @@ it.effect(
           "/application/apps/web/layout.tsx"
         );
         expect(output).toBe(
-          'import { Account } from "./controls";\nimport { Frame } from "./controls";\n\nexport function Layout() {\n  return (\n    <Frame>\n      <main>\n        <header>\n          <Account />\n        </header>\n        Hello\n      </main>\n    </Frame>\n  );\n}\n'
+          'import { Account, Frame } from "./controls";\n\nexport function Layout() {\n  return (\n    <Frame>\n      <main>\n        <header>\n          <Account />\n        </header>\n        Hello\n      </main>\n    </Frame>\n  );\n}\n'
         );
       }).pipe(Effect.provide(layer));
     })

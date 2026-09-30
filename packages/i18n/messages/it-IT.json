@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Aggiungi al carrello",
       "quoteRequest": "Richiedi un preventivo",
+      "priceStartsAt": "Prezzo a partire da {price}",
       "badgeNew": "Nuovo",
       "titlePlaceholder": "Titolo della variante del prodotto",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Home",
       "products": "Prodotti",
       "categoryFallback": "Categoria"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Categoria",
+          "availability": "Disponibilità",
+          "price": "Prezzo"
+        },
+        "showLess": "Mostra meno",
+        "showMore": "Mostra altro"
+      }
     },
     "article": {
       "readGuide": "Leggi la guida"

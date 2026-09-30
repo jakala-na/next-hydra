@@ -9,6 +9,7 @@ export {
 export type {
   ProductAttributes,
   ProductAttributesByProductType,
+  ProductAttributePath,
 } from "./generated/attributes";
 export {
   GenericProductAttributes,
@@ -19,6 +20,7 @@ export {
   ProductTypeKey,
   ProductVariant,
 } from "./generated/attributes";
+export type { FieldPath } from "./field-path";
 export {
   CategoryId,
   CategorySlug,
@@ -39,6 +41,8 @@ export {
   ProductOptionValue,
   ProductPrice,
 } from "./model";
+export { productFieldPath } from "./product-field-path";
+export type { ProductFieldPath } from "./product-field-path";
 export type {
   ProductCardPresentation,
   ProductDetailPresentation,
@@ -56,5 +60,6 @@ export {
   ProductDiscovery,
   ProductDiscoveryFailure,
   ProductDiscoveryOperation,
+  type ProductSearchAudience,
   type ProductDiscoveryTestHandlers,
 } from "./product-discovery";

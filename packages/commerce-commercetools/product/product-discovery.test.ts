@@ -60,7 +60,9 @@ const commerceContextLayer = (authenticated = false) =>
 
 const context = {
   distributionChannelId: "distribution-channel-1",
+  distributionChannelKey: "north-america",
   supplyChannelIds: ["supply-channel-1", "supply-channel-2"],
+  supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
 } as const;
 
 const variant = (
@@ -222,6 +224,34 @@ describe("Commercetools Product Discovery", () => {
 
         expect(receivedContext?.customerId).toBe("customer-1");
         expect(receivedBuyerSegment).toBe("segment-1");
+      })
+  );
+
+  it.effect(
+    "projects the opaque price audience for authenticated Product search",
+    () =>
+      Effect.gen(function* () {
+        const clientLayer = makeClientLayer({
+          resolveProductContext: () =>
+            Effect.succeed({
+              ...context,
+              customerGroupId: "customer-group-id-1",
+              distributionChannelKey: "north-america",
+              supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
+            }),
+        });
+
+        const searchAudience = yield* runWithClient(
+          ProductDiscovery.pipe(
+            Effect.flatMap((service) => service.searchAudience())
+          ),
+          clientLayer,
+          true
+        );
+
+        expect(searchAudience).toStrictEqual({
+          priceAudienceIds: ["customer-group-id-1"],
+        });
       })
   );
 

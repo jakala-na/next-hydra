@@ -24,7 +24,7 @@ pnpm --filter create-next-hydra compose storefront-contentstack
 pnpm --filter create-next-hydra compose storefront-contentstack --check
 ```
 
-Resolve conflicts with `--diff` and source ownership with `--explain <file>`. Verify that the server being tested belongs to this workspace and has loaded the changes. Health checks prove availability, not revision identity.
+Resolve conflicts with `--diff` and source ownership with `--explain <file>`. Check verifies composed files only. Manage dependency installation separately if composition used `--no-install`. Verify that the server being tested belongs to this workspace and has loaded the changes. Health checks prove availability, not revision identity.
 
 The delegate currently discovers and invokes runners; it does not enforce freshness automatically. Any future freshness/revision gate belongs in maintainer orchestration. Reuse the composition check's structured result and registry inventory, including uncommitted source inputs. Keep checks uncached and nonmutating. Record the source and materialized revisions used by the run, and invalidate results if they changed; a stable or isolated composition is stronger than checks before and after a moving watcher. Preserve fixture cleanup on failure. Customer runners need no source checkout, named-workspace receipt, or scaffolding dependency.
 

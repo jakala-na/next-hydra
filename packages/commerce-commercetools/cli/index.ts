@@ -5,10 +5,19 @@ import { Command } from "effect/unstable/cli";
 import { createMigrateCommand } from "./commands/migrate";
 import { createProjectCommand } from "./commands/project";
 import { createSchemaCommand } from "./commands/schema";
-import { createTypesCommand } from "./commands/types";
+import {
+  createTypesCommand,
+  PRODUCT_TYPE_SCHEMA_DIRECTORY,
+} from "./commands/types";
 import { createCommerceCliLayer } from "./layer";
+import { createCommercetoolsSearchIndexingSource } from "./search-indexing-live";
 
 export { createCommerceCliLayer } from "./layer";
+
+export const commerceSearchIndexingSource = {
+  create: createCommercetoolsSearchIndexingSource,
+  productTypeSchemaDirectory: PRODUCT_TYPE_SCHEMA_DIRECTORY,
+} as const;
 
 export const createCommerceCommand = <E, R>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>

@@ -150,8 +150,9 @@ describe.each([false, true])("stop denied: %s", (denyStop) => {
               .pipe(Effect.flip)
           ).toMatchObject({ _tag: "WorkspaceRecoveryRequired" });
         } else {
+          expect(yield* workspace.check).toMatchObject({ ready: true });
           expect(yield* retry).toMatchObject({ dependencies: "pending" });
-          expect(yield* workspace.check()).toMatchObject({ ready: false });
+          expect(yield* workspace.check).toMatchObject({ ready: true });
         }
       }).pipe(Effect.provide(platform)),
     { timeout: 30_000 }

@@ -3,6 +3,7 @@
     "cms": "drupal"
   },
   "addOns": [],
+  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"],
   "demo": {
     "architecture": true
   }

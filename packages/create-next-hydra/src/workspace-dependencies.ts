@@ -550,7 +550,7 @@ export class WorkspaceDependencies extends Context.Service<
           Config.withDefault("development"),
           Effect.mapError(failure)
         );
-        // Check verifies recorded installation, not the executable a future install
+        // Inspection verifies recorded installation, not the executable a future install
         // might select. Never bootstrap a package manager during read-only inspection.
         if (
           !previous.toolchain.startsWith(
@@ -609,6 +609,18 @@ export class WorkspaceDependencies extends Context.Service<
         const inputs = yield* inputsFor(directory, files, fs, path).pipe(
           Effect.mapError(() => failure("inputs"))
         );
+        const preserved = access ? (yield* access.observation).preserved : [];
+        const workspaceOwnedInputs = inputs.files.filter((file) =>
+          preserved.includes(file.target)
+        );
+        if (workspaceOwnedInputs.length > 0) {
+          return {
+            dependencies: "pending",
+            dependencyReasons: [
+              `Installation skipped for preserved pnpm inputs: ${workspaceOwnedInputs.map((file) => file.target).join(", ")}. Run pnpm install in the workspace`,
+            ],
+          };
+        }
         const expected = access
           ? new Map(
               (yield* access.appliedEntries).map((entry) => [

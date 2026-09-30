@@ -95,7 +95,7 @@ const sourceRepository = Effect.gen(function* () {
   };
 });
 
-const scaffold = (cms: string, auth?: string) =>
+const scaffold = (cms: string, auth?: string, search = auth !== undefined) =>
   Effect.gen(function* () {
     const { cli, source, target } = yield* sourceRepository;
     yield* run(source, process.execPath, [
@@ -107,6 +107,7 @@ const scaffold = (cms: string, auth?: string) =>
       "--skip-git",
       "--cms",
       cms,
+      ...(search ? ["--search", "algolia"] : ["--without", "search"]),
       ...(auth
         ? ["--auth", auth, "--commerce", "commercetools"]
         : ["--without", "auth", "--without", "commerce"]),
@@ -115,6 +116,39 @@ const scaffold = (cms: string, auth?: string) =>
   });
 
 for (const cms of ["contentstack", "drupal"]) {
+  it.live(
+    `installs and typechecks ${cms} Content search without Commerce`,
+    () =>
+      Effect.gen(function* () {
+        const target = yield* scaffold(cms, undefined, true);
+        yield* run(target, "pnpm", ["run", "typecheck", "--continue=always"]);
+        yield* run(target, "pnpm", ["--filter", "@repo/search", "test"]);
+        const help = yield* run(target, "pnpm", [
+          "--filter",
+          "cli",
+          "cli",
+          "search",
+          "--help",
+        ]);
+        expect(help).toContain("provision");
+        expect(help).not.toMatch(/\btypes\b/u);
+        const plan = yield* run(target, "pnpm", [
+          "--filter",
+          "cli",
+          "cli",
+          "search",
+          "provision",
+          "--locale",
+          "en-US",
+          "--dry-run",
+        ]);
+        expect(plan).toContain("Content index:");
+        expect(plan).toContain("query-suggestions--en-US");
+        expect(plan).not.toMatch(/Product primary:|connector key:/u);
+      }).pipe(Effect.provide(NodeServices.layer)),
+    { timeout: 600_000 }
+  );
+
   it.live(
     `installs and typechecks a standalone ${cms} CMS site and runs its documented administration command`,
     () =>

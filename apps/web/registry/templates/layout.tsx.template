@@ -26,7 +26,7 @@ async function PageShell({ children }: { children: ReactNode }) {
       <SiteHeader
           MainNavigation={<Navigation navigationItems={navigation.navigationItems} />}
           RegionSelectorSlot={<Suspense fallback={<div className="h-8 w-16 animate-pulse rounded bg-accent-foreground/15" />}><RegionSelector /></Suspense>}
-          MobileMenuSlot={<MobileMenu navigationItems={navigation.navigationItems} {{#search}}Search={headerSearch}{{/search}} />}
+          MobileMenuSlot={<MobileMenu navigationItems={navigation.navigationItems} {{#mobileSearch}}Search={<Suspense fallback={null}>{{mobileSearch}}</Suspense>}{{/mobileSearch}} />}
           {{#account}}AccountSlot={<Suspense fallback={null}>{{account}}</Suspense>}{{/account}}
           {{#cart}}CartSlot={{{cart}}}{{/cart}}
           {{#businessUnit}}BusinessUnitSwitcher={<Suspense fallback={null}>{{businessUnit}}</Suspense>}{{/businessUnit}}

@@ -43,6 +43,16 @@ if [[ "$bootstrap_status" == "Successful" ]]; then
   exit 65
 fi
 
+search_recipe=""
+if remote_ssh test -f recipes/search-algolia/recipe.yml; then
+  search_recipe=../recipes/search-algolia
+  if ! remote_ssh test -f docroot/modules/contrib/search_api/search_api.info.yml || \
+     ! remote_ssh test -f docroot/modules/contrib/search_api_algolia/search_api_algolia.info.yml; then
+    echo "Search dependencies are missing. Run bash scripts/prepare-search.sh in your local Drupal app, commit composer.json and composer.lock, and redeploy before bootstrap." >&2
+    exit 65
+  fi
+fi
+
 echo "Initializing persistent Acquia settings..."
 remote_ssh php scripts/initialize_acquia_secrets.php
 
@@ -55,6 +65,10 @@ if remote_ssh test -f recipes/next-hydra-commerce/recipe.yml; then
   site_recipe=../recipes/next-hydra-commerce
 fi
 remote_drush recipe "$site_recipe" --verbose
+if [[ -n "$search_recipe" ]]; then
+  echo "Applying the Algolia Content search recipe..."
+  remote_drush recipe "$search_recipe" --verbose
+fi
 remote_drush cache:rebuild
 
 echo "Creating OAuth scopes and consumers..."

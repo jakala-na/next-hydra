@@ -2,11 +2,16 @@ import { isUtf8 } from "node:buffer";
 
 import { Effect, Schema } from "effect";
 
+import { yamlDocument } from "./baseline.ts";
 import { InvalidComposition } from "./errors.ts";
 import type { PreparedFile } from "./model.ts";
 import { DevelopmentPort } from "./model.ts";
 
 const extras = [Schema.Record(Schema.String, Schema.Unknown)] as const;
+const DdevConfig = Schema.Struct({
+  name: Schema.optionalKey(Schema.NonEmptyString),
+  project_tld: Schema.optionalKey(Schema.NonEmptyString),
+});
 const Manifest = Schema.fromJsonString(
   Schema.StructWithRest(
     Schema.Struct({
@@ -43,7 +48,33 @@ export const scopeApplicationHosts = Effect.fn(
     .replace(/-+$/u, "");
   const hosts = new Map<string, string>();
   const output: PreparedFile[] = [];
+  let ddevTarget: string | undefined;
   for (const file of files) {
+    if (
+      !opaqueTargets.has(file.target) &&
+      /^apps\/[^/]+\/\.ddev\/config\.yaml$/u.test(file.target)
+    ) {
+      if (ddevTarget !== undefined) {
+        return yield* new InvalidComposition({
+          message: `Only one DDEV app can use the application name: ${ddevTarget}, ${file.target}`,
+        });
+      }
+      ddevTarget = file.target;
+      const { data, document } = yield* yamlDocument(
+        file.content,
+        file.target,
+        DdevConfig
+      );
+      const originalName = data.name ?? file.target.split("/")[1];
+      const tld = data.project_tld ?? "ddev.site";
+      hosts.set(`${originalName}.${tld}`, `${namespace}.${tld}`);
+      document.set("name", namespace);
+      output.push({
+        ...file,
+        content: new TextEncoder().encode(document.toString()),
+      });
+      continue;
+    }
     if (
       opaqueTargets.has(file.target) ||
       !/^apps\/[^/]+\/package\.json$/u.test(file.target)

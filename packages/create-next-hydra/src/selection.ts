@@ -24,13 +24,15 @@ const manifestTarget = Effect.fn("Composition.manifestTarget")(function* (
 });
 
 const SlotRequirement = Schema.Literals(["required", "optional", "forbidden"]);
-const ProviderSlot = Schema.Literals(["auth", "cms", "commerce"]);
+const ProviderSlot = Schema.Literals(["auth", "cms", "commerce", "search"]);
 export const providerAliases = {
   auth: "@repo/auth",
   cms: "@repo/cms",
   commerce: "@repo/commerce-provider",
+  search: "@repo/search-provider",
 } as const;
 const officialReferences = {
+  algolia: "next-hydra/search/algolia",
   clerk: "next-hydra/auth/clerk",
   commercetools: "next-hydra/commerce/commercetools",
   contentstack: "next-hydra/cms/contentstack",
@@ -63,9 +65,7 @@ const Metadata = Schema.Struct({
     Schema.Array(
       Schema.Struct({
         items: Schema.NonEmptyArray(Schema.NonEmptyString),
-        providers: Schema.NonEmptyArray(
-          Schema.Literals(["auth", "cms", "commerce"])
-        ),
+        providers: Schema.NonEmptyArray(ProviderSlot),
       })
     )
   ),
@@ -103,6 +103,7 @@ const Metadata = Schema.Struct({
       auth: Schema.optionalKey(SlotRequirement),
       cms: Schema.optionalKey(SlotRequirement),
       commerce: Schema.optionalKey(SlotRequirement),
+      search: Schema.optionalKey(SlotRequirement),
     })
   ),
   selections: Schema.optionalKey(
@@ -111,7 +112,7 @@ const Metadata = Schema.Struct({
       providers: Schema.optionalKey(Selection.fields.providers),
     })
   ),
-  slot: Schema.optionalKey(Schema.Literals(["auth", "cms", "commerce"])),
+  slot: Schema.optionalKey(ProviderSlot),
   typeScriptAliases: Schema.optionalKey(
     Schema.Array(
       Schema.Struct({
@@ -125,7 +126,7 @@ const Metadata = Schema.Struct({
 const validateProviderRequirements = Effect.fn(
   "Composition.validateProviderRequirements"
 )(function* (metadata: typeof Metadata.Type, selection: Selection) {
-  for (const slot of ["auth", "cms", "commerce"] as const) {
+  for (const slot of ["auth", "cms", "commerce", "search"] as const) {
     const requirement = metadata.providerSlots?.[slot];
     const present = selection.providers[slot] !== undefined;
     if (

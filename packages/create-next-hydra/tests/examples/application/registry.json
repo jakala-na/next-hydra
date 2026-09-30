@@ -3,6 +3,25 @@
   "homepage": "https://example.com",
   "items": [
     {
+      "name": "ddev",
+      "type": "registry:item",
+      "meta": {
+        "nextHydra": { "id": "example/add-ons/ddev", "kind": "add-on" }
+      },
+      "files": [
+        {
+          "path": "ddev/config.yaml",
+          "target": "~/apps/backend/.ddev/config.yaml",
+          "type": "registry:file"
+        },
+        {
+          "path": "ddev/.env.example",
+          "target": "~/apps/backend/.env.example",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
       "name": "root-package-requirement",
       "type": "registry:item",
       "meta": {

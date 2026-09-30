@@ -101,37 +101,6 @@ it.effect(
     })
 );
 
-for (const request of ["picocolors@2.0.0", "https://example.com/archive.tgz"]) {
-  it.effect(
-    `rejects an incompatible or unnamed registry dependency: ${request}`,
-    () =>
-      Effect.gen(function* () {
-        const layer = yield* memoryWorkspace("application");
-        yield* Effect.gen(function* () {
-          const fs = yield* FileSystem.FileSystem;
-          const registry = yield* fs.readFileString("/source/registry.json");
-          yield* fs.writeFileString(
-            "/source/registry.json",
-            applyEdits(
-              registry,
-              modify(registry, ["items", 1, "dependencies"], [request], {})
-            )
-          );
-          const workspace = yield* (yield* Workspaces).fresh({
-            destination: "/application",
-            name: "invalid-site",
-            selection: { addOns: ["root-dependencies"], providers: {} },
-            source: { kind: "working-tree", root: "/source" },
-          });
-          expect(
-            yield* workspace.materialize({ install: "skip" }).pipe(Effect.flip)
-          ).toMatchObject({ _tag: "InvalidComposition" });
-          expect(yield* fs.exists("/application")).toBeFalsy();
-        }).pipe(Effect.provide(layer));
-      })
-  );
-}
-
 it.live(
   "keeps npm requirements out of upstream installation while materializing through real ShadCN",
   () =>

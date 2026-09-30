@@ -41,6 +41,13 @@ export default mergeConfig(
           ),
         },
         {
+          find: "@repo/search-provider",
+          replacement: path.resolve(
+            import.meta.dirname,
+            "node_modules/@repo/search-provider"
+          ),
+        },
+        {
           find: /^@repo\/payments-stripe\/server$/u,
           replacement: path.resolve(
             import.meta.dirname,

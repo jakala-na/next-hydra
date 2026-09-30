@@ -8,7 +8,7 @@ import type { GlobalMiddlewareConfig, MiddlewareConfig } from "@zanreal/nemo";
 import { env } from "./env";
 {{imports}}
 
-export const config = { matcher: ["/((?!api|_next/|_static|_vercel|ingest|monitoring).*)"{{#proxy}}, "/api/auth/:path*"{{/proxy}}] };
+export const config = { matcher: ["/((?!api|_next/|_static|_vercel|ingest|monitoring).*)"{{#proxy}}, "/api/auth/:path*", "/api/search/:path*"{{/proxy}}] };
 const securityOptions = {
   ...noseconeOptions,
   contentSecurityPolicy: {

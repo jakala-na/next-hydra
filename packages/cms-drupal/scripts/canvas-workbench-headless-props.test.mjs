@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 const workspaceConfig = readFileSync(
   path.resolve(import.meta.dirname, "../../../pnpm-workspace.yaml"),
-  "utf8"
+  "utf-8"
 );
 const hasWorkbenchPatch =
   /["']?@drupal-canvas\/workbench@0\.12\.0["']?\s*:\s*patches\/@drupal-canvas__workbench@0\.12\.0\.patch/u.test(

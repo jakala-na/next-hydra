@@ -1,0 +1,72 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.article.field_summary
+    - node.type.article
+    - node.type.landing_page
+    - search_api.server.algolia_content
+  module:
+    - node
+    - search_api
+    - search_api_algolia
+id: content
+name: Content
+description: "Published Articles and Landing Pages supplied to the selected search provider."
+read_only: false
+field_settings:
+  content_type:
+    label: "Content type"
+    datasource_id: "entity:node"
+    property_path: type
+    type: string
+  id:
+    label: ID
+    datasource_id: "entity:node"
+    property_path: uuid
+    type: string
+  path:
+    label: Path
+    property_path: search_api_url
+    type: string
+    configuration:
+      absolute: false
+  summary:
+    label: Summary
+    datasource_id: "entity:node"
+    property_path: field_summary
+    type: text
+  title:
+    label: Title
+    datasource_id: "entity:node"
+    property_path: title
+    type: text
+processor_settings:
+  add_url: {}
+  entity_status:
+    weights:
+      alter_items: 0
+tracker_settings:
+  default:
+    indexing_order: fifo
+options:
+  algolia_index_apply_suffix: false
+  algolia_index_batch_deletion: false
+  algolia_index_name: __ALGOLIA_CONTENT_INDEX_NAME__
+  cron_limit: 50
+  delete_on_fail: true
+  index_directly: true
+  object_id_field: ""
+  partially_update_objects: false
+  track_changes_in_references: true
+datasource_settings:
+  "entity:node":
+    bundles:
+      default: false
+      selected:
+        - article
+        - landing_page
+    languages:
+      default: true
+      selected: {}
+server: algolia_content

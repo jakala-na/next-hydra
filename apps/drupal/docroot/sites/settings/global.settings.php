@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * @file
  * Next Hydra settings shared by all Drupal sites and environments.
  */
+
+declare(strict_types=1);
 
 // Acquia provides a persistent private-files path through its recommended
 // settings. Store OAuth signing keys there instead of in the code artifact.
@@ -39,4 +39,9 @@ if ($revalidate_url !== FALSE && $revalidate_url !== '') {
     throw new InvalidArgumentException('DRUPAL_REVALIDATE_URL must be an HTTP(S) URL without credentials or a fragment.');
   }
   $config['next.next_site.next_hydra']['revalidate_url'] = $revalidate_url;
+}
+
+// Optional integrations are installed by their selected composition recipes.
+foreach (glob(__DIR__ . "/integrations/*.settings.php") ?: [] as $integration_settings) {
+  require $integration_settings;
 }

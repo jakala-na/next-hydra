@@ -78,6 +78,46 @@ web_environment:
   - DRUPAL_REVALIDATE_URL=http://host.docker.internal:3001/api/revalidate
 ```
 
+## Configure Algolia Content indexing
+
+Run provisioning from the composed workspace's `apps/cli` directory with your deployment locales and provisioning credentials:
+
+```sh
+pnpm cli search provision --env-file .env.algolia.provision.local --locale en-US --locale fr-FR --store local --output .env.algolia.runtime.local
+```
+
+The output file includes the three CMS values below alongside the search credentials. For DDEV, put them in the Drupal app's ignored `.ddev/config.local.yaml` under `web_environment`, then run `ddev restart` and `ddev drush cr`. Hosted Drupal needs the same variables in its backend environment. Use local output for this manual setup: Vercel sensitive keys cannot be copied back out. This replaces the previous `ALGOLIA_DRUPAL_WRITE_API_KEY` variable; rename existing deployment configuration when updating.
+
+When Algolia Search is selected, `ddev install` also runs `ddev install-search`. Its `scripts/prepare-search.sh` installs the local recipe package through Composer and Drupal's recipe-unpack plugin; Drush then applies the recipe. It installs Search API and Search API Algolia with a `Content` index for published Articles and Landing Pages. Commit the resulting `composer.json` and `composer.lock` in your application. A CMS-only installation without Search does not include these modules or credentials. Make all three runtime values available to Drupal before indexing:
+
+```dotenv
+ALGOLIA_APPLICATION_ID=""
+ALGOLIA_CONTENT_WRITE_API_KEY=""
+ALGOLIA_CONTENT_INDEX_NAME="content"
+```
+
+Use a dedicated Algolia key restricted to the exact Content index with `search`, `browse`, `addObject`, and `deleteObject` permissions. The backend browses split records during updates and deletions, so `browse` is required even when your content fits in a single record. Add `listIndexes` only when editors need the Search API connection-status view. Do not give Drupal the Algolia Admin API key in a hosted environment.
+
+Drupal owns Content selection, translation tracking, publication filtering, and record delivery. The search provider provisioning command owns the Algolia index settings. `@repo/cms-drupal` translates Drupal's flat records into the shared Content result contract when the application searches them.
+
+DDEV keeps the Content index read-only, even with valid credentials or an imported database. For controlled, safe testing with remote search, set `read_only` to `FALSE` in `docroot/sites/settings/integrations/algolia.settings.php` and run `ddev drush cr`. Restore `TRUE` and rebuild caches when finished. Frontend search remains available against existing Algolia records.
+
+Outside DDEV, or after explicitly opting in locally, new Content saves are indexed directly after the request. Drupal cron drains work still marked pending. Operators can inspect or drain that backlog explicitly:
+
+```bash
+ddev drush search-api:status content
+ddev drush search-api:index content
+```
+
+After configuring the credentials and index name, rebuild the tracker before the initial backfill. This also recovers content created while the recipe still had placeholder Algolia credentials:
+
+```bash
+ddev drush search-api:rebuild-tracker content
+ddev drush search-api:index content
+```
+
+Search API directly indexes later saves and publication changes, removes deleted records, and retains cron as backlog recovery. However, Search API Algolia can catch a delivery error, log a warning, and still report the items as processed. An empty backlog therefore does not prove every write reached Algolia, and cron will not automatically retry those acknowledged failures. Monitor Drupal's logs; after fixing a delivery failure, rebuild the tracker and reindex using the commands above, then verify the affected records in Algolia. Failed deletions may require explicit removal of stale records from Algolia.
+
 ## Deploy to Acquia
 
 ### 1. Prepare the Acquia application
@@ -123,6 +163,16 @@ Keep the matching SSH public key on the Acquia automation user.
 
 ### 3. Deploy Drupal
 
+If Algolia Search is selected and you have not run `ddev install-search`, prepare its dependencies locally before deploying. This needs PHP and Composer, but no DDEV or database:
+
+```bash
+cd apps/drupal
+composer install
+bash scripts/prepare-search.sh
+```
+
+Commit the resulting `composer.json` and `composer.lock` so the deployment installs the same dependencies.
+
 Push a Drupal-affecting change to `main`. The `Deploy Drupal to Acquia` GitHub Action uses Turbo's affected selection, builds the Acquia artifact, pushes it to the configured environment, and runs database updates and a cache rebuild on an installed site.
 
 To force a deployment, open **Actions → Deploy Drupal to Acquia → Run workflow** in GitHub.
@@ -155,7 +205,7 @@ bash apps/drupal/scripts/bootstrap_acquia.sh myapp.prod
 
 Pass the exact target alias. The script asks for confirmation and stops if Drupal is already installed.
 
-The script initializes the environment's persistent `secrets.settings.php`, installs Drupal, applies the recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
+The script initializes the environment's persistent `secrets.settings.php`, installs Drupal, applies the base or Commerce recipe and the optional Search recipe, creates the OAuth consumers, configures revalidation, rebuilds permissions, and clears caches. When Search is selected, missing Search dependencies stop bootstrap before database installation. It writes the generated frontend credentials to `next-hydra-bootstrap.env` in the environment's persistent private files directory.
 
 Retrieve that file through an Acquia SSH session and add its values to the Drupal-enabled Vercel project. Also configure:
 
@@ -188,6 +238,8 @@ The base recipe (`recipes/next-hydra-base`) installs the demo content model and 
 The Editorial recipe (`recipes/next-hydra-editorial`) adds the Paragraph and Canvas homepages with a hero and featured articles. The Commerce recipe (`recipes/next-hydra-commerce`) adds the product collection definitions and imports those same homepages with a hero, product collection, and featured articles. It does not create separate catalog sample pages. Both variants preserve the homepage UUIDs, aliases, translations, and Home menu link. Product data comes from the selected Commerce provider rather than a Drupal product content type.
 
 Choose one top-level recipe for a fresh installation. The shared base recipe deliberately excludes the homepages and their Home menu link: Drupal imports dependent recipes first and skips existing content UUIDs, so Commerce cannot override a homepage already imported by the base recipe. On an existing site, edit the homepage to add the product collection; reapplying a recipe does not update existing homepage content.
+
+The optional Search recipe (`recipes/search-algolia`) installs Search API and its Algolia backend, with configuration for publishing Content records to Algolia.
 
 ## Update the Drupal schema
 

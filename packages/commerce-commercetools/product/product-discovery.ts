@@ -73,15 +73,17 @@ const productDiscoveryImplementationLayer = Layer.effect(
       listCards: Effect.fn("ProductDiscovery.listCards")((input) =>
         Effect.gen(function* () {
           const context = yield* resolveProductContext;
-          const products = yield* client.listProductProjections({
-            ...(input.categoryId === undefined
-              ? {}
-              : { categoryId: input.categoryId }),
+          const listInput = {
             context,
             currency: commerceContext.store.currency,
             limit: input.limit,
             locale: commerceContext.store.locale,
-          });
+          };
+          const products = yield* client.listProductProjections(
+            input.categoryId === undefined
+              ? listInput
+              : { ...listInput, categoryId: input.categoryId }
+          );
           const includedProducts = products.filter(
             ({ id }) => id !== input.excludeProductId
           );
@@ -128,6 +130,24 @@ const productDiscoveryImplementationLayer = Layer.effect(
                 cause,
                 message: "Commercetools Product card discovery failed",
                 operation: "listCards",
+              })
+          )
+        )
+      ),
+      searchAudience: Effect.fn("ProductDiscovery.searchAudience")(() =>
+        resolveProductContext.pipe(
+          Effect.map((context) => ({
+            priceAudienceIds:
+              context.customerGroupId === undefined
+                ? []
+                : [context.customerGroupId],
+          })),
+          Effect.mapError(
+            (cause) =>
+              new ProductDiscoveryFailure({
+                cause,
+                message: "Commercetools Product search audience failed",
+                operation: "searchAudience",
               })
           )
         )

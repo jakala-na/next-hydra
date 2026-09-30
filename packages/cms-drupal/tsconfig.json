@@ -13,6 +13,6 @@
     ],
     "paths": { "@repo/*": ["../*"] }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "scripts/**/*.mjs"],
   "exclude": ["node_modules", "registry"]
 }

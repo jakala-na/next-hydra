@@ -21,13 +21,15 @@ export const runtimeEnvironmentDestinationFlags = () => ({
   overwrite: Flag.Boolean("overwrite").pipe(
     Flag.withDescription(
       "Replace exact provider-owned variables in selected Vercel environments"
-    )
+    ),
+    Flag.withDefault(false)
   ),
   store: Flag.Literals("store", DESTINATIONS).pipe(
     Flag.withDescription("Runtime configuration store"),
     Flag.withDefault("local")
   ),
   yes: Flag.Boolean("yes").pipe(
+    Flag.withDefault(false),
     Flag.withDescription("Skip the provisioning confirmation")
   ),
 });

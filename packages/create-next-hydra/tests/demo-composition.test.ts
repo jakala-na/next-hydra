@@ -106,7 +106,7 @@ it.effect(
           `${root}/next-hydra.json`,
           '{"providers":{},"demo":{"architecture":false}}'
         );
-        const check = yield* workspace.check();
+        const check = yield* workspace.check;
         const removal: unknown = expect.arrayContaining([
           { kind: "remove", target: "packages/demo-architecture/styles.css" },
         ]);

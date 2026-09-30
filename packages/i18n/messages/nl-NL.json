@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Toevoegen aan winkelwagentje",
       "quoteRequest": "Vraag een offerte aan",
+      "priceStartsAt": "Prijs vanaf {price}",
       "badgeNew": "Nieuw",
       "titlePlaceholder": "Productvariant Titel",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Home",
       "products": "Producten",
       "categoryFallback": "Categorie"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Categorie",
+          "availability": "Beschikbaarheid",
+          "price": "Prijs"
+        },
+        "showLess": "Minder tonen",
+        "showMore": "Meer tonen"
+      }
     },
     "article": {
       "readGuide": "Gids lezen"

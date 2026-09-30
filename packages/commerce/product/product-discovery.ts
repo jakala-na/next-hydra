@@ -16,6 +16,7 @@ export class ListProductCardsInput extends Schema.Class<ListProductCardsInput>(
 export const ProductDiscoveryOperation = Schema.Literals([
   "findBySlug",
   "listCards",
+  "searchAudience",
 ]);
 export type ProductDiscoveryOperation = typeof ProductDiscoveryOperation.Type;
 
@@ -35,6 +36,15 @@ interface ProductDiscoveryMethods {
   readonly listCards: (
     input: ListProductCardsInput
   ) => Effect.Effect<readonly ProductCard[], ProductDiscoveryFailure>;
+  readonly searchAudience: () => Effect.Effect<
+    ProductSearchAudience,
+    ProductDiscoveryFailure
+  >;
+}
+
+export interface ProductSearchAudience {
+  /** Opaque identifiers for the current customer's applicable price audiences. */
+  readonly priceAudienceIds: readonly string[];
 }
 
 export type ProductDiscoveryTestHandlers = Partial<ProductDiscoveryMethods>;
@@ -56,6 +66,13 @@ export class ProductDiscovery extends Context.Service<
           (input) =>
             handlers.listCards?.(input) ??
             Effect.succeed<readonly ProductCard[]>([])
+        ),
+        searchAudience: Effect.fn("ProductDiscovery.searchAudience")(
+          () =>
+            handlers.searchAudience?.() ??
+            Effect.succeed<ProductSearchAudience>({
+              priceAudienceIds: [],
+            })
         ),
       })
     );

@@ -9,6 +9,81 @@ import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
 const json = Schema.decodeEffect(Schema.fromJsonString(Schema.Unknown));
 
 it.effect(
+  "binds a selected search provider in the materialized application",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("bindings");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        let registry = yield* fs.readFileString("/source/registry.json");
+        for (const item of [0, 1]) {
+          for (const path of [
+            ["items", item, "meta", "nextHydra", "slot"],
+            [
+              "items",
+              item,
+              "meta",
+              "nextHydra",
+              "providerDependencies",
+              0,
+              "slot",
+            ],
+          ]) {
+            registry = applyEdits(
+              registry,
+              modify(registry, path, "search", {})
+            );
+          }
+        }
+        yield* fs.writeFileString("/source/registry.json", registry);
+        for (const file of ["package.json", "tsconfig.json"]) {
+          const path = `/source/apps/web/${file}`;
+          yield* fs.writeFileString(
+            path,
+            (yield* fs.readFileString(path)).replaceAll(
+              "@repo/cms",
+              "@repo/search-provider"
+            )
+          );
+        }
+        for (const provider of ["editorial", "archive"]) {
+          const workspace = yield* (yield* Workspaces).fresh({
+            destination: `/applications/${provider}`,
+            name: `${provider}-search`,
+            selection: { addOns: [], providers: { search: provider } },
+            source: { kind: "working-tree", root: "/source" },
+          });
+          yield* workspace.materialize({ install: "skip" });
+          expect(
+            yield* json(
+              yield* fs.readFileString(
+                `/applications/${provider}/apps/web/package.json`
+              )
+            )
+          ).toMatchObject({
+            dependencies: {
+              "@repo/search-provider": `workspace:@example/${provider}@*`,
+            },
+          });
+          const config: unknown = parse(
+            yield* fs.readFileString(
+              `/applications/${provider}/apps/web/tsconfig.json`
+            )
+          );
+          expect(config).toMatchObject({
+            compilerOptions: {
+              paths: {
+                "@repo/search-provider": [`../../packages/${provider}`],
+                "@repo/search-provider/*": [`../../packages/${provider}/*`],
+              },
+            },
+          });
+        }
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
   "resolves nested packages from workspace declarations without including excluded or maintainer packages",
   () =>
     Effect.gen(function* () {

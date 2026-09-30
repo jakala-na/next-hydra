@@ -1,0 +1,6 @@
+name: Algolia Content search
+description: Index published CMS content in the selected Algolia application.
+type: Content
+install:
+  - search_api
+  - search_api_algolia

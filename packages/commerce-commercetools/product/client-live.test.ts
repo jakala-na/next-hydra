@@ -74,8 +74,13 @@ const run = <A, E>(
 const storeResponse = {
   data: {
     store: {
-      distributionChannels: [{ id: "distribution-channel-1" }],
-      supplyChannels: [{ id: "supply-channel-1" }, { id: "supply-channel-2" }],
+      distributionChannels: [
+        { id: "distribution-channel-1", key: "north-america" },
+      ],
+      supplyChannels: [
+        { id: "supply-channel-1", key: "main-warehouse" },
+        { id: "supply-channel-2", key: "overflow-warehouse" },
+      ],
     },
   },
 };
@@ -126,7 +131,14 @@ describe("Commercetools Product Discovery GraphQL client", () => {
         query
           .mockResolvedValueOnce(storeResponse)
           .mockResolvedValueOnce({
-            data: { customer: { customerGroup: { id: "customer-group-1" } } },
+            data: {
+              customer: {
+                customerGroup: {
+                  id: "customer-group-1",
+                  key: "contractors",
+                },
+              },
+            },
           })
           .mockResolvedValueOnce({
             data: { productProjectionSearch: { results: [] } },
@@ -146,6 +158,30 @@ describe("Commercetools Product Discovery GraphQL client", () => {
           customerGroupId: "customer-group-1",
         });
       })
+  );
+
+  it.effect("resolves the opaque Product price audience", () =>
+    Effect.gen(function* () {
+      query.mockResolvedValueOnce(storeResponse).mockResolvedValueOnce({
+        data: {
+          customer: {
+            customerGroup: {
+              id: "customer-group-1",
+              key: "contractors",
+            },
+          },
+        },
+      });
+
+      const audience = yield* run(
+        Effect.flatMap(ProductDiscovery, (service) => service.searchAudience()),
+        true
+      );
+
+      expect(audience).toStrictEqual({
+        priceAudienceIds: ["customer-group-1"],
+      });
+    })
   );
 
   it.effect(

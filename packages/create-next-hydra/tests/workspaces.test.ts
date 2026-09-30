@@ -792,7 +792,7 @@ it.live(
       expect(
         yield* fs.readFileString(`${root}/apps/web/configuration.ts`)
       ).toBe(
-        'import { configure } from "./configuration-support";\nimport { keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
+        'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
       );
       expect(yield* fs.readFileString(`${root}/apps/web/query.ts`)).toBe(
         'import { HeroFields as HeroDocument } from "./hero-fragment";\n\nexport const document = `query Content { content { ...HeroFields } }`;\nexport const fragments = [HeroDocument];\n'

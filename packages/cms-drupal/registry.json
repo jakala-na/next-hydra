@@ -55,7 +55,8 @@
             }
           ],
           "conditionalDependencies": [
-            { "providers": ["commerce"], "items": ["cms-drupal-commerce"] }
+            { "providers": ["commerce"], "items": ["cms-drupal-commerce"] },
+            { "providers": ["search"], "items": ["cms-drupal-search"] }
           ]
         },
         "composition": {
@@ -320,6 +321,16 @@
           "type": "registry:file"
         },
         {
+          "path": "e2e/@announcement/announcement.feature",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
+          "type": "registry:file"
+        },
+        {
+          "path": "e2e/@announcement/announcement.steps.ts",
+          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "e2e/@cms/article-templates.feature",
           "target": "~/packages/cms-drupal/e2e/@cms/article-templates.feature",
           "type": "registry:file"
@@ -407,6 +418,16 @@
         {
           "path": "lib/canvas-page.ts",
           "target": "~/packages/cms-drupal/lib/canvas-page.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/content-path.ts",
+          "target": "~/packages/cms-drupal/lib/content-path.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "lib/content-route.ts",
+          "target": "~/packages/cms-drupal/lib/content-route.ts",
           "type": "registry:file"
         },
         {
@@ -671,15 +692,38 @@
           "path": "lib/commerce-category.ts",
           "target": "~/packages/cms-drupal/lib/commerce-category.ts",
           "type": "registry:file"
-        },
+        }
+      ]
+    },
+    {
+      "name": "cms-drupal-search",
+      "registryDependencies": ["drupal-algolia"],
+      "type": "registry:item",
+      "title": "Drupal search integration",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/cms/drupal-search",
+          "kind": "recipe",
+          "packages": [
+            {
+              "cwd": "packages/cms-drupal",
+              "section": "dependencies",
+              "name": "@repo/search",
+              "specifier": "workspace:*"
+            }
+          ],
+          "compatibility": { "requires": ["next-hydra/cms/drupal"] }
+        }
+      },
+      "files": [
         {
-          "path": "e2e/@announcement/announcement.feature",
-          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.feature",
+          "path": "search.test.ts",
+          "target": "~/packages/cms-drupal/search.test.ts",
           "type": "registry:file"
         },
         {
-          "path": "e2e/@announcement/announcement.steps.ts",
-          "target": "~/packages/cms-drupal/e2e/@announcement/announcement.steps.ts",
+          "path": "search.ts",
+          "target": "~/packages/cms-drupal/search.ts",
           "type": "registry:file"
         }
       ]

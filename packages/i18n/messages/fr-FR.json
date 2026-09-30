@@ -10,6 +10,7 @@
     "product": {
       "addToCart": "Ajouter au panier",
       "quoteRequest": "Demander un devis",
+      "priceStartsAt": "Prix à partir de {price}",
       "badgeNew": "Nouveau",
       "titlePlaceholder": "Titre de la variante du produit",
       "descriptionPlaceholder": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
@@ -31,6 +32,17 @@
       "home": "Accueil",
       "products": "Produits",
       "categoryFallback": "Catégorie"
+    },
+    "search": {
+      "productListing": {
+        "facets": {
+          "category": "Catégorie",
+          "availability": "Disponibilité",
+          "price": "Prix"
+        },
+        "showLess": "Afficher moins",
+        "showMore": "Afficher plus"
+      }
     },
     "article": {
       "readGuide": "Lire le guide"

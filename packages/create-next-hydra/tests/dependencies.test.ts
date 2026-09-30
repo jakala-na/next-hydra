@@ -86,7 +86,7 @@ describe("dependency synchronization", () => {
             yield* workspace.sync({});
             expect(installs).toBe(1);
             yield* fs.writeFileString("/external/next/index.js", "changed");
-            expect((yield* workspace.check()).ready).toBeFalsy();
+            expect((yield* workspace.check).ready).toBeTruthy();
             yield* workspace.sync({});
             expect(installs).toBe(2);
           }).pipe(Effect.provide(layer));
@@ -95,12 +95,18 @@ describe("dependency synchronization", () => {
   }
 
   for (const patch of [
-    { reference: "/external/next.patch", path: "/external/next.patch" },
-    { reference: "../shared.patch", path: "/source/workspaces/shared.patch" },
+    { path: "/external/next.patch", reference: "/external/next.patch" },
+    { path: "/source/workspaces/shared.patch", reference: "../shared.patch" },
   ]) {
     it.effect(`tracks patch contents behind inherited ${patch.reference}`, () =>
       Effect.gen(function* () {
-        const layer = yield* memoryWorkspace("application", { processes });
+        const install = vi.fn<() => typeof installed>(() => installed);
+        const layer = yield* memoryWorkspace("application", {
+          processes: Layer.effect(
+            ChildProcessSpawner.ChildProcessSpawner,
+            packageManager(install)
+          ),
+        });
         yield* Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
           yield* fs.makeDirectory("/external", { recursive: true });
@@ -115,13 +121,17 @@ describe("dependency synchronization", () => {
           );
           const workspace = yield* named;
           yield* workspace.sync({});
-          expect((yield* workspace.check()).ready).toBeTruthy();
-          yield* fs.writeFileString(patch.path, "changed patch");
-          expect((yield* workspace.check()).ready).toBeFalsy();
           yield* workspace.sync({});
-          expect((yield* workspace.check()).ready).toBeTruthy();
+          expect(install).toHaveBeenCalledOnce();
+          yield* fs.writeFileString(patch.path, "changed patch");
+          expect((yield* workspace.check).ready).toBeTruthy();
+          yield* workspace.sync({});
+          expect(install).toHaveBeenCalledTimes(2);
+          yield* workspace.sync({});
+          expect(install).toHaveBeenCalledTimes(2);
           yield* fs.remove(patch.path);
-          expect((yield* workspace.check()).ready).toBeFalsy();
+          yield* workspace.sync({});
+          expect(install).toHaveBeenCalledTimes(3);
         }).pipe(Effect.provide(layer));
       })
     );
@@ -131,12 +141,19 @@ describe("dependency synchronization", () => {
     "reconciles changed settings even when they match an ancestor",
     () =>
       Effect.gen(function* () {
-        const layer = yield* memoryWorkspace("application", { processes });
+        const install = vi.fn<() => typeof installed>(() => installed);
+        const layer = yield* memoryWorkspace("application", {
+          processes: Layer.effect(
+            ChildProcessSpawner.ChildProcessSpawner,
+            packageManager(install)
+          ),
+        });
         yield* Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
           const workspace = yield* named;
           yield* workspace.sync({});
-          expect((yield* workspace.check()).ready).toBeTruthy();
+          yield* workspace.sync({});
+          expect(install).toHaveBeenCalledOnce();
           yield* fs.writeFileString(
             "/pnpm-workspace.yaml",
             "overrides:\n  next: 99.0.0\n"
@@ -145,15 +162,16 @@ describe("dependency synchronization", () => {
             "npm_config_overrides",
             JSON.stringify({ next: "99.0.0" })
           );
-          expect((yield* workspace.check()).ready).toBeFalsy();
+          expect((yield* workspace.check).ready).toBeTruthy();
           yield* workspace.sync({});
-          expect((yield* workspace.check()).ready).toBeTruthy();
+          expect(install).toHaveBeenCalledTimes(2);
           const receipt = yield* fs.readFileString(
             `${root}/.workspace-composition.json`
           );
           expect(receipt).not.toContain("99.0.0");
           vi.stubEnv("npm_config_overrides", undefined);
-          expect((yield* workspace.check()).ready).toBeFalsy();
+          yield* workspace.sync({});
+          expect(install).toHaveBeenCalledTimes(3);
         }).pipe(Effect.provide(layer));
       })
   );
@@ -162,7 +180,13 @@ describe("dependency synchronization", () => {
     "recognizes pnpm script configuration mirrors but rejects overrides",
     () =>
       Effect.gen(function* () {
-        const layer = yield* memoryWorkspace("application", { processes });
+        const install = vi.fn<() => typeof installed>(() => installed);
+        const layer = yield* memoryWorkspace("application", {
+          processes: Layer.effect(
+            ChildProcessSpawner.ChildProcessSpawner,
+            packageManager(install)
+          ),
+        });
         yield* Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
           vi.stubEnv("PNPM_SCRIPT_SRC_DIR", "/source/packages/cli");
@@ -188,12 +212,16 @@ describe("dependency synchronization", () => {
             })
           );
           yield* (yield* named).sync({});
-          expect(yield* (yield* named).check()).toMatchObject({ ready: true });
+          yield* (yield* named).sync({});
+          expect(install).toHaveBeenCalledOnce();
           vi.stubEnv("npm_config_catalog", JSON.stringify({ next: "99.0.0" }));
-          expect(yield* (yield* named).check()).toMatchObject({ ready: false });
+          expect(yield* (yield* named).check).toMatchObject({ ready: true });
+          yield* (yield* named).sync({});
+          expect(install).toHaveBeenCalledTimes(2);
           vi.stubEnv("npm_config_catalog", undefined);
           vi.stubEnv("npm_config_registry", "https://registry.example.test/");
-          expect(yield* (yield* named).check()).toMatchObject({ ready: false });
+          yield* (yield* named).sync({});
+          expect(install).toHaveBeenCalledTimes(3);
           const receipt = yield* fs.readFileString(
             `${root}/.workspace-composition.json`
           );
@@ -262,8 +290,7 @@ describe("dependency synchronization", () => {
             configuration,
             "//registry.npmjs.org/:_authToken=rotated-test-token\n"
           );
-          expect(yield* (yield* named).check()).toMatchObject({
-            dependencies: "current",
+          expect(yield* (yield* named).check).toMatchObject({
             ready: true,
           });
           expect(
@@ -274,9 +301,8 @@ describe("dependency synchronization", () => {
             configuration,
             "//registry.npmjs.org/:_authToken=rotated-test-token\nregistry=https://registry.example.test\n"
           );
-          expect(yield* (yield* named).check()).toMatchObject({
-            dependencies: "pending",
-            ready: false,
+          expect(yield* (yield* named).check).toMatchObject({
+            ready: true,
           });
           const failedInstaller = Layer.effect(
             ChildProcessSpawner.ChildProcessSpawner,
@@ -297,7 +323,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "keeps CLI Check current with unrelated local files but rejects missing dependencies",
+    "keeps CLI Check current with unrelated local files and missing dependencies",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", { processes });
@@ -334,16 +360,14 @@ describe("dependency synchronization", () => {
           const manifest = `${root}/apps/web/node_modules/next/package.json`;
           yield* fs.remove(manifest);
           yield* fs.makeDirectory(manifest);
-          expect(yield* check.pipe(Effect.flip)).toMatchObject({
-            _tag: "WorkspaceNotCurrent",
-          });
+          yield* check;
           expect((yield* fs.stat(manifest)).type).toBe("Directory");
         }).pipe(Effect.provide([layer, TestConsole.layer]));
       })
   );
 
   it.effect(
-    "recognizes pnpm normalization but requires installation for a new dependency declaration",
+    "recognizes pnpm normalization but reports a new dependency declaration as a file update",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", {
@@ -366,13 +390,12 @@ describe("dependency synchronization", () => {
           const fs = yield* FileSystem.FileSystem;
           yield* (yield* named).sync({});
           const check = named.pipe(
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices())
           );
           const lock = yield* fs.readFile(`${root}/pnpm-lock.yaml`);
           expect(yield* check).toMatchObject({
             changes: [],
-            dependencies: "current",
             ready: true,
           });
           const manifest = yield* fs.readFileString(
@@ -383,10 +406,7 @@ describe("dependency synchronization", () => {
             manifest.replace('"next": "catalog:"', '"next": "16.3.2"')
           );
           const changed = yield* check;
-          expect(changed.dependencies).toBe("pending");
-          expect(changed.dependencyReasons).toContain(
-            "Installation inputs changed"
-          );
+          expect(changed.ready).toBeFalsy();
           expect(changed.changes).toContainEqual({
             kind: "update",
             target: "apps/web/package.json",
@@ -397,7 +417,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "checks recorded installation without launching pnpm and keeps component freshness separate",
+    "checks component freshness independently of installed dependencies",
     () =>
       Effect.gen(function* () {
         const layer = yield* memoryWorkspace("application", { processes });
@@ -405,12 +425,11 @@ describe("dependency synchronization", () => {
           const fs = yield* FileSystem.FileSystem;
           yield* (yield* named).sync({});
           const check = named.pipe(
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices())
           );
           expect(yield* check).toMatchObject({
             changes: [],
-            dependencies: "current",
             ready: true,
           });
           const template = yield* fs.readFileString(
@@ -422,15 +441,14 @@ describe("dependency synchronization", () => {
           );
           expect(yield* check).toMatchObject({
             changes: [{ kind: "update", target: "apps/web/layout.tsx" }],
-            dependencies: "current",
             ready: false,
           });
           yield* fs.remove(`${root}/apps/web/node_modules/next/package.json`);
           const missing = yield* check;
-          expect(missing.dependencies).toBe("pending");
-          expect(missing.dependencyReasons).toContain(
-            "Installed dependency missing: apps/web/node_modules/next/package.json"
-          );
+          expect(missing.changes).toEqual([
+            { kind: "update", target: "apps/web/layout.tsx" },
+          ]);
+          expect(missing.ready).toBeFalsy();
         }).pipe(Effect.provide(layer));
       })
   );
@@ -508,7 +526,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "retries a stopped installation in another invocation without treating a skip as readiness",
+    "checks files after a stopped installation and leaves dependency retry to synchronization",
     () =>
       Effect.gen(function* () {
         const entered = yield* Deferred.make<undefined>();
@@ -533,23 +551,25 @@ describe("dependency synchronization", () => {
             .sync({ offline: true })
             .pipe(Effect.forkChild);
           yield* Deferred.await(entered);
+          expect(yield* workspace.check.pipe(Effect.flip)).toMatchObject({
+            _tag: "WorkspaceBusy",
+          });
           yield* Fiber.interrupt(running);
-          expect(yield* workspace.check().pipe(Effect.flip)).toMatchObject({
-            _tag: "WorkspaceRecoveryRequired",
+          expect(yield* workspace.check).toMatchObject({
+            changes: [],
+            ready: true,
           });
           const next = named.pipe(
             Effect.provide(memoryWorkspaceServices([], processes))
           );
           const skipped = yield* (yield* next).sync({ install: "skip" });
           expect(skipped.dependencies).toBe("pending");
-          expect(yield* (yield* next).check()).toMatchObject({
-            dependencies: "pending",
-            ready: false,
+          expect(yield* (yield* next).check).toMatchObject({
+            ready: true,
           });
           expect(yield* (yield* next).sync({})).toMatchObject({
             dependencies: "current",
           });
-          expect(yield* (yield* next).check()).toMatchObject({ ready: true });
         }).pipe(Effect.provide(layer));
       })
   );
@@ -579,6 +599,10 @@ describe("dependency synchronization", () => {
               "unfinished changes\n"
             );
             yield* Fiber.interrupt(running);
+            expect(yield* workspace.check).toMatchObject({
+              changes: [{ kind: "conflict", target }],
+              ready: false,
+            });
             const retry = named.pipe(
               Effect.flatMap((next) => next.sync({})),
               Effect.provide(memoryWorkspaceServices([], processes))

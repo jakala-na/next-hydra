@@ -28,13 +28,13 @@ export const testReferenceWorkspace = Effect.fn("WorkspaceTasks.testReference")(
         )
       );
     if (
-      (["auth", "cms", "commerce"] as const).some(
+      (["auth", "cms", "commerce", "search"] as const).some(
         (slot) => definition.providers[slot] !== REFERENCE_PROVIDERS[slot]
       )
     ) {
       return yield* new InvalidComposition({
         message:
-          "Application tests require the reference storefront definition with WorkOS, Contentstack and commercetools.",
+          "Application tests require the reference storefront definition with WorkOS, Contentstack, commercetools and Algolia.",
       });
     }
     const workspace = yield* (yield* Workspaces).named({

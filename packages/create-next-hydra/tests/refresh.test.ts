@@ -26,6 +26,38 @@ const sync = Effect.gen(function* () {
 });
 
 it.effect(
+  "refreshes an environment example without treating its temporary file as a runtime secret",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* sync;
+        yield* fs.writeFileString(
+          `${root}/apps/web/.env.local`,
+          "PRIVATE_TOKEN=preserve\n"
+        );
+        yield* fs.writeFileString(
+          "/source/apps/web/.env.example",
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        yield* sync;
+        const workspace = yield* (yield* Workspaces).named({
+          name: "configured-site",
+          sourceRoot: "/source",
+        });
+        expect((yield* workspace.check).changes).toEqual([]);
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.example`)).toBe(
+          "SEARCH_APPLICATION_ID=\n"
+        );
+        expect(yield* fs.readFileString(`${root}/apps/web/.env.local`)).toBe(
+          "PRIVATE_TOKEN=preserve\n"
+        );
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
   "recovers suffixed environment-example staging without claiming credentials",
   () =>
     Effect.gen(function* () {
@@ -166,11 +198,11 @@ it.effect(
           "/source/layout.tsx.template",
           template.replace("Hello", "Welcome")
         );
-        expect((yield* workspace.check()).changes).toEqual([
+        expect((yield* workspace.check).changes).toEqual([
           { kind: "update", target: "apps/web/layout.tsx" },
         ]);
         yield* workspace.sync({ install: "skip" });
-        expect((yield* workspace.check()).changes).toEqual([]);
+        expect((yield* workspace.check).changes).toEqual([]);
         expect(
           yield* fs.readFileString(`${root}/apps/web/layout.tsx`)
         ).toContain("Welcome");
@@ -388,7 +420,7 @@ for (const kind of ["file", "directory", "parent"] as const) {
             name: "configured-site",
             sourceRoot: "/source",
           });
-          const check = yield* workspace.check();
+          const check = yield* workspace.check;
           expect(check.ready).toBeFalsy();
           expect(check.changes).toContainEqual({
             kind: kind === "file" ? "unregistered" : "conflict",
@@ -519,7 +551,7 @@ it.effect(
             Effect.flatMap((api) =>
               api.named({ name: "configured-site", sourceRoot: "/source" })
             ),
-            Effect.flatMap((workspace) => workspace.check()),
+            Effect.flatMap((workspace) => workspace.check),
             Effect.provide(memoryWorkspaceServices()),
             Effect.flip
           )

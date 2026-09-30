@@ -2,9 +2,11 @@
   "providers": {
     "cms": "drupal",
     "auth": "workos",
-    "commerce": "commercetools"
+    "commerce": "commercetools",
+    "search": "algolia"
   },
-  "addOns": ["app-web-navigation-search"],
+  "addOns": [],
+  "preserve": ["apps/drupal/composer.json", "apps/drupal/composer.lock"],
   "demo": {
     "architecture": true
   }

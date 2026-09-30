@@ -39,3 +39,24 @@ Keep feature wording about application behavior, step bindings thin, and browser
 `pnpm --filter @repo/e2e test` runs the runner's fast helper tests. It does not run browser scenarios. Component tests and visual inspection can verify presentation changes without adding a customer journey scenario.
 
 Playwright loads test entrypoints. The storefront fixture graph uses a scoped Jiti loader for provider modules containing bundler-oriented TypeScript imports. Provider-specific provisioning and cleanup remain in their provider packages.
+
+## Live search prerequisites
+
+The `@search` scenarios do not intercept the Search proxy or replace Product and Resource pages. They exercise the selected Search provider through the web application's normal server and browser paths. Configure the web application with its server-side Algolia credentials and provisioned index prefix before running them.
+
+Project the shared Product test catalog and CMS test content into Algolia using the canonical documents from `@repo/search/contract`. The scenarios declare their required records in the collocated feature files:
+
+- `product-search.feature` defines the `en-US` Product records, facets, prices, availability, and sorting expectations.
+- `search-autocomplete.feature` expects the live Product and Content indices listed in its background, plus the `excavator attachments` record in the `en-US` Query Suggestions index.
+- `combined-search.feature` requires more than six Product results and more than six Resource results for `excavator` in `fr-FR` so both paginated tabs have a second page. The Content index should also contain `A practical preventive maintenance checklist` as a nonmatching record that proves the query reaches the Content child index.
+
+Search index publication remains external to Playwright. Wait for Algolia's indexing tasks to finish before starting the suite so failed assertions reflect the application rather than an incomplete index update.
+
+## Authoring loop
+
+1. Add one scenario under an owning domain's scoped `e2e/@domain` directory.
+2. Run `pnpm --filter @repo/e2e e2e:generate` and observe the undefined-step red.
+3. Add thin bindings beside the scoped feature and browser automation under `e2e/drivers`.
+4. Run the scenario against Chromium, then implement the product behavior and repeat until green.
+
+Feature wording describes domain behavior. Steps translate that vocabulary to drivers. Drivers own routes, accessible locators, and Playwright assertions. Shared fixtures belong in `@repo/e2e-testing` only when more than one domain needs them.

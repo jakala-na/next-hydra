@@ -31,10 +31,10 @@ async function observe(page: Page, path: string): Promise<Observation> {
   };
 }
 
-When("I visit the homepage and the registration page", async ({ page }) => {
+When("I visit the homepage and the resource center", async ({ page }) => {
   const homepage = await observe(page, "/");
-  const registration = await observe(page, "/register");
-  observations.set(page, [homepage, registration]);
+  const resources = await observe(page, "/resources");
+  observations.set(page, [homepage, resources]);
 });
 
 Then("each page shows one demo announcement above its header", ({ page }) => {
