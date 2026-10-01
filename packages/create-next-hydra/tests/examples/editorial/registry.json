@@ -41,7 +41,7 @@
         "composition": {
           "templates": [
             {
-              "source": "blocks.ts.template",
+              "source": "blocks.template.ts",
               "target": "apps/web/blocks.ts",
               "slots": {
                 "blocks": "members"

@@ -120,10 +120,10 @@ it.effect(
         ).toContain("Hello");
 
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Updated in parallel")
         );
         yield* Effect.forEach(changes.values(), (pending) =>

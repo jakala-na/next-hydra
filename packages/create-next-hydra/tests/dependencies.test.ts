@@ -433,10 +433,10 @@ describe("dependency synchronization", () => {
             ready: true,
           });
           const template = yield* fs.readFileString(
-            "/source/layout.tsx.template"
+            "/source/layout.template.tsx"
           );
           yield* fs.writeFileString(
-            "/source/layout.tsx.template",
+            "/source/layout.template.tsx",
             template.replace("Hello", "Welcome")
           );
           expect(yield* check).toMatchObject({
@@ -864,8 +864,8 @@ describe("dependency synchronization", () => {
           yield* (yield* named).sync({});
           const lockfile = yield* fs.readFileString(`${root}/pnpm-lock.yaml`);
           yield* fs.writeFileString(
-            "/source/layout.tsx.template",
-            (yield* fs.readFileString("/source/layout.tsx.template")).replace(
+            "/source/layout.template.tsx",
+            (yield* fs.readFileString("/source/layout.template.tsx")).replace(
               "Hello",
               "Welcome"
             )

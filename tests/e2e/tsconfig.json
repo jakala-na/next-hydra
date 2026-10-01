@@ -11,5 +11,10 @@
     }
   },
   "include": ["**/*.ts"],
-  "exclude": [".features-gen", "node_modules"]
+  "exclude": [
+    ".features-gen",
+    "node_modules",
+    "**/*.template.ts",
+    "**/*.template.tsx"
+  ]
 }

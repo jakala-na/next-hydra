@@ -1,5 +1,5 @@
 import { graphql } from "../../graphql";
-{{imports}}
+/*{% echo imports %}*/
 
 export const landingPageQuery = graphql(
   `
@@ -17,7 +17,7 @@ export const landingPageQuery = graphql(
           url
           components {
             __typename
-            {{pageBlocks.spreads}}
+            /*{% echo slots.pageBlocks.spreads %}*/
           }
           system {
             uid
@@ -28,5 +28,5 @@ export const landingPageQuery = graphql(
       }
     }
   `,
-  [{{pageBlocks.documents}}]
+  [/*{% echo slots.pageBlocks.documents %}*/]
 );

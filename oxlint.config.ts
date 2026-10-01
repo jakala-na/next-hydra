@@ -7,7 +7,7 @@ import vitestBase from "ultracite/oxlint/vitest";
 
 // Ultracite's vitest override wins over later extends/local overrides for the same
 // files, so patch that override in place for @effect/vitest testers.
-const vitest = {
+const vitest = defineConfig({
   ...vitestBase,
   overrides: vitestBase.overrides?.map((override) => ({
     ...override,
@@ -36,7 +36,7 @@ const vitest = {
       "vitest/prefer-strict-equal": "off",
     },
   })),
-};
+});
 
 const generatedPatterns = [
   "packages/cms-contentstack/gql/*",
@@ -194,6 +194,10 @@ export default defineConfig({
     ".windsurf/**",
     "repos/**",
     "tools/oxlint/anti-slop/**",
+    // Checked as native syntax + Liquid by composition, then typechecked
+    // after rendering against each materialized application's dependency graph.
+    "**/*.template.ts",
+    "**/*.template.tsx",
   ],
   jsPlugins: [
     {

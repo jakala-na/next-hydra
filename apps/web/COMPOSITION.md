@@ -22,7 +22,7 @@ Checkout remains ordinary source in `app/[locale]/checkout/page.tsx`, delegating
 
 ## Shared files
 
-`registry/templates/layout.tsx.template` owns the shared header structure. Auth supplies account controls; Commerce supplies its provider, cart and business-unit controls; navigation search supplies search. The document frame, environment, proxy and Next configuration use the same module-reference mechanism. Account links receive Commerce destinations only with Commerce.
+`registry/templates/layout.template.tsx` owns the shared header structure. Auth supplies account controls; Commerce supplies its provider, cart and business-unit controls; navigation search supplies search. The document frame, environment, proxy and Next configuration use the same module-reference mechanism. Account links receive Commerce destinations only with Commerce.
 
 Templates describe structure; recipes use `meta.composition.slotBindings` to place ordinary TS/TSX module exports into their named slots. Customer output has ordinary filenames, imports and functions, no runtime registry and no continuing generation step. Composed files exist only in materialized workspaces, not as duplicate root source. Tests render all four committed definitions into fresh physical workspaces and check their physical output against the templates. Provider routes likewise live only at their canonical registry paths until materialization.
 

@@ -1,5 +1,5 @@
 import { graphql } from "../../graphql";
-{{imports}}
+/*{% echo imports %}*/
 
 export const landingPageFragment = graphql(
   `
@@ -14,9 +14,9 @@ export const landingPageFragment = graphql(
         ... on ParagraphInterface {
           id
         }
-        {{pageBlocks.spreads}}
+        /*{% echo slots.pageBlocks.spreads %}*/
       }
     }
   `,
-  [{{pageBlocks.documents}}]
+  [/*{% echo slots.pageBlocks.documents %}*/]
 );

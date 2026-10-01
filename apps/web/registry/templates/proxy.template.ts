@@ -1,19 +1,37 @@
-import { cmsFrameAncestors } from "@repo/cms/security";
-import { noseconeOptions, noseconeProxy, resolveFrameAncestors } from "@repo/security/proxy";
-import type { NoseconeOptions } from "@repo/security/proxy";
 import { cmsProxy } from "@repo/cms/proxy";
+import { cmsFrameAncestors } from "@repo/cms/security";
 import { i18nProxy } from "@repo/i18n/proxy";
+import {
+  noseconeOptions,
+  noseconeProxy,
+  resolveFrameAncestors,
+} from "@repo/security/proxy";
+import type { NoseconeOptions } from "@repo/security/proxy";
 import { createNEMO } from "@zanreal/nemo";
 import type { GlobalMiddlewareConfig, MiddlewareConfig } from "@zanreal/nemo";
-import { env } from "./env";
-{{imports}}
 
-export const config = { matcher: ["/((?!api|_next/|_static|_vercel|ingest|monitoring).*)"{{#proxy}}, "/api/auth/:path*", "/api/search/:path*"{{/proxy}}] };
+import { env } from "./env";
+/*{% echo imports %}*/
+
+export const config = {
+  matcher: [
+    "/((?!api|_next/|_static|_vercel|ingest|monitoring).*)",
+    /*{% if enabled.proxy %}*/
+    "/api/auth/:path*",
+    "/api/search/:path*",
+    /*{% endif %}*/
+  ],
+};
 const securityOptions = {
   ...noseconeOptions,
   contentSecurityPolicy: {
     // Keep framing independent of script nonces and static rendering.
-    directives: { frameAncestors: resolveFrameAncestors(cmsFrameAncestors, env.FRAME_ANCESTORS) },
+    directives: {
+      frameAncestors: resolveFrameAncestors(
+        cmsFrameAncestors,
+        env.FRAME_ANCESTORS
+      ),
+    },
   },
   // CMS previews and third-party resources do not require cross-origin isolation.
   crossOriginEmbedderPolicy: false,
@@ -27,9 +45,18 @@ const securityOptions = {
 const securityProxy = noseconeProxy(securityOptions as NoseconeOptions);
 
 const globalMiddlewares: GlobalMiddlewareConfig = {
-  before: [securityProxy, cmsProxy, (request) => {
-    if (!request.nextUrl.pathname.startsWith("/api")) { return i18nProxy(request); }
-  }],
+  before: [
+    securityProxy,
+    cmsProxy,
+    (request) => {
+      if (!request.nextUrl.pathname.startsWith("/api")) {
+        return i18nProxy(request);
+      }
+    },
+  ],
 };
 const middlewares: MiddlewareConfig = { "/": () => undefined };
-export default {{proxy.open}}createNEMO(middlewares, globalMiddlewares){{proxy.close}};
+export default /*{% echo slots.proxy.open %}*/ createNEMO(
+  middlewares,
+  globalMiddlewares /*{% echo slots.proxy.close %}*/
+);

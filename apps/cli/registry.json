@@ -16,7 +16,7 @@
         "composition": {
           "templates": [
             {
-              "source": "apps/cli/registry/templates/program.ts.template",
+              "source": "apps/cli/registry/templates/program.template.ts",
               "target": "apps/cli/src/program.ts",
               "slots": { "commands": "members" }
             }
@@ -89,7 +89,7 @@
         "composition": {
           "templates": [
             {
-              "source": "apps/cli/registry/templates/search-command.ts.template",
+              "source": "apps/cli/registry/templates/search-command.template.ts",
               "target": "apps/cli/src/search-command.ts",
               "slots": { "contentSearchApp": "members", "products": "members" }
             }

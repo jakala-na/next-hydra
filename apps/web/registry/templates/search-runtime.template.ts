@@ -9,7 +9,7 @@ import type {
   SearchBatchResult,
   SearchProvider,
 } from "@repo/search/contract";
-{{imports}}
+/*{% echo imports %}*/
 import { makeSearchRuntime } from "@repo/search/runtime/make-search-runtime";
 import type { SearchClientConfiguration } from "@repo/search/runtime/make-search-runtime";
 import { cacheLife, cacheTag } from "next/cache";
@@ -45,20 +45,28 @@ const cachedSearchProvider: SearchProvider = {
 };
 
 function getClientConfiguration(locale: Locale): SearchClientConfiguration {
-  {{#productRoutes}}const commerceRoutes = {{productRoutes}}(locale);{{/productRoutes}}
+  /*{% if enabled.productRoutes %}*/
+  /*{% echo slots.productRoutes | prepend: 'const commerceRoutes = ' | append: '(locale);' %}*/
+  /*{% endif %}*/
   return {
-  autocompleteRoutes: {
-    contentPathPrefix: getPathname({ href: "/", locale }),
-    {{#productRoutes}}productPathPrefix: commerceRoutes.productPathPrefix,{{/productRoutes}}
-    searchPath: getPathname({ href: "/search", locale }),
-  },
-  endpoint: `/api/search/${locale}`,
-  {{#productRoutes}}productListingPath: commerceRoutes.productListingPath,{{/productRoutes}}
+    autocompleteRoutes: {
+      contentPathPrefix: getPathname({ href: "/", locale }),
+      /*{% if enabled.productRoutes %}*/
+      productPathPrefix: commerceRoutes.productPathPrefix,
+      /*{% endif %}*/
+      searchPath: getPathname({ href: "/search", locale }),
+    },
+    endpoint: `/api/search/${locale}`,
+    /*{% if enabled.productRoutes %}*/
+    productListingPath: commerceRoutes.productListingPath,
+    /*{% endif %}*/
   };
 }
 
 export const searchRuntime = makeSearchRuntime({
   getClientConfiguration,
   provider: cachedSearchProvider,
-  {{#productAudience}}resolveProductAudience: {{productAudience}},{{/productAudience}}
+  /*{% if enabled.productAudience %}*/
+  /*{% echo slots.productAudience | prepend: 'resolveProductAudience: ' | append: ',' %}*/
+  /*{% endif %}*/
 });

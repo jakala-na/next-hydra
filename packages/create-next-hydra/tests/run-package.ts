@@ -160,7 +160,7 @@ const main = Effect.scoped(
     yield* run(source, process.execPath, [
       lint,
       articleSource,
-      "unselected/example.ts.template",
+      "unselected/example.template.ts",
     ]);
     const article = yield* fs.readFileString(path.join(source, articleSource));
     yield* fs.writeFileString(
@@ -184,7 +184,7 @@ const main = Effect.scoped(
       [cli, "compose", "configured-site", "--explain=apps/web/layout.tsx"]
     );
     assert.ok(
-      explanation.includes(path.join(named.source, "layout.tsx.template"))
+      explanation.includes(path.join(named.source, "layout.template.tsx"))
     );
     assert.equal(
       yield* fs.exists(path.join(workspace, "apps/web/layout.tsx")),

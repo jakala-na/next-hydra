@@ -4,6 +4,8 @@ import type { RegistryItem } from "shadcn/schema";
 
 import { InvalidComposition } from "./errors.ts";
 import { relativeFile } from "./files.ts";
+import { parseTemplate, renderParsedTemplate } from "./template-language.ts";
+import type { TemplateContext } from "./template-language.ts";
 
 const Identifier = Schema.String.check(Schema.isPattern(/^[A-Za-z_$][\w$]*$/u));
 export const Binding = Schema.Struct({
@@ -96,17 +98,16 @@ export const renderTemplate = Effect.fn("Composition.renderTemplate")(
       imports.push(`${binding.export}${binding.as ? ` as ${binding.as}` : ""}`);
       importsByModule.set(binding.module, imports);
     }
-    const markers = new Map<string, string>([
-      [
-        "imports",
-        [...importsByModule]
-          .map(
-            ([module, imports]) =>
-              `import { ${imports.join(", ")} } from ${JSON.stringify(module)};`
-          )
-          .join("\n"),
-      ],
-    ]);
+    const context: TemplateContext = {
+      enabled: {},
+      imports: [...importsByModule]
+        .map(
+          ([module, imports]) =>
+            `import { ${imports.join(", ")} } from ${JSON.stringify(module)};`
+        )
+        .join("\n"),
+      slots: {},
+    };
     for (const [slot, kind] of Object.entries(template.slots)) {
       const slotBindings = selected.filter((binding) => binding.slot === slot);
       const entries = slotBindings.map(
@@ -117,72 +118,41 @@ export const renderTemplate = Effect.fn("Composition.renderTemplate")(
           message: `${template.target}#${slot} accepts at most one element`,
         });
       }
+      context.enabled[slot] = entries.length > 0;
       if (kind === "wrapper" || kind === "call") {
-        markers.set(
-          `${slot}.open`,
-          entries
-            .map((name) => (kind === "wrapper" ? `<${name}>` : `${name}(`))
-            .join("")
-        );
-        markers.set(
-          `${slot}.close`,
-          EffectArray.reverse(entries)
+        context.slots[slot] = {
+          close: EffectArray.reverse(entries)
             .map((name) => (kind === "wrapper" ? `</${name}>` : ")"))
-            .join("")
-        );
+            .join(""),
+          open: entries
+            .map((name) => (kind === "wrapper" ? `<${name}>` : `${name}(`))
+            .join(""),
+        };
       } else if (kind === "graphql") {
-        markers.set(
-          `${slot}.spreads`,
-          slotBindings.map((binding) => `...${binding.export}`).join("\n")
-        );
-        markers.set(`${slot}.documents`, entries.join(", "));
+        context.slots[slot] = {
+          documents: entries.join(", "),
+          spreads: slotBindings
+            .map((binding) => `...${binding.export}`)
+            .join("\n"),
+        };
       } else {
-        markers.set(
-          slot,
-          entries
-            .map((name) => {
-              if (kind === "element") {
-                return `<${name} />`;
-              }
-              if (kind === "factory") {
-                return `${name}()`;
-              }
-              return name;
-            })
-            .join(", ")
-        );
+        context.slots[slot] = entries
+          .map((name) => {
+            if (kind === "element") {
+              return `<${name} />`;
+            }
+            if (kind === "factory") {
+              return `${name}()`;
+            }
+            return name;
+          })
+          .join(", ");
       }
     }
-    let content = source;
-    for (const [name, value] of markers) {
-      const marker = `{{${name}}}`;
-      if (content.split(marker).length !== 2) {
-        return yield* new InvalidComposition({
-          message: `${template.source} must contain exactly one ${marker}`,
-        });
-      }
-      content = content.replace(marker, () => value);
-    }
-    for (const match of content.matchAll(
-      /\{\{#(?<slot>\w+)\}\}(?<body>[\s\S]*?)\{\{\/\k<slot>\}\}/gu
-    )) {
-      const slot = match.groups?.slot;
-      if (!slot || !Object.hasOwn(template.slots, slot)) {
-        return yield* new InvalidComposition({
-          message: `Undeclared conditional slot in ${template.source}`,
-        });
-      }
-      content = content.replace(match[0], () =>
-        selected.some((binding) => binding.slot === slot)
-          ? (match.groups?.body ?? "")
-          : ""
-      );
-    }
-    if (/\{\{[^}]+\}\}/u.test(content)) {
-      return yield* new InvalidComposition({
-        message: `Undeclared template marker in ${template.source}`,
-      });
-    }
+    const content = yield* Effect.try({
+      catch: (error) => new InvalidComposition({ message: String(error) }),
+      try: () => renderParsedTemplate(parseTemplate(template, source), context),
+    });
     const formatted = yield* Effect.tryPromise({
       catch: () =>
         new InvalidComposition({ message: `Cannot format ${template.target}` }),

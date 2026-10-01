@@ -1,12 +1,14 @@
-import { Console, Effect, FileSystem, Path, Schema, Stream } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { Console, Effect, FileSystem, Path, Schema } from "effect";
 
-import { ApplicationTaskFailed, InvalidComposition } from "./errors.ts";
+import { prepareApplicationTypes } from "./application-typecheck.ts";
+import { InvalidComposition } from "./errors.ts";
+import { isCompositionTemplate } from "./file-policy.ts";
 import { WorkspaceDefinition } from "./model.ts";
 import type { FileExplanation } from "./model.ts";
 import { Shadcn } from "./shadcn.ts";
 import { SourceInventory } from "./source-inventory.ts";
 import { TemplateDefinition } from "./templates.ts";
+import { executeLintCommand } from "./workspace-command.ts";
 import { Workspaces } from "./workspaces.ts";
 
 const scriptExtension = /\.[cm]?[jt]sx?$/u;
@@ -31,43 +33,7 @@ const LintResult = Schema.fromJsonString(
   })
 );
 
-export const executeLintCommand = Effect.fn("CompositionLint.execute")(
-  function* (
-    cwd: string,
-    executable: string,
-    args: readonly string[],
-    accepted: readonly number[] = [0]
-  ) {
-    const processes = yield* ChildProcessSpawner.ChildProcessSpawner;
-    return yield* Effect.scoped(
-      Effect.gen(function* () {
-        const child = yield* processes.spawn(
-          ChildProcess.make(executable, args, {
-            cwd,
-            env: {
-              ...process.env,
-              GIT_COMMON_DIR: undefined,
-              GIT_DIR: undefined,
-              GIT_INDEX_FILE: undefined,
-              GIT_WORK_TREE: undefined,
-            },
-            stderr: "inherit",
-            stdin: "ignore",
-            stdout: "pipe",
-          })
-        );
-        const [output, code] = yield* Effect.all(
-          [Stream.mkString(Stream.decodeText(child.stdout)), child.exitCode],
-          { concurrency: "unbounded" }
-        );
-        if (!accepted.includes(code)) {
-          return yield* new ApplicationTaskFailed({ code, directory: cwd });
-        }
-        return output;
-      })
-    );
-  }
-);
+export { executeLintCommand } from "./workspace-command.ts";
 
 function sourcePath(file: FileExplanation): string | undefined {
   return "source" in file.origin ? file.origin.source : undefined;
@@ -155,8 +121,8 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
     requestedFiles ?? (yield* inventory.list(sourceRoot))
   );
   const executable = path.join(sourceRoot, "node_modules/.bin/oxlint");
-  const candidates = [...requested].filter((file) =>
-    scriptExtension.test(file)
+  const candidates = [...requested].filter(
+    (file) => scriptExtension.test(file) && !isCompositionTemplate(file)
   );
   if (candidates.length > 0) {
     const eligible = new Set(
@@ -238,26 +204,7 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
           "run",
           "lint:prepare",
         ]);
-        const web = path.join(destination, "apps/web");
-        const config = path.join(web, "next.config.ts");
-        if (yield* fs.exists(config)) {
-          yield* Effect.acquireUseRelease(
-            fs.readFile(config),
-            () =>
-              Effect.gen(function* () {
-                yield* fs.writeFileString(
-                  config,
-                  'export { baseConfig as default } from "@repo/next-config";\n'
-                );
-                yield* executeLintCommand(
-                  web,
-                  path.join(web, "node_modules/.bin/next"),
-                  ["typegen"]
-                );
-              }),
-            (content) => fs.writeFile(config, content).pipe(Effect.orDie)
-          );
-        }
+        yield* prepareApplicationTypes(destination);
         const encodeString = Schema.encodeEffect(
           Schema.fromJsonString(Schema.String)
         );
@@ -294,7 +241,10 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
     );
   }
   const sourceFiles = [...requested].filter(
-    (file) => scriptExtension.test(file) && !covered.has(file)
+    (file) =>
+      scriptExtension.test(file) &&
+      !isCompositionTemplate(file) &&
+      !covered.has(file)
   );
   yield* assertCoverage(
     [

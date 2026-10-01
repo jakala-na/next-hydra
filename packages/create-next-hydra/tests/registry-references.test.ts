@@ -29,7 +29,7 @@ it.effect(
                 templates: [
                   {
                     slots: { blocks: "members" },
-                    source: "blocks.ts.template",
+                    source: "blocks.template.ts",
                     target: "apps/web/foreign.ts",
                   },
                 ],

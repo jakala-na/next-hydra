@@ -192,17 +192,17 @@
         "composition": {
           "templates": [
             {
-              "source": "layout.tsx.template",
+              "source": "layout.template.tsx",
               "target": "~/apps/web/layout.tsx",
               "slots": { "providers": "wrapper", "account": "element" }
             },
             {
-              "source": "configuration.ts.template",
+              "source": "configuration.template.ts",
               "target": "apps/web/configuration.ts",
               "slots": { "configuration": "call", "environment": "factory" }
             },
             {
-              "source": "query.ts.template",
+              "source": "query.template.ts",
               "target": "apps/web/query.ts",
               "slots": { "content": "graphql" }
             }

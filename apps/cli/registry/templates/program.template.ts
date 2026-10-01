@@ -1,4 +1,4 @@
-{{imports}}
+/*{% echo imports %}*/
 import { createCmsCommand } from "@repo/cms/cli";
 import { Effect, Option } from "effect";
 import { CliConfig, Command, Flag, GlobalFlag } from "effect/unstable/cli";
@@ -29,8 +29,14 @@ export const createProgram = (
     return yield* loadConfigProvider(Option.getOrUndefined(envFile));
   });
 
-  return root.pipe(Command.withSubcommands([
-    createCmsCommand(configProvider),
-    {{#commands}}...[{{commands}}].map((createCommand) => createCommand(configProvider)),{{/commands}}
-  ]));
+  return root.pipe(
+    Command.withSubcommands([
+      createCmsCommand(configProvider),
+      /*{% if enabled.commands %}*/
+      ...[{/*{{ slots.commands }}*/}].map((createCommand) =>
+        createCommand(configProvider)
+      ),
+      /*{% endif %}*/
+    ])
+  );
 };

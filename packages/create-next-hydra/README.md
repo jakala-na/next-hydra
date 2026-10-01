@@ -178,6 +178,26 @@ Project creation and named `compose` record those standard dependency fields thr
 
 Use `meta.composition.templates` for shared-file structure and `meta.composition.slotBindings` for references to ordinary module exports. This renderer is shared by `compose` and initial scaffolding. Modules remain normal TypeScript/TSX source, and targets have ordinary filenames with no ongoing generation step in scaffolded projects. A selection may declare `typeScriptAliases` for application-level module overrides that must persist in both named and scaffolded workspaces. Both target and alias are catalog-governed. `add` rejects composition recipes and template recomposition because it cannot safely regenerate files you may have edited.
 
+Author composition templates as `name.template.ts` or `name.template.tsx`. Editors and GitHub recognize the native language. LiquidJS parses ordinary block-comment directives; use JSX comments for inserted JSX and `echo` for inserted JavaScript:
+
+```tsx
+/*{% echo imports %}*/
+export const content = <main>{/*{{ slots.account }}*/}</main>;
+```
+
+The renderer supplies `imports`, `enabled.<slot>` booleans, and `slots.<slot>` source. Wrapper/call slots expose `.open` and `.close`; GraphQL slots expose `.spreads` and `.documents`. Use `/*{% if enabled.account %}*/` and `/*{% endif %}*/` around statements or object properties. Optional JSX attributes belong in a literal object spread so the authored file remains valid TSX. Keep each optional array element's comma inside its conditional block, on a line before `endif`. Keep inserted JavaScript expressions in `echo` comments; `prepend` and `append` can emit the surrounding statement or property syntax without a placeholder that formatting might split. For a call wrapper, place its closing directive before the inner call's final `)` so formatters cannot move it past the statement's semicolon.
+
+Composition validates native syntax, every template variable (including inactive branches), and exactly one output for each declared slot. Only the primary output path counts toward that requirement; referencing a slot in a filter argument does not emit it. Paths preserve property boundaries: `slots["commerce.open"]` differs from `slots.commerce.open`. The supported Liquid tags are `if`, `unless`, and `echo`; locals, partials, loops and dynamic paths are rejected so static validation remains complete. Formatting must preserve rendering; tests cover every production template with empty and selected bindings and all 64 layout combinations. GraphQL directives inside template strings remain opaque to TypeScript until rendered.
+
+Raw templates are excluded from semantic TypeScript/lint checks and package copying. Normal code completion and formatting work for the visible source, but comment contents have no TypeScript completion or diagnostics. After composition, run the same preflight used by CI:
+
+```sh
+pnpm --filter create-next-hydra compose storefront-drupal
+pnpm --filter create-next-hydra workspace:check storefront-drupal
+```
+
+This requires fresh files and installed dependencies, generates local Canvas and Next route declarations, and typechecks the physical web app, CLI and E2E project. Route generation uses the shared base Next configuration in a temporary project, then copies its generated route declarations back. The workspace's Next and TypeScript configurations and existing `next-env.d.ts` stay untouched, including editor saves during generation. It does not validate remote provider services or replace a production build. Type checking reads selected provider modules through the application graph, and the gate verifies coverage of every rendered template.
+
 Contentstack declares `conditionalDependencies: [{ providers: ["commerce"], items: ["cms-contentstack-commerce"] }]`; Drupal uses `cms-drupal-commerce` in the same way. These `kind: "recipe"` items connect the selected CMS to Commerce core, not to a specific Commerce provider. They install the CMS mapping and `@repo/commerce` dependency automatically when both capabilities are selected, rather than exposing product collection as a selectable Add-on. Registry discovery fetches possible recipes, while planning installs only applicable ones. Contentstack's `recipe/recipes/product-collection.json` remains a feature-specific provisioning recipe: the provisioning command applies it to the base content type and seed entry before importing the stack.
 
 A Provider declares its installable package once:

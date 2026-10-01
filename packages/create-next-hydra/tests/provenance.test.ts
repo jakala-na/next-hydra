@@ -41,7 +41,7 @@ it.live(
       );
       const output = (yield* TestConsole.logLines).join("\n");
       expect(output).toContain(`${source}/article.ts`);
-      expect(output).not.toContain(`${source}/blocks.ts.template`);
+      expect(output).not.toContain(`${source}/blocks.template.ts`);
     }).pipe(
       Effect.provide([
         liveWorkspace.pipe(Layer.provideMerge(NodeServices.layer)),

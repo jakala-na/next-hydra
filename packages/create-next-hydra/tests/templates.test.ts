@@ -24,7 +24,7 @@ it.effect(
           });
           yield* workspace.materialize({ install: "skip" });
           expect(yield* fs.readFileString(`/${name}/apps/web/layout.tsx`)).toBe(
-            'import { Account, Frame } from "./controls";\nimport { Outer } from "./outer";\n\nexport function Layout() {\n  return (\n    <Outer>\n      <Frame>\n        <main>\n          <header>\n            <Account />\n          </header>\n          Hello\n        </main>\n      </Frame>\n    </Outer>\n  );\n}\n'
+            'import { Account, Frame } from "./controls";\nimport { Outer } from "./outer";\nexport function Layout() {\n  return (\n    <Outer>\n      <Frame>\n        <main>\n          {\n            <header>\n              <Account />\n            </header>\n          }\n          Hello\n        </main>\n      </Frame>\n    </Outer>\n  );\n}\n'
           );
         }
       }).pipe(Effect.provide(layer));
@@ -38,11 +38,11 @@ it.effect(
       const layer = yield* memoryWorkspace("application");
       yield* Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
-        const source = yield* fs.readFileString("/source/layout.tsx.template");
+        const source = yield* fs.readFileString("/source/layout.template.tsx");
         const controls = yield* fs.readFileString("/source/controls.tsx");
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
-          source.replace("{{providers.close}}", "")
+          "/source/layout.template.tsx",
+          source.replace("/*{% echo slots.providers.close %}*/", "")
         );
         const workspace = yield* (yield* Workspaces).fresh({
           destination: "/application",
@@ -55,7 +55,7 @@ it.effect(
         ).toMatchObject({
           _tag: "InvalidComposition",
           message:
-            "layout.tsx.template must contain exactly one {{providers.close}}",
+            "Error: layout.template.tsx must emit exactly one slots.providers.close",
         });
         expect(yield* fs.exists("/application")).toBeFalsy();
         expect(yield* fs.readFileString("/source/controls.tsx")).toBe(controls);
@@ -130,7 +130,7 @@ it.effect(
           "/application/apps/web/configuration.ts"
         );
         expect(output).toBe(
-          'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
+          'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({\n  features: [keys()],\n}) satisfies { features: unknown[] };\n'
         );
       }).pipe(Effect.provide(layer));
     })
@@ -152,7 +152,9 @@ it.effect(
           yield* fs.readFileString(
             "/source/workspaces/editorial-site/apps/web/layout.tsx"
           )
-        ).toBe("export function Layout() {\n  return <main>Hello</main>;\n}\n");
+        ).toBe(
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
+        );
         expect(
           yield* fs.exists(
             "/source/workspaces/editorial-site/apps/web/controls.tsx"
@@ -179,7 +181,7 @@ it.effect(
           "/application/apps/web/layout.tsx"
         );
         expect(output).toBe(
-          'import { Account, Frame } from "./controls";\n\nexport function Layout() {\n  return (\n    <Frame>\n      <main>\n        <header>\n          <Account />\n        </header>\n        Hello\n      </main>\n    </Frame>\n  );\n}\n'
+          'import { Account, Frame } from "./controls";\nexport function Layout() {\n  return (\n    <Frame>\n      <main>\n        {\n          <header>\n            <Account />\n          </header>\n        }\n        Hello\n      </main>\n    </Frame>\n  );\n}\n'
         );
       }).pipe(Effect.provide(layer));
     })

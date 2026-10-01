@@ -37,7 +37,7 @@
         "composition": {
           "templates": [
             {
-              "source": "apps/web/registry/templates/layout.tsx.template",
+              "source": "apps/web/registry/templates/layout.template.tsx",
               "target": "apps/web/app/[locale]/layout.tsx",
               "slots": {
                 "account": "element",
@@ -49,7 +49,7 @@
               }
             },
             {
-              "source": "apps/web/registry/templates/document-shell.tsx.template",
+              "source": "apps/web/registry/templates/document-shell.template.tsx",
               "target": "apps/web/components/layout/document-shell.tsx",
               "slots": {
                 "providers": "wrapper",
@@ -57,21 +57,21 @@
               }
             },
             {
-              "source": "apps/web/registry/templates/proxy.ts.template",
+              "source": "apps/web/registry/templates/proxy.template.ts",
               "target": "apps/web/proxy.ts",
               "slots": {
                 "proxy": "call"
               }
             },
             {
-              "source": "apps/web/registry/templates/env.ts.template",
+              "source": "apps/web/registry/templates/env.template.ts",
               "target": "apps/web/env.ts",
               "slots": {
                 "environment": "factory"
               }
             },
             {
-              "source": "apps/web/registry/templates/next.config.ts.template",
+              "source": "apps/web/registry/templates/next.config.template.ts",
               "target": "apps/web/next.config.ts",
               "slots": {
                 "configuration": "call"
@@ -254,7 +254,7 @@
         "composition": {
           "templates": [
             {
-              "source": "apps/web/registry/templates/account-links.ts.template",
+              "source": "apps/web/registry/templates/account-links.template.ts",
               "target": "apps/web/components/layout/account-links.ts",
               "slots": {
                 "links": "members"
@@ -691,7 +691,7 @@
           ],
           "templates": [
             {
-              "source": "apps/web/registry/templates/search-runtime.ts.template",
+              "source": "apps/web/registry/templates/search-runtime.template.ts",
               "target": "apps/web/lib/search-runtime.ts",
               "slots": {
                 "productRoutes": "members",

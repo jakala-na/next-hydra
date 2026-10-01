@@ -192,12 +192,12 @@ it.effect(
         );
         yield* Queue.take(results);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         // Never give a trailing debounce a quiet period during this interval.
         for (let save = 0; save < 30; save += 1) {
           yield* fs.writeFileString(
-            "/source/layout.tsx.template",
+            "/source/layout.template.tsx",
             template.replace("Hello", "Continuous saves")
           );
           yield* Queue.offer(changes, undefined);
@@ -264,10 +264,10 @@ it.effect(
         );
         yield* Deferred.await(entered);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Latest heading")
         );
         yield* Queue.offer(changes, undefined);
@@ -446,10 +446,10 @@ it.effect(
         );
         yield* Effect.raceFirst(Queue.take(reports), Fiber.join(running));
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Edited through CLI")
         );
         yield* Queue.offer(changes, undefined);
@@ -525,10 +525,10 @@ it.effect(
         expect(yield* fs.exists(`${root}/apps/web/.env.local`)).toBeTruthy();
         yield* fs.remove(`${root}/apps/web/.env.local`);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Continued")
         );
         yield* Queue.offer(changes, undefined);
