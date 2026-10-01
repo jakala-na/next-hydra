@@ -88,10 +88,10 @@ export const validatePreservedFiles = Effect.fn(
 
 function namedIgnoreRules(preserve: readonly string[]): string {
   const rules = new Set([
-    "# Commit workspace settings only; Compose owns the materialized application.",
+    "# Commit workspace settings and generated Turbo config; Compose owns the materialized application.",
     "/*",
   ]);
-  const allow = new Set<string>();
+  const allow = new Set<string>(["!/turbo.json"]);
   for (const { directory, files } of settings) {
     let prefix = "/";
     for (const segment of directory) {

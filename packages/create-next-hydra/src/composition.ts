@@ -1,5 +1,6 @@
 import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect";
 import type { PlatformError } from "effect";
+import { format } from "oxfmt";
 import type { RegistryItem } from "shadcn/schema";
 
 import {
@@ -479,11 +480,21 @@ export class Composition extends Context.Service<
               new Set(assets.map((asset) => asset.target)),
               request.port
             );
+            const tasksSource = yield* encodeJson(applicationTasks(files));
+            const tasks = yield* Effect.tryPromise({
+              catch: () =>
+                new InvalidComposition({ message: "Cannot format turbo.json" }),
+              try: async () =>
+                await format("turbo.json", tasksSource, { printWidth: 80 }),
+            });
+            if (tasks.errors.length) {
+              return yield* new InvalidComposition({
+                message: "Invalid generated turbo.json",
+              });
+            }
             files.push(
               {
-                content: new TextEncoder().encode(
-                  `${yield* encodeJson(applicationTasks(files))}\n`
-                ),
+                content: new TextEncoder().encode(tasks.code),
                 mode: 0o644,
                 target: "turbo.json",
               },

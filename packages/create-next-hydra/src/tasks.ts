@@ -18,7 +18,6 @@ export function applicationTasks(files: readonly PreparedFile[]) {
     "NODE_ENV",
     "VERCEL",
     "VERCEL_ENV",
-    "VERCEL_PROJECT_PRODUCTION_URL",
     "NEXT_PUBLIC_*",
   ]);
   for (const file of files) {
@@ -33,6 +32,8 @@ export function applicationTasks(files: readonly PreparedFile[]) {
       }
     }
   }
+  // Environment examples must not make the build-only hostname a global cache input.
+  environment.delete("VERCEL_PROJECT_PRODUCTION_URL");
   // Explicit inputs include physical sources under Git-ignored development workspaces.
   const inputs = [
     "**/*",
@@ -50,7 +51,12 @@ export function applicationTasks(files: readonly PreparedFile[]) {
       build: {
         dependsOn: ["^build", "typecheck", "test"],
         // Sentry uploads run during the build, so changed destinations or credentials must retry them.
-        env: ["SENTRY_ORG", "SENTRY_PROJECT", "SENTRY_AUTH_TOKEN"],
+        env: [
+          "VERCEL_PROJECT_PRODUCTION_URL",
+          "SENTRY_ORG",
+          "SENTRY_PROJECT",
+          "SENTRY_AUTH_TOKEN",
+        ],
         inputs,
         outputs: [".next/**", "!.next/cache/**", "!.next/dev/**"],
       },

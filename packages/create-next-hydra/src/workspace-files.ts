@@ -28,7 +28,7 @@ const fingerprint = (content: Uint8Array, mode: number): Fingerprint => ({
 
 function compareFile(
   previous: WorkspaceObservation["entries"][number] | undefined,
-  wanted: PreparedFile | undefined,
+  wanted: PreparedWorkspace["files"][number] | undefined,
   before: Fingerprint | null,
   returning = false
 ) {
@@ -41,9 +41,17 @@ function compareFile(
       : desired;
   let conflict = !same(before, desired);
   if (!returning) {
+    // A clean checkout can already contain the committed generated task policy.
+    // Adopt only exact output; differing unowned files still require reconciliation.
     conflict = previous
       ? !same(before, previous.applied) && !same(before, after)
-      : before !== null;
+      : before !== null &&
+        !(
+          wanted?.target === "turbo.json" &&
+          wanted.origin.kind === "policy" &&
+          wanted.origin.policy === "application-tasks" &&
+          same(before, desired)
+        );
   }
   return { after, conflict, desired };
 }

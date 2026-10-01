@@ -1,0 +1,117 @@
+{
+  "envMode": "loose",
+  "futureFlags": { "affectedUsingTaskInputs": true },
+  "globalEnv": [
+    "ANALYZE",
+    "NODE_ENV",
+    "VERCEL",
+    "VERCEL_ENV",
+    "NEXT_PUBLIC_*",
+    "LANGUINE_PROJECT_ID",
+    "CONTENTSTACK_API_KEY",
+    "CONTENTSTACK_BRANCH",
+    "CONTENTSTACK_ENVIRONMENT",
+    "CONTENTSTACK_DELIVERY_TOKEN",
+    "CONTENTSTACK_DELIVERY_TOKEN_UID",
+    "CONTENTSTACK_PREVIEW_TOKEN",
+    "CONTENTSTACK_REGION",
+    "CONTENTSTACK_GRAPHQL_HOST_NAME",
+    "CONTENTSTACK_LIVE_PREVIEW_HOST_NAME",
+    "CONTENTSTACK_WEBHOOK_SECRET",
+    "NEXT_PUBLIC_CONTENTSTACK_API_KEY",
+    "NEXT_PUBLIC_CONTENTSTACK_ENVIRONMENT",
+    "CONTENTSTACK_AUTHTOKEN",
+    "CONTENTSTACK_ORG_UID",
+    "CONTENTSTACK_STACK_API_KEY",
+    "ALGOLIA_CONTENT_WRITE_API_KEY",
+    "NEXT_PUBLIC_WEB_URL",
+    "CMS_HOMEPAGE_SLUG",
+    "CMS_REVALIDATION_SECRET",
+    "FRAME_ANCESTORS"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "typecheck", "test"],
+      "env": [
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_AUTH_TOKEN"
+      ],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+    },
+    "dev": {
+      "cache": false,
+      "passThroughEnv": ["PORTLESS_*"],
+      "persistent": true
+    },
+    "e2e": { "cache": false },
+    "e2e:list": { "cache": false },
+    "test": {
+      "dependsOn": ["^test"],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**"
+      ]
+    }
+  }
+}
