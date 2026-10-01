@@ -10,6 +10,12 @@ import {
   Schema,
 } from "effect";
 
+import {
+  composerRequirements,
+  composerTarget,
+  patchComposerManifest,
+} from "./composer.ts";
+import type { ComposerSection } from "./composer.ts";
 import { InvalidComposition } from "./errors.ts";
 import { relativeFile, writeFile } from "./files.ts";
 import { ManifestJson, registryDependencies } from "./packages.ts";
@@ -59,7 +65,11 @@ export interface AddInspection {
     readonly target: string;
     readonly status: "create" | "identical" | "changed";
   }[];
-  readonly packages: readonly (Omit<PackageRequirement, "specifier"> & {
+  readonly packages: readonly (Omit<
+    PackageRequirement,
+    "specifier" | "section"
+  > & {
+    readonly section: PackageRequirement["section"] | ComposerSection;
     readonly status: "create" | "identical" | "changed";
   })[];
   readonly precondition: string;
@@ -291,6 +301,47 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
         () => Effect.succeed(null)
       )
     );
+  const inspectComposer = Effect.fn("ExistingWorkspace.inspectComposer")(
+    function* (index: RegistryIndex, facts: Map<string, string | null>) {
+      const composer = yield* composerRequirements(
+        [...index.metadataByName.values()].flatMap(
+          (metadata) => metadata.composer ?? []
+        )
+      );
+      const files: { target: string; content: string }[] = [];
+      const changes: AddInspection["packages"][number][] = [];
+      const registryFiles = [...index.items.values()].flatMap(
+        (item) => item.files ?? []
+      );
+      for (const contribution of composer) {
+        const target = composerTarget(contribution);
+        const installedFile = registryFiles.find(
+          (file) => file.target === `~/${target}`
+        );
+        const current = yield* fs
+          .readFileString(path.join(directory, target))
+          .pipe(
+            Effect.catchIf(
+              (error) => error.reason._tag === "NotFound",
+              () => Effect.void
+            )
+          );
+        const source = current ?? installedFile?.content;
+        if (source === undefined) {
+          return yield* new InvalidComposition({
+            message: `Composer requirements need ${target}; provide an existing manifest or a registry file.`,
+          });
+        }
+        const patched = yield* patchComposerManifest(source, contribution);
+        facts.set(target, current === undefined ? null : digest(current));
+        changes.push(
+          ...patched.changes.map((change) => ({ ...change, target }))
+        );
+        files.push({ content: patched.content, target });
+      }
+      return { changes, files };
+    }
+  );
   const inspect = Effect.fn("ExistingWorkspace.inspect")(function* (
     reference: string
   ) {
@@ -325,6 +376,9 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
     const packages: PackageRequirement[] = [];
     const requirements = new Map<string, string>();
     const manifests = new Map<string, string>();
+    const composer = yield* inspectComposer(index, facts);
+    const composerTargets = new Set(composer.files.map((file) => file.target));
+    const claimedFiles = new Set<string>();
     for (const requirement of installed.packages) {
       const target =
         requirement.cwd === "."
@@ -356,10 +410,15 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
           });
         }
         const target = yield* relativeFile(file.target);
-        if (files.some((existing) => existing.target === target)) {
+        if (claimedFiles.has(target)) {
           return yield* new InvalidComposition({
             message: `Multiple registry files claim ${target}`,
           });
+        }
+        claimedFiles.add(target);
+        // Declared Composer manifests are merged, not replaced by the baseline.
+        if (composerTargets.has(target)) {
+          continue;
         }
         const current = yield* observe(target);
         facts.set(target, current);
@@ -415,6 +474,13 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
         target: requirement.target,
       });
     }
+    packageChanges.push(...composer.changes);
+    files.push(
+      ...composer.files.map((file): AddInspection["files"][number] => ({
+        status: facts.get(file.target) === null ? "create" : "identical",
+        target: file.target,
+      }))
+    );
     for (const target of [
       "package.json",
       "components.json",
@@ -436,6 +502,7 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
       })
     );
     return {
+      composerFiles: composer.files,
       facts,
       graph,
       inspection: {
@@ -445,6 +512,10 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
         packages: packageChanges,
         precondition,
       } satisfies AddInspection,
+      instructions: registryInstructions(
+        graph.registry.items,
+        index.metadataByName
+      ),
       needsInstall:
         packages.length > 0 ||
         rootRequirements.length > 0 ||
@@ -510,6 +581,12 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
               yield* json({
                 ...item,
                 docs: undefined,
+                files: item.files?.filter(
+                  (file) =>
+                    !checked.composerFiles.some(
+                      (manifest) => file.target === `~/${manifest.target}`
+                    )
+                ),
                 registryDependencies: registryReferences,
               })
             ),
@@ -568,6 +645,16 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
           )
           .pipe(Effect.uninterruptible);
       }
+      for (const file of checked.composerFiles) {
+        yield* fs
+          .makeDirectory(path.dirname(path.join(directory, file.target)), {
+            recursive: true,
+          })
+          .pipe(Effect.uninterruptible);
+        yield* fs
+          .writeFileString(path.join(directory, file.target), file.content)
+          .pipe(Effect.uninterruptible);
+      }
     }).pipe(
       Effect.mapError(
         (error) =>
@@ -584,7 +671,7 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
     return {
       directory,
       files: checked.inspection.files,
-      instructions: registryInstructions(checked.graph.registry.items),
+      instructions: checked.instructions,
     };
   });
   return { add, inspectAdd };

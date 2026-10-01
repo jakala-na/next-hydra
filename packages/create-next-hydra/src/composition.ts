@@ -9,6 +9,7 @@ import {
   normalizeApplicationName,
   readWorkspaceSettings,
 } from "./baseline.ts";
+import { composerTarget, patchComposerManifest } from "./composer.ts";
 import {
   demoArchitecturePackage,
   eraseDemoInstrumentation,
@@ -99,6 +100,8 @@ export class Composition extends Context.Service<
         const {
           aliases,
           assets,
+          composer,
+          metadataByName,
           ownedAssetTargets,
           ownedAliases,
           ownedRequirements,
@@ -473,6 +476,17 @@ export class Composition extends Context.Service<
               aliases,
               ownedAliases
             );
+            for (const contribution of composer) {
+              const target = path.join(
+                staging.application,
+                composerTarget(contribution)
+              );
+              const patched = yield* patchComposerManifest(
+                yield* fs.readFileString(target),
+                contribution
+              );
+              yield* fs.writeFileString(target, patched.content);
+            }
             const files = yield* scopeApplicationHosts(
               yield* collectFiles(staging.application),
               applicationName,
@@ -595,7 +609,7 @@ export class Composition extends Context.Service<
                 packagePatterns: catalog.patterns,
                 packages: packageDirectories,
               },
-              instructions: registryInstructions(artifacts),
+              instructions: registryInstructions(artifacts, metadataByName),
             };
           })
         ).pipe(

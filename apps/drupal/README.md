@@ -88,7 +88,21 @@ pnpm cli search provision --env-file .env.algolia.provision.local --locale en-US
 
 The output file includes the three CMS values below alongside the search credentials. For DDEV, put them in the Drupal app's ignored `.ddev/config.local.yaml` under `web_environment`, then run `ddev restart` and `ddev drush cr`. Hosted Drupal needs the same variables in its backend environment. Use local output for this manual setup: Vercel sensitive keys cannot be copied back out. This replaces the previous `ALGOLIA_DRUPAL_WRITE_API_KEY` variable; rename existing deployment configuration when updating.
 
-When Algolia Search is selected, `ddev install` also runs `ddev install-search`. Its `scripts/prepare-search.sh` installs the local recipe package through Composer and Drupal's recipe-unpack plugin; Drush then applies the recipe. It installs Search API and Search API Algolia with a `Content` index for published Articles and Landing Pages. Commit the resulting `composer.json` and `composer.lock` in your application. A CMS-only installation without Search does not include these modules or credentials. Make all three runtime values available to Drupal before indexing:
+When Algolia Search is selected, composition adds the local recipe package and path repository to `apps/drupal/composer.json`. It does not install PHP dependencies or update `composer.lock`. Once your PHP environment is ready, resolve those requirements; for example, from the Drupal app in DDEV:
+
+```sh
+ddev composer update application/algolia-content-search --with-dependencies
+```
+
+For scaffolded applications, explicitly unpack the recipe after resolution:
+
+```sh
+ddev composer drupal:recipe-unpack application/algolia-content-search
+```
+
+This moves the recipe's dependencies into the application manifest. Named maintainer workspaces may leave the recipe packed.
+
+The recipe declares Search API and Search API Algolia as dependencies. Commit the resulting `composer.json` and `composer.lock`. Existing preserved manifests in named workspaces remain yours to reconcile. On an existing site, run `ddev install-search` to apply the recipe. On a new site, `ddev install` includes that step; do not run it against a database you need to keep. The recipe configures a `Content` index for published Articles and Landing Pages. A CMS-only installation without Search does not include these modules or credentials. Make all three runtime values available to Drupal before indexing:
 
 ```dotenv
 ALGOLIA_APPLICATION_ID=""
@@ -163,13 +177,14 @@ Keep the matching SSH public key on the Acquia automation user.
 
 ### 3. Deploy Drupal
 
-If Algolia Search is selected and you have not run `ddev install-search`, prepare its dependencies locally before deploying. This needs PHP and Composer, but no DDEV or database:
+If Algolia Search is selected, resolve its Composer dependencies in your own PHP environment before deploying. For a local Composer installation:
 
 ```bash
 cd apps/drupal
-composer install
-bash scripts/prepare-search.sh
+composer update application/algolia-content-search --with-dependencies
 ```
+
+For scaffolded applications, also run `composer drupal:recipe-unpack application/algolia-content-search`. Named maintainer workspaces may keep the recipe packed.
 
 Commit the resulting `composer.json` and `composer.lock` so the deployment installs the same dependencies.
 

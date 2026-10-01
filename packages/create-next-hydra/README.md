@@ -174,6 +174,30 @@ pnpm registry:check
 
 Standard ShadCN `dependencies` and `devDependencies` apply to the workspace root. Use `meta.nextHydra.packages` only when an ordinary dependency must be added to a specific workspace package. Stable Provider aliases are derived from the slot and cannot be declared in `packages`.
 
+For PHP applications, `meta.nextHydra.composer` declares requirements by application directory:
+
+```json
+"composer": [{
+  "cwd": "apps/drupal",
+  "require": { "application/algolia-content-search": "*@dev" },
+  "repositories": {
+    "application-search": {
+      "type": "path",
+      "url": "recipes/search-algolia",
+      "options": { "symlink": false }
+    }
+  }
+}]
+```
+
+`cwd` is relative to the project root; path repositories are relative to that application. `require-dev`, Composer platform requirements (such as `php` and `ext-curl`), and HTTPS Composer repositories are also supported. VCS and Git repositories accept HTTPS, `ssh://git@host/path`, or `git@host:path` URLs, allowing external recipes and private packages. Repositories support `canonical`, `only`, and `exclude`; path options support `symlink`, `versions`, and `reference` (`none`, `config`, or `auto`). Keep passwords and tokens in Composer authentication, and configure SSH keys outside registry metadata. Selected declarations patch `composer.json` during materialization, including with `--no-install`. Conflicting declarations are rejected. Add patches existing manifests, preserving unrelated fields and requiring overwrite approval for conflicting values.
+
+Path repositories require literal application-relative paths, such as `recipes/search-algolia`. Parent traversal (`../`), home expansion (`~`), and environment-variable expansion (`$VAR`, `${VAR}`, or `%VAR%`) are rejected.
+
+For example, an external recipe can declare `"repositories": { "content-recipe": { "type": "vcs", "url": "https://github.com/example/content-recipe.git" } }` alongside `"require": { "vendor/content-recipe": "^1" }`. Its repository must contain the package's `composer.json`. Composer reads repository declarations only from the application manifest, so declare any additional private repositories needed by the recipe's dependencies here too.
+
+The tooling never checks for or runs PHP, Composer, or DDEV, and never updates `composer.lock`. Resolve dependencies and update the lockfile in your own environment before deployment. A recipe's own `composer.json` remains the source of its module requirements; the registry references that package instead of flattening its dependencies. Named workspaces still honor `preserve`: existing preserved manifests are not synchronized by Compose, and Check remains files-only.
+
 Project creation and named `compose` record those standard dependency fields through the same manifest logic before the final package install, including with `--no-install`. Only selected registry items and their transitive dependencies participate. Bare package names preserve existing requirements; a new bare name uses `latest` until installation resolves it. Explicit versions, tags, and named aliases are preserved, and conflicting explicit requirements fail during preparation. URL or local-path requirements must include a package name (`name@specifier`); unnamed sources cannot be resolved in an install-free plan. `add` continues to use ShadCN's dependency installer.
 
 Use `meta.composition.templates` for shared-file structure and `meta.composition.slotBindings` for references to ordinary module exports. This renderer is shared by `compose` and initial scaffolding. Modules remain normal TypeScript/TSX source, and targets have ordinary filenames with no ongoing generation step in scaffolded projects. A selection may declare `typeScriptAliases` for application-level module overrides that must persist in both named and scaffolded workspaces. Both target and alias are catalog-governed. `add` rejects composition recipes and template recomposition because it cannot safely regenerate files you may have edited.

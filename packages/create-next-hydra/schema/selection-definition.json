@@ -31,6 +31,13 @@
     }
   ],
   "$defs": {
+    "composerRequirements": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(?:[a-z0-9_.-]+/[a-z0-9_.-]+|php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$"
+      },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
     "composition": {
       "type": "object",
       "additionalProperties": false,
@@ -121,6 +128,120 @@
       "additionalProperties": false,
       "required": ["id", "kind"],
       "properties": {
+        "composer": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cwd"],
+            "properties": {
+              "cwd": { "$ref": "#/$defs/workspacePath" },
+              "require": { "$ref": "#/$defs/composerRequirements" },
+              "require-dev": { "$ref": "#/$defs/composerRequirements" },
+              "repositories": {
+                "type": "object",
+                "propertyNames": { "pattern": "^[a-zA-Z0-9_-]+$" },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "url"],
+                      "properties": {
+                        "canonical": { "type": "boolean" },
+                        "only": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "exclude": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "type": { "const": "path" },
+                        "url": {
+                          "allOf": [
+                            { "$ref": "#/$defs/workspaceFilePath" },
+                            { "pattern": "^(?!~)(?!.*(?:\\$|%[^%]+%)).+$" }
+                          ]
+                        },
+                        "options": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "symlink": { "type": "boolean" },
+                            "reference": { "enum": ["none", "config", "auto"] },
+                            "versions": {
+                              "type": "object",
+                              "propertyNames": {
+                                "pattern": "^[a-z0-9_.-]+/[a-z0-9_.-]+$"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "url"],
+                      "properties": {
+                        "canonical": { "type": "boolean" },
+                        "only": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "exclude": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "type": { "const": "composer" },
+                        "url": {
+                          "type": "string",
+                          "pattern": "^https://[^@\\s/?#]+(?:[/?#][^\\s]*)?$"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["type", "url"],
+                      "properties": {
+                        "canonical": { "type": "boolean" },
+                        "only": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "exclude": {
+                          "type": "array",
+                          "items": { "type": "string", "minLength": 1 }
+                        },
+                        "type": { "enum": ["vcs", "git"] },
+                        "url": {
+                          "type": "string",
+                          "anyOf": [
+                            {
+                              "pattern": "^https://[^@\\s/?#]+(?:[/?#][^\\s]*)?$"
+                            },
+                            {
+                              "pattern": "^ssh://(?:[a-zA-Z0-9._-]+@)?[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?(?::[0-9]+)?/[^\\s?#]+$"
+                            },
+                            {
+                              "pattern": "^[a-zA-Z0-9._-]+@[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?:[^\\s?#]+$"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
         "id": {
           "type": "string",
           "minLength": 1

@@ -106,8 +106,7 @@ jobs:
         env:
           COMPOSER_MEMORY_LIMIT: -1
         run: |
-          composer install --no-interaction --no-scripts
-          bash scripts/prepare-search.sh
+          composer update application/algolia-content-search --with-dependencies --no-interaction --no-scripts
 
       - name: Deploy composed Drupal storefront
         if: github.event_name == 'workflow_dispatch' || steps.drupal.outputs.affected == 'true'

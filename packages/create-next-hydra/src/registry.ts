@@ -13,13 +13,26 @@ import {
 import { Shadcn } from "./shadcn.ts";
 import type { RegistryCatalog } from "./shadcn.ts";
 
-export function registryInstructions(
-  items: readonly RegistryItem[]
-): readonly RegistryInstruction[] {
-  return items.flatMap((item) =>
+export const registryInstructions = (
+  items: readonly RegistryItem[],
+  metadataByName: Effect.Success<
+    ReturnType<typeof registryIndex>
+  >["metadataByName"]
+): RegistryInstruction[] => {
+  const instructions: RegistryInstruction[] = items.flatMap((item) =>
     item.docs?.trim() ? [{ item: item.name, text: item.docs }] : []
   );
-}
+  for (const item of items) {
+    const composer = metadataByName.get(item.name)?.composer;
+    if (composer && composer.length > 0) {
+      instructions.push({
+        item: item.name,
+        text: `Composer requirements are declared for ${composer.map((application) => application.cwd).join(", ")}. Resolve and install PHP dependencies in your own environment, then commit the updated lockfile. This tooling does not run Composer or update composer.lock.`,
+      });
+    }
+  }
+  return instructions;
+};
 
 const emptyRegistry: RegistryCatalog = {
   homepage: "",

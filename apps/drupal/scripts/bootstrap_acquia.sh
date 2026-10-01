@@ -48,7 +48,7 @@ if remote_ssh test -f recipes/search-algolia/recipe.yml; then
   search_recipe=../recipes/search-algolia
   if ! remote_ssh test -f docroot/modules/contrib/search_api/search_api.info.yml || \
      ! remote_ssh test -f docroot/modules/contrib/search_api_algolia/search_api_algolia.info.yml; then
-    echo "Search dependencies are missing. Run bash scripts/prepare-search.sh in your local Drupal app, commit composer.json and composer.lock, and redeploy before bootstrap." >&2
+    echo "Search dependencies are missing. Resolve the Search recipe's Composer dependencies locally, commit composer.json and composer.lock, and redeploy before bootstrap; see README.md." >&2
     exit 65
   fi
 fi

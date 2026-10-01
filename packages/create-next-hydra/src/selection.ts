@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import type { RegistryItem } from "shadcn/schema";
 
+import { ComposerContribution, composerRequirements } from "./composer.ts";
 import { IncompatibleSelection, InvalidComposition } from "./errors.ts";
 import { relativeFile } from "./files.ts";
 import { Selection, SelectionRequest } from "./model.ts";
@@ -61,6 +62,7 @@ const Metadata = Schema.Struct({
       requires: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
     })
   ),
+  composer: Schema.optionalKey(Schema.Array(ComposerContribution)),
   conditionalDependencies: Schema.optionalKey(
     Schema.Array(
       Schema.Struct({
@@ -570,7 +572,14 @@ export const selectRegistryItems = Effect.fn("Composition.selectRegistryItems")(
       selection
     );
     const assets = yield* resolveAssets(metadataByName, selected);
+    const composer = yield* composerRequirements(
+      selectedItems.flatMap(
+        (item) => metadataByName.get(item.name)?.composer ?? []
+      )
+    );
     return {
+      composer,
+      metadataByName,
       ...bindings,
       ...assets,
       references,

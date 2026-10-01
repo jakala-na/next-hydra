@@ -707,10 +707,24 @@
       "name": "drupal-algolia",
       "type": "registry:item",
       "title": "Drupal Algolia Content indexing",
+      "docs": "This item declares the local Search recipe in apps/drupal/composer.json. Resolve and install its PHP dependencies in your own environment and commit the resulting lockfile before applying the recipe. Use ddev install-search on an existing site, or ddev install on a new site. Never run ddev install on a database you need to keep.",
       "meta": {
         "nextHydra": {
           "id": "next-hydra/drupal/algolia",
           "kind": "recipe",
+          "composer": [
+            {
+              "cwd": "apps/drupal",
+              "require": { "application/algolia-content-search": "*@dev" },
+              "repositories": {
+                "application-search": {
+                  "type": "path",
+                  "url": "recipes/search-algolia",
+                  "options": { "symlink": false }
+                }
+              }
+            }
+          ],
           "compatibility": {
             "requires": ["next-hydra/cms/drupal", "next-hydra/search/algolia"]
           }
@@ -720,11 +734,6 @@
         {
           "path": ".ddev/commands/host/install-search",
           "target": "~/apps/drupal/.ddev/commands/host/install-search",
-          "type": "registry:file"
-        },
-        {
-          "path": "scripts/prepare-search.sh",
-          "target": "~/apps/drupal/scripts/prepare-search.sh",
           "type": "registry:file"
         },
         {
