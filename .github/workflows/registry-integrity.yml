@@ -13,15 +13,22 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  LINT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+
 jobs:
-  validate:
-    name: Validate registry integrity
+  source:
+    name: Validate source and registry
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      workspaces: ${{ steps.workspaces.outputs.names }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup pnpm
@@ -31,7 +38,8 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
-          package-manager-cache: false
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -41,3 +49,90 @@ jobs:
 
       - name: Test registry composition
         run: pnpm --filter create-next-hydra test
+
+      - name: Build composition tooling
+        run: pnpm --filter create-next-hydra build
+
+      - name: Verify committed generated Turbo configurations without installing apps
+        run: |
+          node packages/create-next-hydra/dist/cli.js compose --all --no-install
+          git diff --exit-code -- 'workspaces/*/turbo.json'
+
+      - name: Prepare typed lint tooling
+        run: pnpm exec effect-tsgo patch --typescript --oxlint
+
+      - name: Check source outside application compositions
+        run: node packages/create-next-hydra/dist/lint-workspaces.js --source "--changed-from=$LINT_BASE"
+
+      - name: Discover lint matrix
+        id: workspaces
+        run: |
+          names=$(node packages/create-next-hydra/dist/lint-workspaces.js --list "--changed-from=$LINT_BASE")
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+
+  lint-composition:
+    name: Lint composition (${{ matrix.workspace }})
+    needs: source
+    if: ${{ needs.source.outputs.workspaces != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        workspace: ${{ fromJSON(needs.source.outputs.workspaces) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js and composition package cache
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            workspaces/${{ matrix.workspace }}/next-hydra.json
+
+      - name: Install only composition tooling
+        run: pnpm --filter 'next-hydra...' --filter 'create-next-hydra...' install --frozen-lockfile --ignore-scripts
+
+      - name: Build composition tooling
+        run: pnpm --filter create-next-hydra build
+
+      - name: Prepare typed lint tooling
+        run: pnpm exec effect-tsgo patch --typescript --oxlint
+
+      - name: Install and lint the selected composition
+        env:
+          LINT_WORKSPACE: ${{ matrix.workspace }}
+        run: node packages/create-next-hydra/dist/lint-workspaces.js "--workspace=$LINT_WORKSPACE" "--changed-from=$LINT_BASE"
+
+  validate:
+    # Preserve the existing check name for branch protection.
+    name: Validate registry integrity
+    needs: [source, lint-composition]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require source and every composition to pass
+        env:
+          SOURCE_RESULT: ${{ needs.source.result }}
+          COMPOSITION_RESULT: ${{ needs.lint-composition.result }}
+          LINT_WORKSPACES: ${{ needs.source.outputs.workspaces }}
+        run: |
+          if [[ "$SOURCE_RESULT" != "success" ]]; then
+            exit 1
+          fi
+          if [[ "$COMPOSITION_RESULT" != "success" && !( "$COMPOSITION_RESULT" == "skipped" && "$LINT_WORKSPACES" == "[]" ) ]]; then
+            echo "Source: $SOURCE_RESULT; compositions: $COMPOSITION_RESULT"
+            exit 1
+          fi

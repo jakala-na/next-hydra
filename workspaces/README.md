@@ -149,7 +149,7 @@ Development, deployment and scaffolded workspaces use the same Turbo task config
 
 ## Lint verification
 
-`pnpm lint` checks source and rendered code using all named definitions. The commit hook formats staged files, then runs `pnpm --filter create-next-hydra lint:staged`. For a focused check after building the CLI:
+`pnpm lint` checks source and rendered code using all named definitions. The commit hook validates test-environment scripts and formats staged files; composition-aware lint runs in CI for affected workspaces. For a focused check after building the CLI:
 
 ```sh
 node packages/create-next-hydra/dist/lint-workspaces.js packages/cms-contentstack/components/component-renderer.tsx
@@ -259,7 +259,9 @@ On a clean hosted checkout, committed settings may coexist with restored caches 
 
 Application task configuration is shared with customer creation, including environment inputs, dependency ordering, source hashing and output declarations. Turbo uses its default local cache at `.turbo/cache` and its configured Remote Cache. Deployment commands override neither cache placement nor cache backends; remote-cache environment is passed through unchanged. Preserving an existing local cache during composition does not guarantee Vercel restores it between deployments. Next's incremental compiler cache is separate from Turbo's complete build-output cache.
 
-Environment variable names from the selected environment examples, plus public Next variables and the standard build environment, participate in Turbo's cache keys. Values are not written into composition state or generated configuration. This is conservative across the selected workspace; maintainers must keep examples or explicit Turbo `env` declarations current when adding build-affecting variables. Composition does not copy ignored local credentials into hosted builds.
+Each application's build hashes private variable names from its own environment examples and those of its selected dependency packages. Public Next variables use framework inference; the standard build environment is shared. Unit-test and typecheck hashes exclude deployment variable values, and unit tests also exclude local environment files. Values are not written into composition state or generated configuration. Keep examples or explicit Turbo `env` declarations current when adding build-affecting variables. Composition does not copy ignored local credentials into hosted builds.
+
+Generated root `turbo.json` files are source-controlled for review. After changing task policy or relevant environment examples, run `compose --all --no-install` and include the resulting configuration changes. CI verifies every committed generated configuration without installing applications, then installs and lints only compositions affected by the changed source, selected dependencies, definitions or shared tooling. Documentation-only changes skip the composition lint matrix. The separate Commercetools `test:live` task is uncached and is not a build dependency.
 
 Before changing production settings, verify a Git-triggered preview and a subsequent cached rebuild, including server routes, static assets and provider-specific handlers. Local composition/cache checks do not validate the hosted builder, external credentials or provider services. Stable named paths allow subsequent builds to reuse caches.
 

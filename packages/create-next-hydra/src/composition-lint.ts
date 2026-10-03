@@ -10,6 +10,90 @@ import { TemplateDefinition } from "./templates.ts";
 import { Workspaces } from "./workspaces.ts";
 
 const scriptExtension = /\.[cm]?[jt]sx?$/u;
+export type CompositionLintScope =
+  | { readonly kind: "all" }
+  | { readonly kind: "source" }
+  | { readonly kind: "workspace"; readonly name: string };
+const allCompositions: CompositionLintScope = { kind: "all" };
+
+const sharedLintInputs = new Set([
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "registry.json",
+  "components.json",
+  "oxlint.config.ts",
+  "tsconfig.json",
+  ".node-version",
+  ".npmrc",
+  ".github/workflows/registry-integrity.yml",
+]);
+
+function sourcePath(file: FileExplanation): string | undefined {
+  return "source" in file.origin ? file.origin.source : undefined;
+}
+
+export const affectedLintWorkspaces = Effect.fn("CompositionLint.affected")(
+  function* (sourceRoot: string, changedFiles?: readonly string[]) {
+    const workspaces = yield* Workspaces;
+    const references = yield* workspaces.discover(sourceRoot);
+    if (references.length === 0) {
+      return yield* new InvalidComposition({
+        message:
+          "Composition lint requires at least one named workspace definition.",
+      });
+    }
+    if (
+      changedFiles === undefined ||
+      changedFiles.some(
+        (file) =>
+          sharedLintInputs.has(file) ||
+          (file.startsWith("tools/oxlint/") && !file.endsWith(".md")) ||
+          file.startsWith("packages/create-next-hydra/src/") ||
+          file === "packages/create-next-hydra/package.json"
+      )
+    ) {
+      return references.map((reference) => reference.name);
+    }
+    const changes = changedFiles.filter((file) => !file.endsWith(".md"));
+    if (changes.length === 0) {
+      return [];
+    }
+    const selected: string[] = [];
+    for (const reference of references) {
+      if (
+        changes.some((file) => file.startsWith(`workspaces/${reference.name}/`))
+      ) {
+        selected.push(reference.name);
+        continue;
+      }
+      const workspace = yield* workspaces.named(reference);
+      const origins = (yield* workspace.explain()).files;
+      const sources = origins.flatMap((file) => {
+        const source = sourcePath(file);
+        return source === undefined ? [] : [source];
+      });
+      // Package ownership also covers additions and deletions that are absent
+      // from the current exact-file explanation. Dependencies are included.
+      const directories = new Set(
+        sources
+          .filter((file) => /^(?:apps|packages)\//u.test(file))
+          .map((file) => `${file.split("/").slice(0, 2).join("/")}/`)
+      );
+      if (
+        changes.some(
+          (file) =>
+            sources.includes(file) ||
+            [...directories].some((directory) => file.startsWith(directory))
+        )
+      ) {
+        selected.push(reference.name);
+      }
+    }
+    return selected;
+  }
+);
+
 const LintResult = Schema.fromJsonString(
   Schema.Struct({
     diagnostics: Schema.Array(
@@ -68,10 +152,6 @@ export const executeLintCommand = Effect.fn("CompositionLint.execute")(
     );
   }
 );
-
-function sourcePath(file: FileExplanation): string | undefined {
-  return "source" in file.origin ? file.origin.source : undefined;
-}
 
 const assertCoverage = (
   expected: readonly string[],
@@ -144,7 +224,8 @@ export const lintWorkspaceFiles = Effect.fn("CompositionLint.files")(function* (
 
 export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
   sourceRoot: string,
-  requestedFiles?: readonly string[]
+  requestedFiles?: readonly string[],
+  scope: CompositionLintScope = allCompositions
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -182,6 +263,15 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
         "Composition lint requires at least one named workspace definition.",
     });
   }
+  const selected =
+    scope.kind === "workspace"
+      ? names.filter((reference) => reference.name === scope.name)
+      : names;
+  if (scope.kind === "workspace" && selected.length === 0) {
+    return yield* new InvalidComposition({
+      message: `Unknown lint workspace: ${scope.name}`,
+    });
+  }
   // The source registry owns production templates. Authored CLI test inputs are
   // not production applications and are verified by their own behavioral tests.
   const declaredTemplates = new Set<string>();
@@ -198,7 +288,18 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
   }
   const covered = new Set<string>();
   let errors = 0;
-  for (const reference of names) {
+  for (const reference of selected) {
+    if (scope.kind === "source") {
+      // Explain establishes ownership without installing or materializing apps.
+      const workspace = yield* workspaces.named(reference);
+      for (const file of (yield* workspace.explain()).files) {
+        const source = sourcePath(file);
+        if (source !== undefined) {
+          covered.add(source);
+        }
+      }
+      continue;
+    }
     errors += yield* Effect.scoped(
       Effect.gen(function* () {
         const definition = yield* fs
@@ -293,39 +394,43 @@ export const lintCompositions = Effect.fn("CompositionLint.run")(function* (
       })
     );
   }
-  const sourceFiles = [...requested].filter(
-    (file) => scriptExtension.test(file) && !covered.has(file)
-  );
-  yield* assertCoverage(
-    [
-      ...sourceFiles.filter(
-        (file) => file.startsWith("apps/web/") || file.startsWith("apps/api/")
-      ),
-      ...[...requested].filter(
-        (file) => declaredTemplates.has(file) && !covered.has(file)
-      ),
-    ],
-    []
-  );
-  // Authored examples are input trees, not installed TypeScript projects.
-  // Keep their syntax checks; real application output is checked above.
-  const examples = sourceFiles.filter((file) =>
-    file.startsWith("packages/create-next-hydra/tests/examples/")
-  );
-  const exampleSet = new Set(examples);
-  errors += yield* lintWorkspaceFiles(
-    sourceRoot,
-    executable,
-    sourceFiles.filter((file) => !exampleSet.has(file)),
-    []
-  );
-  errors += yield* lintWorkspaceFiles(
-    sourceRoot,
-    executable,
-    examples,
-    [],
-    "syntax"
-  );
+  // A matrix job checks its own application. The separate source job checks
+  // files outside every composition and enforces complete application coverage.
+  if (scope.kind !== "workspace") {
+    const sourceFiles = [...requested].filter(
+      (file) => scriptExtension.test(file) && !covered.has(file)
+    );
+    yield* assertCoverage(
+      [
+        ...sourceFiles.filter(
+          (file) => file.startsWith("apps/web/") || file.startsWith("apps/api/")
+        ),
+        ...[...requested].filter(
+          (file) => declaredTemplates.has(file) && !covered.has(file)
+        ),
+      ],
+      []
+    );
+    // Authored examples are input trees, not installed TypeScript projects.
+    // Keep their syntax checks; real application output is checked above.
+    const examples = sourceFiles.filter((file) =>
+      file.startsWith("packages/create-next-hydra/tests/examples/")
+    );
+    const exampleSet = new Set(examples);
+    errors += yield* lintWorkspaceFiles(
+      sourceRoot,
+      executable,
+      sourceFiles.filter((file) => !exampleSet.has(file)),
+      []
+    );
+    errors += yield* lintWorkspaceFiles(
+      sourceRoot,
+      executable,
+      examples,
+      [],
+      "syntax"
+    );
+  }
   if (errors > 0) {
     return yield* new InvalidComposition({
       message: `Composition lint failed with ${errors} errors. Fix the reported canonical sources and templates.`,

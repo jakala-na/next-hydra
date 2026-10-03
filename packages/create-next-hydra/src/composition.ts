@@ -480,7 +480,9 @@ export class Composition extends Context.Service<
               new Set(assets.map((asset) => asset.target)),
               request.port
             );
-            const tasksSource = yield* encodeJson(applicationTasks(files));
+            const tasksSource = yield* encodeJson(
+              yield* applicationTasks(files)
+            );
             const tasks = yield* Effect.tryPromise({
               catch: () =>
                 new InvalidComposition({ message: "Cannot format turbo.json" }),

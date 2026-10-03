@@ -3,9 +3,21 @@
   "extends": ["//"],
   "tasks": {
     "canvas:registry": {
+      "env": ["!NEXT_PUBLIC_*"],
+      "inputs": [
+        "canvas.config.json",
+        "canvas-components/**",
+        "scripts/generate-canvas-component-registry.mjs"
+      ],
       "outputs": [".canvas/components.ts"]
     },
     "canvas:typegen": {
+      "env": ["!NEXT_PUBLIC_*"],
+      "inputs": [
+        "canvas.config.json",
+        "canvas-components/**",
+        "scripts/generate-canvas-component-types.mjs"
+      ],
       "outputs": ["generated/canvas-component-props.ts"]
     },
     "typecheck": {

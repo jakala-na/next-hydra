@@ -63,4 +63,10 @@ pnpm --filter @repo/commerce-commercetools test
 pnpm boundaries
 ```
 
-Provider tests are local by default. Registration live tests run only when `COMMERCETOOLS_LIVE_TESTS=1` and the required provider configuration is set. The repository boundary task runs Biome to restrict imports of this package to application environment, Layer-composition, and CLI tooling roots, then checks which package manifests may declare the provider dependency.
+Unit tests exclude the registration live suite. With the required provider credentials supplied to the process, run it separately:
+
+```sh
+pnpm exec turbo run test:live --filter=@repo/commerce-commercetools
+```
+
+The live task enables `COMMERCETOOLS_LIVE_TESTS=1` and disables Turbo caching so each invocation exercises the provider. It is separate from application build dependencies. The repository boundary task runs Biome to restrict imports of this package to application environment, Layer-composition, and CLI tooling roots, then checks which package manifests may declare the provider dependency.

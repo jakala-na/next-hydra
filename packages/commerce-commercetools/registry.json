@@ -737,6 +737,11 @@
           "type": "registry:file"
         },
         {
+          "path": "turbo.json",
+          "target": "~/packages/commerce-commercetools/turbo.json",
+          "type": "registry:file"
+        },
+        {
           "path": "versioned-store/index.ts",
           "target": "~/packages/commerce-commercetools/versioned-store/index.ts",
           "type": "registry:file"
@@ -754,6 +759,11 @@
         {
           "path": "vitest.config.ts",
           "target": "~/packages/commerce-commercetools/vitest.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.live.config.ts",
+          "target": "~/packages/commerce-commercetools/vitest.live.config.ts",
           "type": "registry:file"
         }
       ]

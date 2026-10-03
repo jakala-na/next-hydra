@@ -1,31 +1,14 @@
 {
   "envMode": "loose",
   "futureFlags": { "affectedUsingTaskInputs": true },
-  "globalEnv": [
-    "ANALYZE",
-    "NODE_ENV",
-    "VERCEL",
-    "VERCEL_ENV",
-    "NEXT_PUBLIC_*",
-    "LANGUINE_PROJECT_ID",
-    "DRUPAL_BASE_URL",
-    "CANVAS_SITE_URL",
-    "CANVAS_JSONAPI_PREFIX",
-    "DRUPAL_AUTH_URI",
-    "DRUPAL_GRAPHQL_URI",
-    "DRUPAL_PREVIEWER_CLIENT_ID",
-    "DRUPAL_PREVIEWER_CLIENT_SECRET",
-    "DRUPAL_VIEWER_CLIENT_ID",
-    "DRUPAL_VIEWER_CLIENT_SECRET",
-    "NEXT_PUBLIC_WEB_URL",
-    "CMS_HOMEPAGE_SLUG",
-    "CMS_REVALIDATION_SECRET",
-    "FRAME_ANCESTORS"
-  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build", "typecheck", "test"],
       "env": [
+        "ANALYZE",
+        "NODE_ENV",
+        "VERCEL",
+        "VERCEL_ENV",
         "VERCEL_PROJECT_PRODUCTION_URL",
         "SENTRY_ORG",
         "SENTRY_PROJECT",
@@ -62,6 +45,33 @@
     "e2e:list": { "cache": false },
     "test": {
       "dependsOn": ["^test"],
+      "env": ["!NEXT_PUBLIC_*"],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**",
+        "!**/.env",
+        "!**/.env.*"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "env": ["!NEXT_PUBLIC_*"],
       "inputs": [
         "**/*",
         "!**/node_modules/**",
@@ -83,8 +93,31 @@
         "!app/.well-known/workflow/**"
       ]
     },
-    "typecheck": {
-      "dependsOn": ["^typecheck"],
+    "web#build": {
+      "dependsOn": ["^build", "typecheck", "test"],
+      "env": [
+        "ANALYZE",
+        "NODE_ENV",
+        "VERCEL",
+        "VERCEL_ENV",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_AUTH_TOKEN",
+        "CMS_HOMEPAGE_SLUG",
+        "CMS_REVALIDATION_SECRET",
+        "FRAME_ANCESTORS",
+        "LANGUINE_PROJECT_ID",
+        "DRUPAL_BASE_URL",
+        "CANVAS_SITE_URL",
+        "CANVAS_JSONAPI_PREFIX",
+        "DRUPAL_AUTH_URI",
+        "DRUPAL_GRAPHQL_URI",
+        "DRUPAL_PREVIEWER_CLIENT_ID",
+        "DRUPAL_PREVIEWER_CLIENT_SECRET",
+        "DRUPAL_VIEWER_CLIENT_ID",
+        "DRUPAL_VIEWER_CLIENT_SECRET"
+      ],
       "inputs": [
         "**/*",
         "!**/node_modules/**",
@@ -104,7 +137,86 @@
         "!next-env.d.ts",
         "!next.config.compiled.js",
         "!app/.well-known/workflow/**"
-      ]
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+    },
+    "@repo/drupal#build": {
+      "dependsOn": ["^build", "typecheck", "test"],
+      "env": [
+        "ANALYZE",
+        "NODE_ENV",
+        "VERCEL",
+        "VERCEL_ENV",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_AUTH_TOKEN"
+      ],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+    },
+    "cli#build": {
+      "dependsOn": ["^build", "typecheck", "test"],
+      "env": [
+        "ANALYZE",
+        "NODE_ENV",
+        "VERCEL",
+        "VERCEL_ENV",
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_AUTH_TOKEN",
+        "DRUPAL_BASE_URL",
+        "CANVAS_SITE_URL",
+        "CANVAS_JSONAPI_PREFIX",
+        "DRUPAL_AUTH_URI",
+        "DRUPAL_GRAPHQL_URI",
+        "DRUPAL_PREVIEWER_CLIENT_ID",
+        "DRUPAL_PREVIEWER_CLIENT_SECRET",
+        "DRUPAL_VIEWER_CLIENT_ID",
+        "DRUPAL_VIEWER_CLIENT_SECRET",
+        "LANGUINE_PROJECT_ID"
+      ],
+      "inputs": [
+        "**/*",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/.next/**",
+        "!**/.turbo/**",
+        "!**/.cache/**",
+        "!**/.swc/**",
+        "!**/.vercel/**",
+        "!**/.git/**",
+        "!**/coverage/**",
+        "!**/.features-gen/**",
+        "!**/playwright-report/**",
+        "!**/test-results/**",
+        "!**/.workflow-data/**",
+        "!**/*.tsbuildinfo",
+        "!next-env.d.ts",
+        "!next.config.compiled.js",
+        "!app/.well-known/workflow/**"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
     }
   }
 }
