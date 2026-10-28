@@ -77,4 +77,5 @@ The manual publish command does not calculate or change a version. It builds, pa
 - Release commands fail on a dirty worktree by default.
 - The package version and generated changelog must be reviewed and committed before publication.
 - The automated workflow builds before publishing and disables npm lifecycle scripts during `changeset publish`, so it publishes the reviewed build output once.
+- Automated validation and the manual release helper install the packed CLI outside the monorepo with freshly resolved dependencies, then check its version, help, programmatic entrypoint and fixture composition. Run `pnpm --filter create-next-hydra build` followed by `pnpm --filter create-next-hydra test:package` to exercise this release check locally.
 - Use `--allow-dirty` with `--dry-run` only for local release-script testing. Real publications always require a clean worktree.

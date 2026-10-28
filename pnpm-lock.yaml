@@ -9,6 +9,9 @@ catalogs:
     '@effect/platform-node':
       specifier: 4.0.0-rc.117
       version: 4.0.0-rc.117
+    '@effect/platform-node-shared':
+      specifier: 4.0.0-rc.117
+      version: 4.0.0-rc.117
     '@effect/vitest':
       specifier: 4.0.0-rc.117
       version: 4.0.0-rc.117
@@ -1359,6 +1362,9 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.0-rc.117(bufferutil@4.0.9)(effect@4.0.0-rc.117)(redis@6.2.1(@opentelemetry/api@1.9.1))
+      '@effect/platform-node-shared':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.117(bufferutil@4.0.9)(effect@4.0.0-rc.117)
       '@parcel/watcher':
         specifier: ^2.6.0
         version: 2.6.0

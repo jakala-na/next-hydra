@@ -4,6 +4,7 @@ packages:
   - tests/*
 catalog:
   "@effect/platform-node": 4.0.0-rc.117
+  "@effect/platform-node-shared": 4.0.0-rc.117
   "@effect/vitest": 4.0.0-rc.117
   "@next/bundle-analyzer": 16.3.1
   "@next/env": 16.3.1

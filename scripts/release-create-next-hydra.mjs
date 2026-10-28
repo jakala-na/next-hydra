@@ -96,6 +96,12 @@ async function main() {
   const tarball = path.join(packageDir, `${before.name}-${before.version}.tgz`);
   await run("pnpm", ["pack", "--out", tarball], { cwd: packageDir });
 
+  console.log(`\n==> Checking packed ${before.name}@${before.version}`);
+  await run(process.execPath, [
+    path.join(packageDir, "scripts/check-package.mjs"),
+    tarball,
+  ]);
+
   if (dryRun) {
     console.log(
       `\n==> npm publish --dry-run (${before.name}@${before.version})`

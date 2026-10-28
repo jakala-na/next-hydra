@@ -52,6 +52,9 @@ jobs:
       - name: Build create-next-hydra
         run: pnpm --filter create-next-hydra build
 
+      - name: Test packed create-next-hydra with fresh dependencies
+        run: pnpm --filter create-next-hydra test:package
+
   release:
     name: Version or publish create-next-hydra
     if: github.ref == 'refs/heads/main'
