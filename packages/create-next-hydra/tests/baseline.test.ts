@@ -2,7 +2,7 @@ import { expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Schema } from "effect";
 import { applyEdits, modify } from "jsonc-parser";
 import { describe } from "vitest";
-import { parse } from "yaml";
+import { parse, parseAllDocuments } from "yaml";
 
 import { Workspaces } from "../src/workspaces.ts";
 import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
@@ -227,17 +227,19 @@ it.effect(
           yield* fs.readFileString(`${output}/pnpm-workspace.yaml`)
         );
         expect(settings).toEqual({
+          allowBuilds: { sharp: true },
           catalog: {
             next: "16.3.1",
             typescript: "npm:@typescript/typescript6@6.0.2",
           },
-          onlyBuiltDependencies: ["sharp"],
           packages: ["apps/*", "packages/*"],
           patchedDependencies: {},
         });
-        const lock: unknown = parse(
+        const lock: unknown = parseAllDocuments(
           yield* fs.readFileString(`${output}/pnpm-lock.yaml`)
-        );
+        )
+          .at(-1)
+          ?.toJS();
         expect(lock).toMatchObject({
           importers: {
             "apps/web": {
@@ -254,6 +256,43 @@ it.effect(
         expect(
           yield* fs.exists(`${output}/patches/unselected.patch`)
         ).toBeFalsy();
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
+  "preserves pnpm's boot lockfile while composing the application dependency graph",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const [boot] = parseAllDocuments(
+          yield* fs.readFileString("/source/pnpm-lock.yaml")
+        );
+        const workspace = yield* (yield* Workspaces).named({
+          name: "editorial-site",
+          sourceRoot: "/source",
+        });
+        yield* workspace.sync({ install: "skip" });
+        const documents = parseAllDocuments(
+          yield* fs.readFileString(
+            "/source/workspaces/editorial-site/pnpm-lock.yaml"
+          )
+        );
+        expect(documents).toHaveLength(2);
+        expect(
+          documents.every((document) => document.errors.length === 0)
+        ).toBeTruthy();
+        expect(documents[0]?.toJS()).toEqual(boot?.toJS());
+        const application: unknown = documents[1]?.toJS();
+        expect(application).toHaveProperty([
+          "importers",
+          "apps/web",
+          "dependencies",
+          "next",
+        ]);
+        expect(application).not.toHaveProperty(["importers", "apps/other"]);
       }).pipe(Effect.provide(layer));
     })
 );
@@ -279,7 +318,7 @@ it.effect(
           devDependencies: { portless: "0.15.6", turbo: "2.10.13" },
           engines: { node: "24.x" },
           name: "garden-site",
-          packageManager: "pnpm@10.11.0",
+          packageManager: "pnpm@12.16.1",
           private: true,
         });
         expect(root.dependencies).toBeUndefined();

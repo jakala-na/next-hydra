@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 import { applyEdits, modify } from "jsonc-parser";
-import { parse } from "yaml";
+import { parse, parseAllDocuments } from "yaml";
 
 import { Workspaces } from "../src/workspaces.ts";
 import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
@@ -241,9 +241,11 @@ it.effect(
         const settings: unknown = parse(
           yield* fs.readFileString("/application/pnpm-workspace.yaml")
         );
-        const lock: unknown = parse(
+        const lock: unknown = parseAllDocuments(
           yield* fs.readFileString("/application/pnpm-lock.yaml")
-        );
+        )
+          .at(-1)
+          ?.toJS();
         expect(settings).toHaveProperty("patchedDependencies", {
           "example-client@1.0.0": "patches/client.patch",
         });
