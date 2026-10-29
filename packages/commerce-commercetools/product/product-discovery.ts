@@ -5,9 +5,8 @@ import {
 } from "@repo/commerce/product";
 import type { ProductCard, ProductDetail } from "@repo/commerce/product";
 import { CommerceContext } from "@repo/commerce/services/commerce-context";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 
-import { selectEligibleVariants } from "./catalog";
 import { CommercetoolsProductDiscoveryClient } from "./client";
 import { mapProductCard, mapProductDetail } from "./mapping";
 
@@ -18,10 +17,11 @@ const productDiscoveryImplementationLayer = Layer.effect(
     const client = yield* CommercetoolsProductDiscoveryClient;
 
     const resolveProductContext = client.resolveProductContext({
-      customerId:
-        commerceContext.principal instanceof CustomerCommercePrincipal
-          ? commerceContext.principal.customerId
-          : undefined,
+      customerId: Schema.is(CustomerCommercePrincipal)(
+        commerceContext.principal
+      )
+        ? commerceContext.principal.customerId
+        : undefined,
       locale: commerceContext.store.locale,
       storeKey: commerceContext.store.storeKey,
     });
@@ -40,24 +40,12 @@ const productDiscoveryImplementationLayer = Layer.effect(
           if (product === null) {
             return Option.none<ProductDetail>();
           }
-          const rules = yield* client.getProductSelectionRules(
-            commerceContext.store.storeKey,
-            [product.id]
-          );
-          const eligibleVariants = selectEligibleVariants(
-            product.allVariants,
-            rules.get(product.id) ?? []
-          );
-          if (eligibleVariants.length === 0) {
+          if (product.allVariants.length === 0) {
             return Option.none<ProductDetail>();
           }
 
           return Option.some(
-            yield* mapProductDetail(
-              product,
-              eligibleVariants,
-              commerceContext.store.locale
-            )
+            yield* mapProductDetail(product, commerceContext.store.locale)
           );
         }).pipe(
           Effect.mapError(
@@ -87,24 +75,13 @@ const productDiscoveryImplementationLayer = Layer.effect(
           const includedProducts = products.filter(
             ({ id }) => id !== input.excludeProductId
           );
-          const rules = yield* client.getProductSelectionRules(
-            commerceContext.store.storeKey,
-            includedProducts.map(({ id }) => id)
-          );
           const cards: ProductCard[] = [];
 
           for (const product of includedProducts) {
-            const eligibleVariants = selectEligibleVariants(
-              product.allVariants,
-              rules.get(product.id) ?? []
-            );
-            if (eligibleVariants.length === 0) {
+            if (product.allVariants.length === 0) {
               continue;
             }
-            const result = yield* mapProductCard(
-              product,
-              eligibleVariants
-            ).pipe(Effect.result);
+            const result = yield* mapProductCard(product).pipe(Effect.result);
             if (result._tag === "Success") {
               cards.push(result.success);
             } else {
@@ -115,14 +92,17 @@ const productDiscoveryImplementationLayer = Layer.effect(
             }
           }
 
-          return cards
-            .sort((left, right) =>
-              left.title.localeCompare(
-                right.title,
-                commerceContext.store.locale
+          return (
+            cards
+              // oxlint-disable-next-line unicorn/no-array-sort -- This package targets ES2022; cards is a new local array.
+              .sort((left, right) =>
+                left.title.localeCompare(
+                  right.title,
+                  commerceContext.store.locale
+                )
               )
-            )
-            .slice(0, input.limit);
+              .slice(0, input.limit)
+          );
         }).pipe(
           Effect.mapError(
             (cause) =>

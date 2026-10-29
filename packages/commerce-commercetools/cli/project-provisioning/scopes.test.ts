@@ -16,6 +16,7 @@ describe("Commercetools provisioning scopes", () => {
         "manage_key_value_documents:starter-project",
         "manage_payments:starter-project",
         "manage_types:starter-project",
+        "view_published_products:starter-project",
       ])
     );
     expect(

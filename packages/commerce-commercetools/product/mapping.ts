@@ -183,7 +183,6 @@ const mapCategory = (
 
 export const mapProductDetail = (
   product: CommercetoolsProductProjection,
-  eligibleVariants: readonly CommercetoolsProductVariant[],
   locale: CommerceLocale
 ) =>
   Effect.gen(function* () {
@@ -193,7 +192,7 @@ export const mapProductDetail = (
     const variantsWithOptions = yield* Effect.forEach(
       (item: CommercetoolsProductVariant) =>
         mapVariant(productType, item, locale)
-    )(eligibleVariants);
+    )(product.allVariants);
     const option = OPTION_BY_PRODUCT_TYPE[productTypeName(productType)];
     const values =
       option === undefined
@@ -234,11 +233,8 @@ export const mapProductDetail = (
     );
   });
 
-export const mapProductCard = (
-  product: CommercetoolsProductProjection,
-  eligibleVariants: readonly CommercetoolsProductVariant[]
-) => {
-  const prices = eligibleVariants.flatMap(({ price }) =>
+export const mapProductCard = (product: CommercetoolsProductProjection) => {
+  const prices = product.allVariants.flatMap(({ price }) =>
     price === null ? [] : [price.value]
   );
   let startingPrice: (typeof prices)[number] | undefined;
@@ -252,7 +248,7 @@ export const mapProductCard = (
   }
   const [featuredImage] = product.masterVariant.images;
   const card = {
-    availableForSale: eligibleVariants.some(
+    availableForSale: product.allVariants.some(
       (item) => mapAvailability(item).availableForSale
     ),
     id: product.id,
