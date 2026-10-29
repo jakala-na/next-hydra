@@ -34,7 +34,7 @@ describe("dependency synchronization", () => {
     for (const name of Object.keys(process.env)) {
       if (
         name.toLowerCase().startsWith("npm_config_") ||
-        name.startsWith("PNPM_")
+        name.toLowerCase().startsWith("pnpm_")
       ) {
         vi.stubEnv(name, undefined);
       }
@@ -79,7 +79,7 @@ describe("dependency synchronization", () => {
               `overrides:\n  next: ${override}\n`
             );
             vi.stubEnv(
-              "npm_config_overrides",
+              "pnpm_config_overrides",
               JSON.stringify({ next: override })
             );
             const workspace = yield* named;
@@ -116,7 +116,7 @@ describe("dependency synchronization", () => {
             `patchedDependencies:\n  next@16.3.1: ${patch.reference}\n`
           );
           vi.stubEnv(
-            "npm_config_patched_dependencies",
+            "pnpm_config_patched_dependencies",
             JSON.stringify({ "next@16.3.1": patch.reference })
           );
           const workspace = yield* named;
@@ -159,7 +159,7 @@ describe("dependency synchronization", () => {
             "overrides:\n  next: 99.0.0\n"
           );
           vi.stubEnv(
-            "npm_config_overrides",
+            "pnpm_config_overrides",
             JSON.stringify({ next: "99.0.0" })
           );
           expect((yield* workspace.check).ready).toBeTruthy();
@@ -169,7 +169,7 @@ describe("dependency synchronization", () => {
             `${root}/.workspace-composition.json`
           );
           expect(receipt).not.toContain("99.0.0");
-          vi.stubEnv("npm_config_overrides", undefined);
+          vi.stubEnv("pnpm_config_overrides", undefined);
           yield* workspace.sync({});
           expect(install).toHaveBeenCalledTimes(3);
         }).pipe(Effect.provide(layer));
@@ -177,7 +177,7 @@ describe("dependency synchronization", () => {
   );
 
   it.effect(
-    "recognizes pnpm script configuration mirrors but rejects overrides",
+    "recognizes inherited pnpm configuration but rejects overrides",
     () =>
       Effect.gen(function* () {
         const install = vi.fn<() => typeof installed>(() => installed);
@@ -190,23 +190,32 @@ describe("dependency synchronization", () => {
         yield* Effect.gen(function* () {
           const fs = yield* FileSystem.FileSystem;
           vi.stubEnv("PNPM_SCRIPT_SRC_DIR", "/source/packages/cli");
+          vi.stubEnv(
+            "npm_config_user_agent",
+            "pnpm/12.16.1 npm/? node/? darwin arm64"
+          );
+          vi.stubEnv(
+            "npm_config_node_gyp",
+            "/pnpm/dist/node_modules/node-gyp/bin/node-gyp.js"
+          );
+          vi.stubEnv("pnpm_config_verify_deps_before_run", "false");
           yield* fs.makeDirectory("/source/patches", { recursive: true });
           yield* fs.writeFileString(
             "/source/patches/unselected.patch",
             "original patch"
           );
-          vi.stubEnv("npm_config_registry", "https://registry.npmjs.org/");
-          vi.stubEnv("npm_config__jsr_registry", "https://npm.jsr.io/");
-          vi.stubEnv("npm_config_frozen_lockfile", "");
+          vi.stubEnv("pnpm_config_registry", "https://registry.npmjs.org/");
+          vi.stubEnv("pnpm_config__jsr_registry", "https://npm.jsr.io/");
+          vi.stubEnv("pnpm_config_frozen_lockfile", "");
           vi.stubEnv(
-            "npm_config_catalog",
+            "pnpm_config_catalog",
             JSON.stringify({
               next: "16.3.1",
               typescript: "npm:@typescript/typescript6@6.0.2",
             })
           );
           vi.stubEnv(
-            "npm_config_patched_dependencies",
+            "pnpm_config_patched_dependencies",
             JSON.stringify({
               "unselected@1.0.0": "/source/patches/unselected.patch",
             })
@@ -214,12 +223,12 @@ describe("dependency synchronization", () => {
           yield* (yield* named).sync({});
           yield* (yield* named).sync({});
           expect(install).toHaveBeenCalledOnce();
-          vi.stubEnv("npm_config_catalog", JSON.stringify({ next: "99.0.0" }));
+          vi.stubEnv("pnpm_config_catalog", JSON.stringify({ next: "99.0.0" }));
           expect(yield* (yield* named).check).toMatchObject({ ready: true });
           yield* (yield* named).sync({});
           expect(install).toHaveBeenCalledTimes(2);
-          vi.stubEnv("npm_config_catalog", undefined);
-          vi.stubEnv("npm_config_registry", "https://registry.example.test/");
+          vi.stubEnv("pnpm_config_catalog", undefined);
+          vi.stubEnv("pnpm_config_registry", "https://registry.example.test/");
           yield* (yield* named).sync({});
           expect(install).toHaveBeenCalledTimes(3);
           const receipt = yield* fs.readFileString(
@@ -254,7 +263,7 @@ describe("dependency synchronization", () => {
           `patchedDependencies:\n  next@16.3.1: ${patch}\n`
         );
         vi.stubEnv(
-          "npm_config_patched_dependencies",
+          "pnpm_config_patched_dependencies",
           JSON.stringify({ "next@16.3.1": patch })
         );
         expect(yield* (yield* named).sync({}).pipe(Effect.flip)).toMatchObject({

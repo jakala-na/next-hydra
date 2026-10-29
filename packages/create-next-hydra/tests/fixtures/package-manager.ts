@@ -78,7 +78,7 @@ export const packageManager = (
           pid: ChildProcessSpawner.ProcessId(2_147_483_647),
           stderr: Stream.empty,
           stdin: Sink.drain,
-          stdout: Stream.make(new TextEncoder().encode("10.11.0\n")),
+          stdout: Stream.make(new TextEncoder().encode("12.16.1\n")),
           unref: Effect.succeed(Effect.void),
         })
       )
