@@ -19,6 +19,7 @@ export interface ResolveCommercetoolsProductContextInput {
 }
 
 export interface CommercetoolsProductContext {
+  readonly storeId: string;
   readonly distributionChannelId: string;
   readonly distributionChannelKey: string;
   readonly supplyChannelIds: readonly string[];
@@ -94,15 +95,6 @@ export interface CommercetoolsProductProjection {
   readonly allVariants: readonly CommercetoolsProductVariant[];
 }
 
-export interface CommercetoolsProductSelectionRule {
-  readonly mode: "Individual" | "IndividualExclusion";
-  readonly variantSelection: {
-    readonly type: "includeOnly" | "includeAllExcept";
-    readonly skus: readonly string[];
-  } | null;
-  readonly variantExclusion: { readonly skus: readonly string[] } | null;
-}
-
 interface CommercetoolsProductDiscoveryClientMethods {
   readonly resolveProductContext: (
     input: ResolveCommercetoolsProductContextInput
@@ -122,13 +114,6 @@ interface CommercetoolsProductDiscoveryClientMethods {
     readonly CommercetoolsProductProjection[],
     CommercetoolsProductRequestFailure
   >;
-  readonly getProductSelectionRules: (
-    storeKey: StoreKey,
-    productIds: readonly string[]
-  ) => Effect.Effect<
-    ReadonlyMap<string, readonly CommercetoolsProductSelectionRule[]>,
-    CommercetoolsProductRequestFailure
-  >;
 }
 
 export class CommercetoolsProductDiscoveryClient extends Context.Service<
@@ -143,9 +128,6 @@ export class CommercetoolsProductDiscoveryClient extends Context.Service<
       CommercetoolsProductDiscoveryClient.of({
         findProductBySlug: (input) =>
           handlers.findProductBySlug?.(input) ?? Effect.succeed(null),
-        getProductSelectionRules: (storeKey, productIds) =>
-          handlers.getProductSelectionRules?.(storeKey, productIds) ??
-          Effect.succeed(new Map()),
         listProductProjections: (input) =>
           handlers.listProductProjections?.(input) ?? Effect.succeed([]),
         resolveProductContext: (input) =>
@@ -153,6 +135,7 @@ export class CommercetoolsProductDiscoveryClient extends Context.Service<
           Effect.succeed({
             distributionChannelId: "",
             distributionChannelKey: "",
+            storeId: "",
             supplyChannelIds: [],
             supplyChannelKeys: [],
           }),

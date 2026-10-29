@@ -577,11 +577,6 @@
           "type": "registry:file"
         },
         {
-          "path": "product/catalog.ts",
-          "target": "~/packages/commerce-commercetools/product/catalog.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "product/client-live.test.ts",
           "target": "~/packages/commerce-commercetools/product/client-live.test.ts",
           "type": "registry:file"
