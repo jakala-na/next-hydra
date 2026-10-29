@@ -16,6 +16,51 @@ const noProcesses = Layer.succeed(
   )
 );
 
+describe.each([
+  { mode: "sync", flags: [] },
+  { mode: "check", flags: ["--check"] },
+  { mode: "diff", flags: ["--diff"] },
+  { mode: "explain", flags: ["--explain"] },
+  { mode: "watch", flags: ["--watch"] },
+])("missing workspace preflight: $mode", ({ flags }) => {
+  it.effect("rejects a missing workspace before acquiring its lock", () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        for (const name of ["missing-site", "undefined-site"]) {
+          const directory = `/source/workspaces/${name}`;
+          if (name === "undefined-site") {
+            yield* fs.makeDirectory(directory);
+          }
+          expect(
+            yield* runCommand(
+              "/source",
+              ["compose", name, ...flags],
+              "0.3.0"
+            ).pipe(Effect.flip)
+          ).toMatchObject({
+            _tag: "InvalidComposition",
+            message: `Workspace "${name}" does not exist: expected a definition at ${directory}/next-hydra.json.`,
+          });
+          expect(
+            yield* fs.exists(`${directory}/.workspace-composition.lock`)
+          ).toBeFalsy();
+          expect(yield* fs.exists(directory)).toBe(name === "undefined-site");
+        }
+      }).pipe(
+        Effect.provide([
+          layer,
+          noProcesses,
+          terminalInput("cancel"),
+          TestConsole.layer,
+          Stdio.layerTest({}),
+        ])
+      );
+    })
+  );
+});
+
 it.effect(
   "accepts safe existing workspace host names and rejects names that cannot identify one folder",
   () =>

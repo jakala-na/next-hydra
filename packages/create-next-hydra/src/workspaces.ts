@@ -306,6 +306,19 @@ export class Workspaces extends Context.Service<
         }
         const destination = path.resolve(sourceRoot, "workspaces", name);
         const definitionPath = path.join(destination, "next-hydra.json");
+        const definitionExists = yield* fs.exists(definitionPath).pipe(
+          Effect.mapError(
+            (error) =>
+              new InvalidComposition({
+                message: `Unable to inspect workspace definition at ${definitionPath}: ${error.message}`,
+              })
+          )
+        );
+        if (!definitionExists) {
+          return yield* new InvalidComposition({
+            message: `Workspace "${name}" does not exist: expected a definition at ${definitionPath}.`,
+          });
+        }
         const readDefinition = Effect.gen(function* () {
           const definition = yield* fs.readFileString(definitionPath);
           const parsed = yield* Schema.decodeEffect(
