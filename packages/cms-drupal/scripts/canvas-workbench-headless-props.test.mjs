@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { canonicalizeCanvasHeadlessPropValue } from "@drupal-canvas/workbench/dist/client/src/lib/preview-content-entity-reference";
 import { describe, expect, it } from "vitest";
 
 const workspaceConfig = readFileSync(
@@ -16,7 +15,14 @@ const hasWorkbenchPatch =
 describe.skipIf(!hasWorkbenchPatch)(
   "Canvas Workbench headless prop canonicalization",
   () => {
-    it("recursively matches Canvas Headless key casing", () => {
+    it("recursively matches Canvas Headless key casing", async () => {
+      // Resolve this patch test at runtime: Workbench ships internal TypeScript
+      // sources that must not join the application's typecheck dependency graph.
+      const workbenchModule =
+        "@drupal-canvas/workbench/dist/client/src/lib/preview-content-entity-reference";
+      const { canonicalizeCanvasHeadlessPropValue } = await import(
+        workbenchModule
+      );
       expect(canonicalizeCanvasHeadlessPropValue).toBeTypeOf("function");
       expect(
         canonicalizeCanvasHeadlessPropValue({
