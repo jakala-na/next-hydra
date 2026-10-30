@@ -15,6 +15,8 @@
     "changeset": "changeset",
     "changeset:status": "changeset status --verbose",
     "clean": "git clean -xdf node_modules",
+    "cli:output-prototype": "node packages/cli-core/prototypes/output.ts",
+    "cli:output-preview": "node packages/cli-core/prototypes/output-preview.ts",
     "e2e:env:split": "node scripts/split-e2e-github-env.ts",
     "format": "ultracite fix",
     "lint": "turbo run workspace:lint --filter=create-next-hydra",

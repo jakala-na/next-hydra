@@ -18,6 +18,28 @@
             "specifier": "workspace:@repo/commerce-commercetools@*",
             "sourcePath": "packages/commerce-commercetools"
           }
+        },
+        "setup": {
+          "group": "commerce",
+          "title": "Commerce · commercetools",
+          "order": 30,
+          "steps": [
+            {
+              "id": "commerce.access",
+              "title": "Configure project access",
+              "order": 10,
+              "detail": "Provide bootstrap credentials as described in packages/commerce-commercetools/README.md."
+            },
+            {
+              "id": "commerce.provision",
+              "title": "Provision the project",
+              "order": 20,
+              "detail": "Applies starter migrations, publishes runtime credentials and revokes the bootstrap API Client.",
+              "commands": [
+                "pnpm --filter cli cli commerce project provision \\\n  --output commerce.env"
+              ]
+            }
+          ]
         }
       },
       "files": [
@@ -232,6 +254,16 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/project-provisioning/output.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/output.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/project-provisioning/output.ts",
+          "target": "~/packages/commerce-commercetools/cli/project-provisioning/output.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/project-provisioning/provision.test.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/provision.test.ts",
           "type": "registry:file"
@@ -259,6 +291,11 @@
         {
           "path": "cli/project-provisioning/seed.ts",
           "target": "~/packages/commerce-commercetools/cli/project-provisioning/seed.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provision-command.test.ts",
+          "target": "~/packages/commerce-commercetools/cli/provision-command.test.ts",
           "type": "registry:file"
         },
         {

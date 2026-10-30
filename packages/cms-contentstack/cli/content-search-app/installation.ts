@@ -18,6 +18,7 @@ import {
   Schema,
 } from "effect";
 
+import type { SearchContentType } from "../../recipe/search/types";
 import { ContentSearchAppInstallationError } from "./model";
 
 /** Marketplace UID of the Contentstack Algolia content search app. */
@@ -29,11 +30,13 @@ const CONTENTSTACK_CDN_BASE_URL_DEFAULT = "https://cdn.contentstack.io";
 export interface ContentSearchAppInstallationConfigurationOptions {
   readonly branch: string;
   readonly environment: string;
+  readonly contentTypes: readonly SearchContentType[];
 }
 
 export const contentSearchAppInstallationConfiguration = ({
   branch,
   environment,
+  contentTypes,
 }: ContentSearchAppInstallationConfigurationOptions) => ({
   additionalSettings: false,
   checkValue: false,
@@ -41,14 +44,12 @@ export const contentSearchAppInstallationConfiguration = ({
   defaultEnv: { label: environment, value: environment },
   envs: [environment],
   includeAssets: false,
-  scopedMappings: [
-    {
-      branches: [branch],
-      ct_uid: "landing_page",
-      environments: [environment],
-      fields: ["display_title", "url"],
-    },
-  ],
+  scopedMappings: contentTypes.map(({ uid, mappingFields }) => ({
+    branches: [branch],
+    ct_uid: uid,
+    environments: [environment],
+    fields: [...mappingFields],
+  })),
 });
 
 export type ContentSearchAppConfiguration = ReturnType<
@@ -219,6 +220,12 @@ export const installOrUpdateContentSearchApp = Effect.fn(
     indexName: options.indexName,
     installationUid,
     status,
+    configuredMappings: options.configuration.scopedMappings
+      .filter(({ environments }) => environments.includes(options.environment))
+      .map(({ ct_uid, fields }) => ({
+        contentTypeUid: ct_uid,
+        fields: [...fields],
+      })),
   } satisfies InstalledContentSearchApp;
 });
 
@@ -437,7 +444,10 @@ const createMarketplaceClient = (
 /** Installs or updates the Contentstack Algolia content search app for a Content index. */
 export const provisionContentSearchAppInstallation = Effect.fn(
   "ContentSearchAppInstallation.provision"
-)(function* (options: ProvisionContentSearchAppOptions) {
+)(function* (
+  options: ProvisionContentSearchAppOptions,
+  contentTypes: readonly SearchContentType[]
+) {
   const installer = yield* ContentSearchAppInstallation;
   const config = yield* ContentSearchAppInstallationConfig;
 
@@ -445,6 +455,7 @@ export const provisionContentSearchAppInstallation = Effect.fn(
     configuration: contentSearchAppInstallationConfiguration({
       branch: config.branch,
       environment: config.environment,
+      contentTypes,
     }),
     environment: config.environment,
     indexName: options.indexName,

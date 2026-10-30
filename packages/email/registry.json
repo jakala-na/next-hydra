@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "email-resend-setup",
+      "type": "registry:item",
+      "title": "Email · Resend setup",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/email-resend-setup",
+          "kind": "recipe"
+        },
+        "setup": {
+          "group": "email",
+          "title": "Email · Resend",
+          "order": 36,
+          "steps": [
+            {
+              "id": "email.resend.sender",
+              "title": "Verify a sender domain",
+              "order": 10,
+              "detail": "Verify your sending domain in Resend. Set RESEND_FROM to an address on that domain and RESEND_TOKEN to a sending API key."
+            },
+            {
+              "id": "email.resend.configure",
+              "title": "Configure email delivery",
+              "order": 20,
+              "detail": "Set these variables in apps/web and apps/api, restart or redeploy, and verify delivery from the application's email workflow. See packages/email/README.md."
+            }
+          ]
+        }
+      },
+      "files": []
+    }
+  ]
+}

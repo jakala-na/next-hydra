@@ -1,8 +1,10 @@
+import { phase } from "@repo/cli-core/command-output";
 import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { applyContentstackMigrations } from "../migrations/migrate";
+import { cmsSteps } from "../output";
 import { ContentstackCli } from "./contentstack-cli";
 import { ContentstackProvisioningReceipt } from "./model";
 import type { ContentstackEnvironment } from "./model";
@@ -31,44 +33,58 @@ export const provisionContentstack = Effect.fn(
   const credentialInput = yield* ContentstackRuntimeCredentialInput;
   const publisher = yield* RuntimeEnvironmentPublisher;
 
-  const preparedDestination = yield* publisher.prepare({
-    destination: options.destination,
-    manifest: contentstackRuntimeEnvironmentManifest,
-  });
-
-  yield* requireSupportedContentstackCliVersion();
-  const endpoints = yield* cli.runtimeEndpoints();
-  const stack = yield* cli.resolveStack(options.managementTokenAlias);
-  const recipeReceipt = yield* Effect.scoped(
-    Effect.gen(function* () {
-      const materialized = yield* recipe.materialize({
-        localUrl: options.localUrl,
-        productionUrl: options.productionUrl,
-        targetMasterLocale: options.stackMasterLocale,
-      });
-      yield* cli.importRecipe({
-        directory: materialized.directory,
-        managementTokenAlias: options.managementTokenAlias,
-      });
-      return materialized;
+  const preparedDestination = yield* phase(
+    cmsSteps.destination,
+    publisher.prepare({
+      destination: options.destination,
+      manifest: contentstackRuntimeEnvironmentManifest,
     })
   );
-  const migrationReceipt = yield* applyContentstackMigrations({
-    region: endpoints.region,
-    stack,
-  });
 
-  yield* Console.log(
-    `Create Delivery and Preview Tokens for the ${options.environment} environment if they are not already present.`
+  const { endpoints, stack } = yield* phase(
+    cmsSteps.access,
+    Effect.gen(function* () {
+      yield* requireSupportedContentstackCliVersion();
+      const endpoints = yield* cli.runtimeEndpoints();
+      const stack = yield* cli.resolveStack(options.managementTokenAlias);
+      return { endpoints, stack };
+    })
   );
-  const credentials = yield* credentialInput.acquire(
-    stack.apiKey,
-    options.environment,
-    endpoints
+  const recipeReceipt = yield* phase(
+    cmsSteps.content,
+    Effect.scoped(
+      Effect.gen(function* () {
+        const materialized = yield* recipe.materialize({
+          localUrl: options.localUrl,
+          productionUrl: options.productionUrl,
+          targetMasterLocale: options.stackMasterLocale,
+        });
+        yield* cli.importRecipe({
+          directory: materialized.directory,
+          managementTokenAlias: options.managementTokenAlias,
+        });
+        return materialized;
+      })
+    )
   );
-  const publishedCredentials = yield* publisher.publish(
-    preparedDestination,
-    contentstackRuntimeEnvironment(credentials)
+  const migrationReceipt = yield* phase(
+    cmsSteps.migrations,
+    applyContentstackMigrations({
+      region: endpoints.region,
+      stack,
+    })
+  );
+
+  const credentials = yield* phase(
+    cmsSteps.credentials,
+    credentialInput.acquire(stack.apiKey, options.environment, endpoints)
+  );
+  const publishedCredentials = yield* phase(
+    cmsSteps.publication,
+    publisher.publish(
+      preparedDestination,
+      contentstackRuntimeEnvironment(credentials)
+    )
   );
 
   return new ContentstackProvisioningReceipt({

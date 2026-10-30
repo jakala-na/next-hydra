@@ -1026,6 +1026,9 @@ importers:
         specifier: workspace:*
         version: link:../cli-core
     devDependencies:
+      '@effect/platform-node':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.117(bufferutil@4.0.9)(effect@4.0.0-rc.117)(redis@6.2.1)
       '@repo/e2e-testing':
         specifier: workspace:*
         version: link:../e2e-testing
@@ -1119,6 +1122,10 @@ importers:
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.3)(jsdom@26.1.0)(msw@2.12.10)(vite@7.3.0)
 
   packages/cli-core:
+    dependencies:
+      ora:
+        specifier: ^8.2.0
+        version: 8.2.0
     devDependencies:
       '@effect/platform-node':
         specifier: 'catalog:'
@@ -1262,6 +1269,9 @@ importers:
       '@drupal-canvas/headless-react':
         specifier: ^0.4.3
         version: 0.4.3(react@19.2.8)
+      '@repo/cli-core':
+        specifier: workspace:*
+        version: link:../cli-core
       '@repo/commerce':
         specifier: workspace:*
         version: link:../commerce
@@ -1311,6 +1321,9 @@ importers:
       '@drupal-canvas/workbench':
         specifier: ^0.12.0
         version: 0.12.0(patch_hash=69b9665149c043154e676a953644c10b2cd26e613f94e27477d6f12960651a0c)(@types/node@24.13.3)(@types/react@19.2.10)(@typescript/typescript6@6.0.2)(date-fns@4.1.0)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(supports-color@10.2.2)(terser@5.44.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@effect/platform-node':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.117(bufferutil@4.0.9)(effect@4.0.0-rc.117)(redis@6.2.1)
       '@gql.tada/cli-utils':
         specifier: ^1.6.3
         version: 1.7.2(@0no-co/graphqlsp@1.12.16)(@typescript/typescript6@6.0.2)(graphql@16.12.0)
@@ -2340,6 +2353,9 @@ importers:
         specifier: ^3.25.28
         version: 3.25.76
     devDependencies:
+      '@effect/platform-node':
+        specifier: 'catalog:'
+        version: 4.0.0-rc.117(bufferutil@4.0.9)(effect@4.0.0-rc.117)(redis@6.2.1)
       '@repo/testing':
         specifier: workspace:*
         version: link:../testing

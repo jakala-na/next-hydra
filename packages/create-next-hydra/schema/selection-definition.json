@@ -23,6 +23,9 @@
             },
             "nextHydra": {
               "$ref": "#/$defs/nextHydra"
+            },
+            "setup": {
+              "$ref": "#/$defs/setup"
             }
           },
           "additionalProperties": true
@@ -433,6 +436,65 @@
           }
         }
       ]
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group", "title", "order", "steps"],
+      "description": "Package-owned setup steps rendered after successful composition. Matching group IDs share one frame; order controls presentation only.",
+      "properties": {
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "type": "number"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title", "order"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "order": {
+                "type": "number"
+              },
+              "detail": {
+                "type": "string",
+                "minLength": 1
+              },
+              "commands": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "optional": {
+                "type": "boolean",
+                "description": "Optional steps render after required steps, with a yellow Optional label."
+              }
+            }
+          }
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Optional setup groups render after required groups, with a yellow Optional label."
+        }
+      }
     }
   }
 }

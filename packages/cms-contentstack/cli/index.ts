@@ -1,20 +1,26 @@
-import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import { renderReport, withCommandOutput } from "@repo/cli-core/command-output";
+import type { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
-import type { ConfigProvider, Effect as EffectType } from "effect";
+import type { ConfigProvider, Layer, Effect as EffectType } from "effect";
 import { Console, Effect } from "effect";
 import { CliError, Command, Flag, Prompt } from "effect/unstable/cli";
 
 import { createContentstackProvisioningLayer } from "./layer";
+import type { ContentstackMigrationLedger } from "./migrations/ledger";
 import {
   getContentstackMigrationState,
   migrateContentstack,
 } from "./migrations/migrate";
 import type { ContentstackMigrationState } from "./migrations/model";
+import { cmsProvisioningReport } from "./output";
+import type { ContentstackCli } from "./provisioning/contentstack-cli";
 import { CONTENTSTACK_ENVIRONMENTS } from "./provisioning/model";
 import { provisionContentstack } from "./provisioning/provision";
+import type { ContentstackRecipe } from "./provisioning/recipe";
+import type { ContentstackRuntimeCredentialInput } from "./provisioning/runtime-credentials";
 
 const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
   effect.pipe(Effect.mapError((cause) => new CliError.UserError({ cause })));
@@ -33,10 +39,23 @@ const printPendingMigrations = (state: ContentstackMigrationState) =>
     { discard: true }
   );
 
+type ProvisioningLayer<E, R> = Layer.Layer<
+  | ContentstackCli
+  | ContentstackRecipe
+  | ContentstackMigrationLedger
+  | ContentstackRuntimeCredentialInput
+  | RuntimeEnvironmentPublisher,
+  Layer.Error<ReturnType<typeof createContentstackProvisioningLayer<E, R>>>,
+  Layer.Services<ReturnType<typeof createContentstackProvisioningLayer<E, R>>>
+>;
+
 export const createCmsCommand = <E, R>(
-  configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>
+  configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>,
+  contentstackLayer: ProvisioningLayer<
+    E,
+    R
+  > = createContentstackProvisioningLayer(configProvider)
 ) => {
-  const contentstackLayer = createContentstackProvisioningLayer(configProvider);
   const provision = Command.make(
     "provision",
     {
@@ -95,31 +114,24 @@ export const createCmsCommand = <E, R>(
         stackMasterLocale,
       };
 
-      return asUserError(provisionContentstack(provisioningOptions)).pipe(
-        Effect.flatMap((receipt) =>
-          Console.log("✓ Contentstack stack provisioned").pipe(
-            Effect.andThen(Console.log(`  Stack API Key: ${receipt.apiKey}`)),
-            Effect.andThen(
-              Console.log(`  Environments: ${receipt.environments.join(", ")}`)
-            ),
-            Effect.andThen(Console.log(`  Region: ${receipt.region}`)),
-            Effect.andThen(
+      return withCommandOutput(
+        {
+          title: "Provision CMS",
+          context: `Contentstack · ${contentstackEnvironment}`,
+          failureNote:
+            "Earlier stack changes may remain. Inspect the failed phase and provider error before retrying.",
+        },
+        (style) =>
+          asUserError(provisionContentstack(provisioningOptions)).pipe(
+            Effect.flatMap((receipt) =>
               Console.log(
-                `  Credentials: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
-              )
-            ),
-            Effect.andThen(
-              Console.log(
-                "  Live Preview: configure the stack-level local and production preview URLs manually"
-              )
-            ),
-            Effect.andThen(
-              Console.log(
-                `  Management Token alias retained locally: ${managementTokenAlias}`
+                renderReport(
+                  cmsProvisioningReport(receipt, provisioningOptions),
+                  style
+                )
               )
             )
           )
-        )
       );
     }
   ).pipe(

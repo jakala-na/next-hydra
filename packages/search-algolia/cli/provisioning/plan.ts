@@ -1,10 +1,11 @@
+import type { CommandReport, ReportSection } from "@repo/cli-core/output-model";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import { Effect } from "effect";
 
 import { createAlgoliaIndexGraph } from "../../index-graph";
 import type { StoreConfiguration } from "../../index-graph";
 
-export const formatAlgoliaProvisioningPlan = (
+export const createAlgoliaProvisioningPlan = (
   indexPrefix: string | undefined,
   locales: readonly string[],
   contentProjection: ContentSearchProjection,
@@ -16,46 +17,76 @@ export const formatAlgoliaProvisioningPlan = (
     contentProjection,
     storefronts
   ).pipe(
-    Effect.map((graph) => {
-      const lines = [
-        graph.prefix === undefined
-          ? "Algolia provisioning plan without an index prefix"
-          : `Algolia provisioning plan for "${graph.prefix}"`,
+    Effect.map((graph): CommandReport => {
+      const sections: ReportSection[] = [
+        {
+          title: "CMS content indices",
+          facts: graph.contentIndices.map(({ indexName, locales }) => ({
+            label: indexName,
+            value: locales.join(", "),
+          })),
+        },
       ];
-
-      for (const primary of graph.productPrimaries) {
-        lines.push(
-          `  Product primary: ${primary.indexName}`,
-          `    Native commerce connector: ${primary.storeKey} -> ${primary.indexName}`
-        );
-        for (const replica of primary.replicas) {
-          lines.push(
-            `    ${replica.sort}: ${replica.indexName} (${replica.currency})`
-          );
+      if (graph.productPrimaries.length) {
+        sections.push({
+          title: "Commerce product indices and connectors",
+          facts: graph.productPrimaries.flatMap((primary) => [
+            {
+              label: primary.indexName,
+              value: `Native connector for Store ${primary.storeKey}`,
+            },
+            ...primary.replicas.map((replica) => ({
+              label: replica.indexName,
+              value: `${replica.sort} (${replica.currency})`,
+            })),
+          ]),
+        });
+      }
+      sections.push(
+        {
+          title: "Query Suggestions",
+          facts: graph.querySuggestions.map((suggestions) => ({
+            label: suggestions.indexName,
+            value: suggestions.sources
+              .map(({ indexName }) => indexName)
+              .join(", "),
+          })),
+        },
+        {
+          title: "Scoped credentials",
+          facts: [
+            {
+              label: "Content write key",
+              value: `${graph.contentIndices.length} content indices`,
+            },
+            {
+              label: "Runtime search key",
+              value: `${graph.queryableIndexNames.length} queryable indices`,
+            },
+            ...(graph.productPrimaries.length
+              ? [
+                  {
+                    label: "Connector key",
+                    value: `${graph.productPrimaries.length} product primaries`,
+                  },
+                  {
+                    label: "Managed commerce API Client",
+                    value: "Connector read and subscription scopes",
+                  },
+                  {
+                    label: "Initial full reindexes",
+                    value: `${graph.productPrimaries.length} Store connectors`,
+                  },
+                ]
+              : []),
+          ],
         }
-      }
-      for (const content of graph.contentIndices) {
-        lines.push(
-          `  Content index: ${content.indexName} (${content.locales.join(", ")})`
-        );
-      }
-      for (const suggestions of graph.querySuggestions) {
-        lines.push(
-          `  Query Suggestions: ${suggestions.indexName} <- ${suggestions.sources.map(({ indexName }) => indexName).join(", ")}`
-        );
-      }
-      lines.push(
-        `  Restricted Content write key: ${graph.contentIndices.length} Content indices (sensitive)`,
-        `  Restricted runtime key: ${graph.queryableIndexNames.length} queryable indices`
       );
-      if (graph.productPrimaries.length > 0) {
-        lines.push(
-          `  Restricted connector key: ${graph.productPrimaries.length} Product primaries`,
-          "  Managed commerce API Client: connector read and subscription scopes",
-          `  Initial full reindexes: ${graph.productPrimaries.length} Store connectors`
-        );
-      }
-
-      return lines.join("\n");
+      return {
+        outcome: "plan",
+        summary: "Plan only. No provider resources or credentials changed.",
+        sections,
+        tasks: [],
+      };
     })
   );

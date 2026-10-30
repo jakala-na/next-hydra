@@ -2,7 +2,10 @@ import { NodeServices } from "@effect/platform-node";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Path, Schema } from "effect";
 
-import { prepareApplicationTypes } from "../src/application-typecheck.ts";
+import {
+  prepareApplicationTypes,
+  typecheckApplications,
+} from "../src/application-typecheck.ts";
 
 describe("Application type generation", () => {
   for (const { exitCode, existingEnvironment } of [
@@ -88,4 +91,67 @@ process.exit(${exitCode});
         }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
     );
   }
+});
+
+describe("Application typechecking", () => {
+  it.effect(
+    "covers CLI-owned package templates and rejects uninspected files or semantic errors",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const root = yield* fs.makeTempDirectoryScoped();
+        const installer = path.join(root, "packages/cms/installer.ts");
+        const uninspected = path.join(root, "packages/cms/uninspected.ts");
+        yield* fs.makeDirectory(path.dirname(installer), { recursive: true });
+        yield* fs.writeFileString(
+          installer,
+          'export const installSearchApp: string = "installed";'
+        );
+        yield* fs.writeFileString(uninspected, "export const unused = true;");
+        const config = yield* Schema.encodeEffect(
+          Schema.fromJsonString(Schema.Unknown)
+        )({
+          compilerOptions: {
+            module: "ESNext",
+            moduleResolution: "Bundler",
+            noCheck: true,
+            strict: true,
+            target: "ES2022",
+            types: [],
+          },
+          files: ["index.ts"],
+        });
+        const projects: string[] = [];
+        for (const directory of ["apps/web", "apps/cli"]) {
+          const project = path.join(root, directory);
+          yield* fs.makeDirectory(project, { recursive: true });
+          const configFile = path.join(project, "tsconfig.json");
+          yield* fs.writeFileString(configFile, config);
+          yield* fs.writeFileString(
+            path.join(project, "index.ts"),
+            directory === "apps/cli"
+              ? 'export { installSearchApp } from "../../packages/cms/installer";'
+              : "export const web = true;"
+          );
+          projects.push(configFile);
+        }
+        yield* typecheckApplications(projects, [installer]);
+        const coverageError = yield* typecheckApplications(projects, [
+          installer,
+          uninspected,
+        ]).pipe(Effect.flip);
+        expect(coverageError.message).toContain(
+          `Typecheck did not inspect rendered template: ${uninspected}`
+        );
+        yield* fs.writeFileString(
+          installer,
+          "export const installSearchApp: string = 42;"
+        );
+        const semanticError = yield* typecheckApplications(projects, [
+          installer,
+        ]).pipe(Effect.flip);
+        expect(semanticError.message).toContain("TS2322");
+      }).pipe(Effect.provide(NodeServices.layer))
+  );
 });

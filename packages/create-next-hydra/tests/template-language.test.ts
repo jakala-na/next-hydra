@@ -193,7 +193,7 @@ export const content = <main>
             )
           );
         }
-        expect(definitions).toHaveLength(18);
+        expect(definitions).toHaveLength(21);
         for (const template of definitions) {
           const authored = yield* fs.readFileString(
             path.join(root, template.source)

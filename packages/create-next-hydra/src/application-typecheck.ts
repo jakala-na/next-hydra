@@ -85,7 +85,7 @@ export const typecheckApplication = Effect.fn(
   "Composition.typecheckApplication"
 )(function* (configFile: string, expectedFiles: readonly string[] = []) {
   const path = yield* Path.Path;
-  const diagnostics = yield* Effect.try({
+  const { diagnostics, inspected: checkedFiles } = yield* Effect.try({
     catch: (error) => new InvalidComposition({ message: String(error) }),
     try: () => {
       const config = ts.readConfigFile(configFile, (file) =>
@@ -118,16 +118,40 @@ export const typecheckApplication = Effect.fn(
         }
       }
       errors.push(...ts.getPreEmitDiagnostics(program));
-      return ts.formatDiagnostics(errors, {
-        getCanonicalFileName: (file) => file,
-        getCurrentDirectory: () => path.dirname(configFile),
-        getNewLine: () => "\n",
-      });
+      return {
+        diagnostics: ts.formatDiagnostics(errors, {
+          getCanonicalFileName: (file) => file,
+          getCurrentDirectory: () => path.dirname(configFile),
+          getNewLine: () => "\n",
+        }),
+        inspected,
+      };
     },
   });
   if (diagnostics.length > 0) {
     return yield* new InvalidComposition({
       message: `${configFile}\n${diagnostics}`,
     });
+  }
+  return checkedFiles;
+});
+
+/** Require every rendered template to be checked by at least one application. */
+export const typecheckApplications = Effect.fn(
+  "Composition.typecheckApplications"
+)(function* (configFiles: readonly string[], expectedFiles: readonly string[]) {
+  const path = yield* Path.Path;
+  const inspected = new Set<string>();
+  for (const configFile of configFiles) {
+    for (const file of yield* typecheckApplication(configFile)) {
+      inspected.add(file);
+    }
+  }
+  for (const file of expectedFiles) {
+    if (!inspected.has(path.resolve(file))) {
+      return yield* new InvalidComposition({
+        message: `Typecheck did not inspect rendered template: ${file}`,
+      });
+    }
   }
 });

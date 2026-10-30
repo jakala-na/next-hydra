@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { landingPageSearchType } from "../../recipe/search/landing-page";
 import {
   ALGOLIA_CONTENTSTACK_APP_UID,
   ContentSearchAppInstallation,
@@ -18,6 +19,7 @@ import { ContentSearchAppInstallationError } from "./model";
 const configuration = contentSearchAppInstallationConfiguration({
   branch: "main",
   environment: "production",
+  contentTypes: [landingPageSearchType],
 });
 
 const serverConfiguration = contentSearchAppServerConfiguration({
@@ -180,6 +182,9 @@ describe(installOrUpdateContentSearchApp, () => {
       indexName: "acceptance--content",
       installationUid: "installation-id",
       status: "installed",
+      configuredMappings: [
+        { contentTypeUid: "landing_page", fields: ["display_title", "url"] },
+      ],
     });
     expect(calls.installInputs).toEqual([
       { appUid: ALGOLIA_CONTENTSTACK_APP_UID, stackApiKey: "stack-api-key" },
@@ -203,6 +208,9 @@ describe(installOrUpdateContentSearchApp, () => {
       indexName: "acceptance--content",
       installationUid: "installation-id",
       status: "updated",
+      configuredMappings: [
+        { contentTypeUid: "landing_page", fields: ["display_title", "url"] },
+      ],
     });
     expect(calls.installInputs).toEqual([]);
     expect(calls.setConfigurationInputs).toEqual([configuration]);
@@ -266,6 +274,9 @@ describe(installOrUpdateContentSearchApp, () => {
       indexName: "acceptance--content",
       installationUid: "installation-id",
       status: "installed",
+      configuredMappings: [
+        { contentTypeUid: "landing_page", fields: ["display_title", "url"] },
+      ],
     });
     expect(calls.installInputs).toEqual([
       { appUid: ALGOLIA_CONTENTSTACK_APP_UID, stackApiKey: "stack-api-key" },

@@ -12,9 +12,16 @@ export interface InstallContentSearchAppOptions {
 
 export type ContentSearchAppStatus = "installed" | "updated";
 
+/** Mapping fields successfully applied by the CMS app installer. */
+export interface ConfiguredContentSearchMapping {
+  readonly contentTypeUid: string;
+  readonly fields: readonly string[];
+}
+
 export interface InstalledContentSearchApp {
   readonly environment: string;
   readonly indexName: string;
   readonly installationUid: string;
   readonly status: ContentSearchAppStatus;
+  readonly configuredMappings?: readonly ConfiguredContentSearchMapping[];
 }

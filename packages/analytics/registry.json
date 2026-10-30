@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "analytics-setup",
+      "type": "registry:item",
+      "title": "Analytics \u00b7 PostHog setup",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/analytics-setup",
+          "kind": "recipe"
+        },
+        "setup": {
+          "group": "analytics",
+          "title": "Analytics \u00b7 PostHog",
+          "order": 50,
+          "steps": [
+            {
+              "id": "analytics.posthog",
+              "title": "Connect product analytics",
+              "order": 10,
+              "detail": "Set NEXT_PUBLIC_POSTHOG_KEY and NEXT_PUBLIC_POSTHOG_HOST for your project before starting the application. See packages/analytics/README.md."
+            }
+          ]
+        }
+      },
+      "files": []
+    }
+  ]
+}

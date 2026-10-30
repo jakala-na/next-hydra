@@ -49,6 +49,7 @@ export function eligiblePackageFile(file: string): boolean {
   const name = file.slice(file.lastIndexOf("/") + 1);
   return (
     !file.includes("/registry/") &&
+    !file.includes("/prototypes/") &&
     name !== "registry.json" &&
     !isCompositionTemplate(name) &&
     !isEnvironmentFile(file)

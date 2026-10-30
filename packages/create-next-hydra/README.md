@@ -155,7 +155,7 @@ A Selection Definition declares:
 - exact pnpm patch entries and their patch-file assets;
 - composition templates, named insertion slots, and ordered slot bindings;
 - selection-owned TypeScript aliases needed for composed modules to resolve inside the workspace;
-- setup instructions through the registry item's standard `docs` field.
+- short setup steps through `meta.setup`, with the registry item's standard `docs` field as a fallback.
 
 Every copied registry file must have an explicit workspace-root target such as `~/packages/cms-drupal/src/index.ts`. The source `path` remains relative to the colocated registry, so maintainers edit and test canonical Provider code in its normal package or application.
 
@@ -196,7 +196,7 @@ pnpm --filter create-next-hydra compose storefront-drupal
 pnpm --filter create-next-hydra workspace:check storefront-drupal
 ```
 
-This requires fresh files and installed dependencies, generates local Canvas and Next route declarations, and typechecks the physical web app, CLI and E2E project. Route generation uses the shared base Next configuration in a temporary project, then copies its generated route declarations back. The workspace's Next and TypeScript configurations and existing `next-env.d.ts` stay untouched, including editor saves during generation. It does not validate remote provider services or replace a production build. Type checking reads selected provider modules through the application graph, and the gate verifies coverage of every rendered template.
+This requires fresh files and installed dependencies, generates local Canvas and Next route declarations, and typechecks the physical web app, CLI and E2E project. Route generation uses the shared base Next configuration in a temporary project, then copies its generated route declarations back. The workspace's Next and TypeScript configurations and existing `next-env.d.ts` stay untouched, including editor saves during generation. It does not validate remote provider services or replace a production build. Type checking reads selected provider modules through the application graph, and the gate verifies that every rendered template is covered by at least one of the web, CLI or E2E TypeScript programs, including package templates used only by the CLI.
 
 Contentstack declares `conditionalDependencies: [{ providers: ["commerce"], items: ["cms-contentstack-commerce"] }]`; Drupal uses `cms-drupal-commerce` in the same way. These `kind: "recipe"` items connect the selected CMS to Commerce core, not to a specific Commerce provider. They install the CMS mapping and `@repo/commerce` dependency automatically when both capabilities are selected, rather than exposing product collection as a selectable Add-on. Registry discovery fetches possible recipes, while planning installs only applicable ones. Contentstack's `recipe/recipes/product-collection.json` remains a feature-specific provisioning recipe: the provisioning command applies it to the base content type and seed entry before importing the stack.
 
@@ -239,3 +239,40 @@ ShadCN registry mappings, including private registry URLs and environment-backed
 - A scaffolded project has no composition receipt and cannot be automatically upgraded or switched later.
 - Composition installs local code and JavaScript dependencies. External service setup runs separately through explicit provider administration commands or manual setup; composition never provisions remote systems.
 - Selection Definitions are declarative and cannot run arbitrary hooks.
+
+## Author setup instructions
+
+Registry items can declare `meta.setup` for concise terminal instructions. Each package owns its steps; the CLI owns frames, colors and spacing. This is CLI metadata, separate from CMS content schemas and command inputs.
+
+```json
+{
+  "meta": {
+    "setup": {
+      "group": "search",
+      "title": "Search · Algolia",
+      "order": 40,
+      "steps": [
+        {
+          "id": "search.provision",
+          "title": "Provision search",
+          "order": 20,
+          "detail": "Pass every deployment locale explicitly.",
+          "commands": [
+            "pnpm --filter cli cli search provision --locale <locale>"
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+Selected recipes can add steps to the same `group`. Use the same group title and distinct step IDs. Groups and steps sort by `order`, then ID. Order only controls presentation; it does not execute commands or check whether earlier steps have been completed. CMS, Identity and Commerce preparation appear before Search in the supplied packages.
+
+Keep terminal details short and link to a materialized package README for credentials, optional flags and technical background. Author multiline shell commands with explicit continuation characters when needed; the renderer preserves command lines. Detailed ShadCN `docs` remain available, but `meta.setup` replaces them in this CLI's output. Third-party items that only supply `docs` still render inside a frame as setup notes. Creation, named composition, watch and addition use the same renderer, after successful materialization or installation.
+
+Set `optional: true` on a group or individual step to label it **Optional** and render it in yellow. The label remains visible in piped and no-color output. Optional groups follow required groups; optional steps follow required steps within their group, then use the normal order/ID sorting.
+
+An optional recipe contributing to a required group keeps its own steps optional. A merged group is optional only when all contributing groups are optional. This is presentation metadata: it does not change environment validation, enable/disable a runtime integration, or execute optional work.
+
+The web baseline includes package-owned setup guidance from `packages/analytics/registry.json` and `packages/observability/registry.json`. PostHog setup remains required by the existing analytics configuration. Sentry setup is optional.

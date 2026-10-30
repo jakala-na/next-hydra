@@ -469,6 +469,9 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
     request: AddRequest
   ) {
     const checked = yield* inspect(request.reference);
+    const instructions = yield* registryInstructions(
+      checked.graph.registry.items
+    );
     if (
       request.expected !== undefined &&
       request.expected !== checked.inspection.precondition
@@ -584,7 +587,7 @@ export const existingWorkspace = Effect.fn("Workspaces.existing")(function* (
     return {
       directory,
       files: checked.inspection.files,
-      instructions: registryInstructions(checked.graph.registry.items),
+      instructions,
     };
   });
   return { add, inspectAdd };
