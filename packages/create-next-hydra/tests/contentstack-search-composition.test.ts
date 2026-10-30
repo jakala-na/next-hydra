@@ -2,6 +2,7 @@ import { NodeServices } from "@effect/platform-node";
 import { expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Path, Schema } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import ts from "typescript";
 
 import {
   groupSetupInstructions,
@@ -195,6 +196,42 @@ it.live(
             )
           ).toBe(hasCommerce);
           if (!hasSearch) continue;
+          // Resolve the actual application's config through its selected packages,
+          // without installing the full application dependency graph.
+          const configModules = path.join(destination, "node_modules/@repo");
+          yield* fs.makeDirectory(configModules, { recursive: true });
+          for (const { alias, directory } of [
+            { alias: "typescript-config", directory: "typescript-config" },
+            { alias: "cms", directory: "cms-contentstack" },
+          ]) {
+            yield* fs.symlink(
+              path.join(destination, "packages", directory),
+              path.join(configModules, alias)
+            );
+          }
+          const configFile = path.join(destination, "apps/web/tsconfig.json");
+          const config = ts.readConfigFile(configFile, ts.sys.readFile);
+          expect(config.error).toBeUndefined();
+          const parsed = ts.parseJsonConfigFileContent(
+            config.config,
+            ts.sys,
+            path.dirname(configFile)
+          );
+          const program = ts.createProgram([aggregate], {
+            ...parsed.options,
+            // These recipe definitions have no ambient Node or React dependency.
+            types: [],
+          });
+          const diagnostics = [
+            ...parsed.errors,
+            ...ts.getPreEmitDiagnostics(program),
+          ];
+          expect(
+            diagnostics.map(
+              (diagnostic) =>
+                `TS${diagnostic.code}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`
+            )
+          ).toEqual([]);
           const moduleUrl = yield* path.toFileUrl(aggregate);
           const loaded = yield* processes.string(
             ChildProcess.make(process.execPath, [
