@@ -1,0 +1,8 @@
+import { resolveSearchContentTypes } from "./recipe/search/types.ts";
+{{imports}}
+
+const contributions = {
+  {{types}}
+};
+
+export const searchableContentTypes = resolveSearchContentTypes(Object.values(contributions));

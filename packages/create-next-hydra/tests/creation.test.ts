@@ -80,12 +80,14 @@ it.live(
         git: yield* fs.exists(`${destination}/.git`),
       }).toEqual({ definition: false, git: false });
       const output = (yield* TestConsole.logLines).join("\n");
-      expect(yield* TestConsole.logLines).toEqual(
-        expect.arrayContaining([
-          "branding:\nUpload the brand assets before publishing.",
-          "app-web:\nConfigure the site URL before starting the application.",
-        ])
-      );
+      for (const fragment of [
+        "┌─ branding",
+        "Upload the brand assets before publishing.",
+        "┌─ app-web",
+        "Configure the site URL before starting the application.",
+      ]) {
+        expect(output).toContain(fragment);
+      }
       expect(output).not.toContain(
         "Configure the privacy policy before publishing."
       );

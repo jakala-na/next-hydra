@@ -3,6 +3,7 @@ import { Argument, Command, Flag, Prompt } from "effect/unstable/cli";
 
 import { InvalidComposition } from "./errors.ts";
 import type { SelectionRequest } from "./model.ts";
+import { printSetupInstructions } from "./setup-instructions.ts";
 import { Workspaces } from "./workspaces.ts";
 
 const slots = ["auth", "cms", "commerce", "search"] as const;
@@ -147,9 +148,7 @@ export const createCommand = (cwd: string) =>
         if (result.git?.warning) {
           yield* Console.warn(result.git.warning);
         }
-        for (const instruction of result.instructions) {
-          yield* Console.log(`${instruction.item}:\n${instruction.text}`);
-        }
+        yield* printSetupInstructions(result.instructions);
         yield* Console.log(
           `Created ${result.destination}. Dependencies ${result.dependencies}. Run pnpm dev from the project directory.`
         );

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "observability-setup",
+      "type": "registry:item",
+      "title": "Monitoring \u00b7 Sentry setup",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/observability-setup",
+          "kind": "recipe"
+        },
+        "setup": {
+          "group": "observability",
+          "title": "Monitoring \u00b7 Sentry",
+          "order": 60,
+          "steps": [
+            {
+              "id": "observability.sentry",
+              "title": "Connect error reporting",
+              "order": 10,
+              "detail": "Set NEXT_PUBLIC_SENTRY_DSN to your Sentry project's DSN to enable reporting."
+            },
+            {
+              "id": "observability.source-maps",
+              "title": "Upload source maps",
+              "order": 20,
+              "optional": true,
+              "detail": "For readable stack traces, set SENTRY_ORG, SENTRY_PROJECT and SENTRY_AUTH_TOKEN in the build environment. Keep the auth token server-only. See packages/observability/README.md."
+            }
+          ],
+          "optional": true
+        }
+      },
+      "files": []
+    }
+  ]
+}

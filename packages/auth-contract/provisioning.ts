@@ -1,5 +1,6 @@
 /* oxlint-disable max-classes-per-file, unicorn/throw-new-error -- Effect Schema classes define the auth provisioning boundary. */
 
+import { phase } from "@repo/cli-core/command-output";
 import {
   RuntimeEnvironmentPublicationReceipt,
   RuntimeEnvironmentPublisher,
@@ -11,6 +12,8 @@ import type {
   RuntimeEnvironmentVariable,
 } from "@repo/cli-core/runtime-environment";
 import { Context, Effect, Schema } from "effect";
+
+import { authSteps } from "./output";
 
 export const AuthProviderName = Schema.Literals(["clerk", "workos"]);
 export type AuthProviderName = typeof AuthProviderName.Type;
@@ -129,14 +132,23 @@ export const provisionAuth = Effect.fn("AuthProvisioning.provision")(function* (
 ) {
   const provisioner = yield* AuthWebhookProvisioner;
   const publisher = yield* RuntimeEnvironmentPublisher;
-  const prepared = yield* publisher.prepare({
-    destination: options.destination,
-    manifest: provisioner.runtimeEnvironment,
-  });
-  const webhook = yield* provisioner.provision({ apiUrl: options.apiUrl });
-  const credentials = yield* publisher.publish(prepared, {
-    [webhook.signingSecretEnvironmentVariable]: webhook.signingSecret,
-  });
+  const prepared = yield* phase(
+    authSteps.destination,
+    publisher.prepare({
+      destination: options.destination,
+      manifest: provisioner.runtimeEnvironment,
+    })
+  );
+  const webhook = yield* phase(
+    authSteps.webhook,
+    provisioner.provision({ apiUrl: options.apiUrl })
+  );
+  const credentials = yield* phase(
+    authSteps.publication,
+    publisher.publish(prepared, {
+      [webhook.signingSecretEnvironmentVariable]: webhook.signingSecret,
+    })
+  );
 
   return new AuthProvisioningReceipt({
     action: webhook.action,

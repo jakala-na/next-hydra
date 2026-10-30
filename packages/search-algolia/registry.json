@@ -33,6 +33,28 @@
               "slots": { "products": "members" }
             }
           ]
+        },
+        "setup": {
+          "group": "search",
+          "title": "Search · Algolia",
+          "order": 40,
+          "steps": [
+            {
+              "id": "search.access",
+              "title": "Configure Algolia access",
+              "order": 10,
+              "detail": "Set ALGOLIA_APPLICATION_ID, ALGOLIA_ADMIN_API_KEY and ALGOLIA_REGION."
+            },
+            {
+              "id": "search.provision",
+              "title": "Provision search",
+              "order": 20,
+              "detail": "Pass each deployment locale explicitly; repeat --locale as needed. The result lists remaining CMS indexing and verification steps.",
+              "commands": [
+                "pnpm --filter cli cli search provision \\\n  --locale <locale> --output search.env"
+              ]
+            }
+          ]
         }
       },
       "files": [
@@ -44,11 +66,6 @@
         {
           "path": "analytics-tags.ts",
           "target": "~/packages/search-algolia/analytics-tags.ts",
-          "type": "registry:file"
-        },
-        {
-          "path": "cli/content-indexing-handoff.test.ts",
-          "target": "~/packages/search-algolia/cli/content-indexing-handoff.test.ts",
           "type": "registry:file"
         },
         {
@@ -74,6 +91,21 @@
         {
           "path": "cli/layer.ts",
           "target": "~/packages/search-algolia/cli/layer.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/output.test.ts",
+          "target": "~/packages/search-algolia/cli/output.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/output.ts",
+          "target": "~/packages/search-algolia/cli/output.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provision-command.test.ts",
+          "target": "~/packages/search-algolia/cli/provision-command.test.ts",
           "type": "registry:file"
         },
         {
@@ -157,6 +189,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/provisioning/output.ts",
+          "target": "~/packages/search-algolia/cli/provisioning/output.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/provisioning/plan.ts",
           "target": "~/packages/search-algolia/cli/provisioning/plan.ts",
           "type": "registry:file"
@@ -207,6 +244,11 @@
           "type": "registry:file"
         },
         {
+          "path": "README.md",
+          "target": "~/packages/search-algolia/README.md",
+          "type": "registry:file"
+        },
+        {
           "path": "search-record.ts",
           "target": "~/packages/search-algolia/search-record.ts",
           "type": "registry:file"
@@ -248,6 +290,19 @@
               "module": "./product-provider",
               "export": "productStrategiesFromEnvironment",
               "order": 0
+            }
+          ]
+        },
+        "setup": {
+          "group": "search",
+          "title": "Search · Algolia",
+          "order": 40,
+          "steps": [
+            {
+              "id": "search.commerce",
+              "title": "Prepare Commerce indexing access",
+              "order": 15,
+              "detail": "Use CTP_* management credentials with API Client, Store, Channel and Customer Group access. See packages/search-algolia/README.md for scopes and optional price audiences."
             }
           ]
         }

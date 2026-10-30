@@ -608,7 +608,7 @@ export class Composition extends Context.Service<
                 packagePatterns: catalog.patterns,
                 packages: packageDirectories,
               },
-              instructions: registryInstructions(artifacts),
+              instructions: yield* registryInstructions(artifacts),
             };
           })
         ).pipe(

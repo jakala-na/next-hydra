@@ -1,18 +1,26 @@
 import {
+  phase,
+  renderReport,
+  withCommandOutput,
+} from "@repo/cli-core/command-output";
+import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import type { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
 import type { ContentIndexingOperation } from "@repo/search/content-indexing";
-import type { InstalledContentSearchApp } from "@repo/search/content-search-app";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
-import type { ConfigProvider, Effect as EffectType } from "effect";
-import { Console, Effect, Option } from "effect";
+import type { ConfigProvider, Layer, Effect as EffectType } from "effect";
+import { Cause, Console, Effect, Option } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 
 import { contentIndexName } from "../index-graph";
 import type { StoreConfiguration } from "../index-graph";
-import type { ContentIndexingHandoff } from "./content-indexing-handoff";
-import { formatContentIndexingHandoff } from "./content-indexing-handoff";
+import type {
+  ContentIndexingHandoff,
+  ContentIndexingHandoffContext,
+} from "./content-indexing-handoff";
 import type { ContentSearchAppHook } from "./content-search-app-hook";
 import {
   contentSearchAppConfigProvider,
@@ -20,8 +28,10 @@ import {
 } from "./content-search-app-hook";
 import { searchCliError } from "./error-message";
 import { createSearchProvisioningLayer } from "./layer";
-import type { AlgoliaProvisioningReceipt } from "./provisioning/model";
-import { formatAlgoliaProvisioningPlan } from "./provisioning/plan";
+import { searchOutput, searchProvisioningReport } from "./output";
+import type { AlgoliaAdministration } from "./provisioning/administration";
+import type { AlgoliaProvisioningConfig } from "./provisioning/config";
+import { createAlgoliaProvisioningPlan } from "./provisioning/plan";
 import type { ProvisionAlgoliaOptions } from "./provisioning/provision";
 import { provisionAlgolia } from "./provisioning/provision";
 
@@ -39,7 +49,8 @@ export interface SearchCliComposition<CommerceError, ContentError> {
   readonly content: {
     readonly indexingOperations: readonly ContentIndexingOperation[];
     readonly createIndexingHandoff: (
-      indexName: string
+      indexName: string,
+      context: ContentIndexingHandoffContext
     ) => ContentIndexingHandoff;
     readonly createProjection: (
       indexName: string,
@@ -55,17 +66,32 @@ export interface SearchCliComposition<CommerceError, ContentError> {
 }
 
 const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
-  effect.pipe(Effect.catchCause((cause) => Effect.fail(searchCliError(cause))));
+  effect.pipe(
+    Effect.catchCause(
+      (
+        cause
+      ): EffectType.Effect<never, E | ReturnType<typeof searchCliError>> =>
+        Cause.hasInterrupts(cause)
+          ? Effect.failCause(cause)
+          : Effect.fail(searchCliError(cause))
+    )
+  );
+
+type SearchProvisioningLayer = Layer.Layer<
+  | AlgoliaAdministration
+  | AlgoliaProvisioningConfig
+  | RuntimeEnvironmentPublisher,
+  Layer.Error<ReturnType<typeof createSearchProvisioningLayer<never, never>>>,
+  Layer.Services<ReturnType<typeof createSearchProvisioningLayer<never, never>>>
+>;
 
 export const createSearchCommand = <E, R, CommerceError, ContentError>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>,
-  composition: SearchCliComposition<CommerceError, ContentError>
+  composition: SearchCliComposition<CommerceError, ContentError>,
+  provisioningLayer: (
+    provider: EffectType.Effect<ConfigProvider.ConfigProvider>
+  ) => SearchProvisioningLayer = createSearchProvisioningLayer
 ) => {
-  interface SearchProvisionResult {
-    readonly contentSearchApp: InstalledContentSearchApp | undefined;
-    readonly receipt: AlgoliaProvisioningReceipt | undefined;
-  }
-
   const provision = Command.make(
     "provision",
     {
@@ -102,132 +128,136 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
       locales,
       ...destinationFlags
     }) => {
-      const provisionProgram = Effect.gen(function* () {
-        if (installContentSearchApp) {
-          yield* requireContentSearchAppHook(
-            composition.content.installContentSearchApp
-          );
-        }
-        const requestedIndexPrefix = Option.getOrUndefined(indexPrefix);
-        const resolvedConfigProvider = yield* configProvider;
-        const resolvedConfigProviderEffect = Effect.succeed(
-          resolvedConfigProvider
-        );
-        const contentProjection = yield* composition.content.createProjection(
-          contentIndexName(requestedIndexPrefix),
-          resolvedConfigProviderEffect
-        );
-
-        if (dryRun) {
-          const plan = yield* formatAlgoliaProvisioningPlan(
-            requestedIndexPrefix,
-            locales,
-            contentProjection,
-            composition.products?.storefronts
-          );
-          yield* Console.log(plan);
-          yield* Console.log(
-            `  Content write credentials use the selected ${destinationFlags.store} destination (operations: ${composition.content.indexingOperations.join(", ")})`
-          );
-          if (installContentSearchApp) {
-            yield* Console.log(
-              `  Content search app installation: Contentstack Algolia app -> "${contentIndexName(requestedIndexPrefix)}"`
-            );
-          }
-          return {
-            contentSearchApp: undefined,
-            receipt: undefined,
-          } satisfies SearchProvisionResult;
-        }
-
-        const provisioningLayer = createSearchProvisioningLayer(
-          resolvedConfigProviderEffect
-        );
-        const products =
-          composition.products === undefined
-            ? undefined
-            : yield* composition.products.prepare(resolvedConfigProviderEffect);
-        const { receipt, contentCredentials } = yield* provisionAlgolia({
-          contentIndexingOperations: composition.content.indexingOperations,
-          contentProjection,
-          destination: runtimeEnvironmentDestinationFromFlags(destinationFlags),
-          indexPrefix: requestedIndexPrefix,
-          locales,
-          products,
-        }).pipe(Effect.provide(provisioningLayer));
-
-        if (!installContentSearchApp) {
-          return {
-            contentSearchApp: undefined,
-            receipt,
-          } satisfies SearchProvisionResult;
-        }
-
-        const installHook = yield* requireContentSearchAppHook(
-          composition.content.installContentSearchApp
-        );
-        const contentSearchApp = yield* installHook(
-          { indexName: contentIndexName(receipt.indexPrefix) },
-          Effect.succeed(
-            contentSearchAppConfigProvider(
-              contentCredentials,
-              resolvedConfigProvider
-            )
-          )
-        );
-        return {
-          contentSearchApp,
-          receipt,
-        } satisfies SearchProvisionResult;
-      });
-
-      return asUserError(provisionProgram).pipe(
-        Effect.flatMap(({ contentSearchApp, receipt }) =>
-          receipt === undefined
-            ? Effect.void
-            : Console.log("✓ Algolia search provisioned").pipe(
-                Effect.andThen(
-                  Console.log(
-                    `  Index prefix: ${receipt.indexPrefix ?? "none"}`
-                  )
-                ),
-                Effect.andThen(
-                  composition.products === undefined
-                    ? Effect.void
-                    : Console.log(
-                        `  Products: ${receipt.productPrimaries} primaries, ${receipt.productReplicas} replicas`
-                      )
-                ),
-                Effect.andThen(
-                  Console.log(`  Content: ${receipt.contentIndices} indices`)
-                ),
-                Effect.andThen(
-                  Console.log(
-                    `  Query Suggestions: ${receipt.querySuggestions} configurations`
-                  )
-                ),
-                Effect.andThen(
-                  composition.products === undefined
-                    ? Effect.void
-                    : Console.log(
-                        `  Commerce connectors: ${receipt.connectors} configured, ${receipt.initialReindexes} initial reindexes completed`
-                      )
-                ),
-                Effect.andThen(
-                  contentSearchApp === undefined
-                    ? Console.log(
-                        formatContentIndexingHandoff(
-                          composition.content.createIndexingHandoff(
-                            contentIndexName(receipt.indexPrefix)
-                          )
-                        )
-                      )
-                    : Console.log(
-                        `  Content search app: ${contentSearchApp.status} installation ${contentSearchApp.installationUid} for "${contentSearchApp.indexName}" (${contentSearchApp.environment})`
-                      )
-                )
+      const requestedIndexPrefix = Option.getOrUndefined(indexPrefix);
+      return withCommandOutput(
+        {
+          title: searchOutput.title,
+          context: `Algolia · ${locales.join(", ")} · index prefix ${requestedIndexPrefix ?? "none"}`,
+          failureNote: searchOutput.failureNote,
+        },
+        (style) => {
+          const provisionProgram = Effect.gen(function* () {
+            if (installContentSearchApp) {
+              yield* requireContentSearchAppHook(
+                composition.content.installContentSearchApp
+              );
+            }
+            const resolvedConfigProvider = yield* configProvider;
+            const provider = Effect.succeed(resolvedConfigProvider);
+            const contentProjection = yield* phase(
+              searchOutput.projection,
+              composition.content.createProjection(
+                contentIndexName(requestedIndexPrefix),
+                provider
               )
-        )
+            );
+
+            if (dryRun) {
+              const plan = yield* createAlgoliaProvisioningPlan(
+                requestedIndexPrefix,
+                locales,
+                contentProjection,
+                composition.products?.storefronts
+              );
+              yield* Console.log(
+                renderReport(
+                  {
+                    ...plan,
+                    sections: [
+                      ...plan.sections,
+                      {
+                        title: "Publication",
+                        facts: [
+                          {
+                            label: "Destination",
+                            value: destinationFlags.store,
+                          },
+                          {
+                            label: "Content write operations",
+                            value:
+                              composition.content.indexingOperations.join(", "),
+                          },
+                          {
+                            label: "CMS app installation",
+                            value: installContentSearchApp
+                              ? "Requested for the selected CMS provider"
+                              : "Manual setup",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  style
+                )
+              );
+              return;
+            }
+
+            const products =
+              composition.products === undefined
+                ? undefined
+                : yield* phase(
+                    searchOutput.commerce,
+                    composition.products.prepare(provider)
+                  );
+            const provisioning = yield* provisionAlgolia({
+              contentIndexingOperations: composition.content.indexingOperations,
+              contentProjection,
+              destination:
+                runtimeEnvironmentDestinationFromFlags(destinationFlags),
+              indexPrefix: requestedIndexPrefix,
+              locales,
+              products,
+            }).pipe(Effect.provide(provisioningLayer(provider)));
+            let contentSearchApp;
+            if (installContentSearchApp) {
+              const installHook = yield* requireContentSearchAppHook(
+                composition.content.installContentSearchApp
+              );
+              contentSearchApp = yield* phase(
+                searchOutput.app,
+                installHook(
+                  {
+                    indexName: contentIndexName(
+                      provisioning.receipt.indexPrefix
+                    ),
+                  },
+                  Effect.succeed(
+                    contentSearchAppConfigProvider(
+                      provisioning.contentCredentials,
+                      resolvedConfigProvider
+                    )
+                  )
+                )
+              );
+            }
+            const contentHandoff = composition.content.createIndexingHandoff(
+              contentIndexName(provisioning.receipt.indexPrefix),
+              {
+                appInstalled: contentSearchApp !== undefined,
+                credentialsLocation: runtimeEnvironmentReceiptDescription(
+                  provisioning.publication
+                ),
+                configuredMappings: contentSearchApp?.configuredMappings,
+              }
+            );
+            yield* Console.log(
+              renderReport(
+                searchProvisioningReport({
+                  receipt: provisioning.receipt,
+                  publication: provisioning.publication,
+                  runtimeEnvironment: provisioning.runtimeEnvironment,
+                  contentIndexNames: provisioning.contentIndexNames,
+                  contentSearchApp,
+                  contentHandoff,
+                  hasCommerce: composition.products !== undefined,
+                }),
+                style
+              )
+            );
+          });
+          return asUserError(provisionProgram);
+        }
       );
     }
   ).pipe(

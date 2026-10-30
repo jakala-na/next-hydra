@@ -1,3 +1,4 @@
+import { note } from "@repo/cli-core/command-output";
 import {
   Config,
   ConfigProvider,
@@ -88,6 +89,9 @@ export const createContentstackRuntimeCredentialInputLayer = <E, R>(
                     : Effect.succeed(value),
               });
 
+            yield* note(
+              `Create Delivery and Preview Tokens for ${environment} in Contentstack, then enter them below.`
+            );
             const tokens = yield* Prompt.run(
               Prompt.all({
                 deliveryToken: prompt("Delivery"),

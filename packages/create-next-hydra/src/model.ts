@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 
+import type { SetupInstructions } from "./setup-instructions.ts";
 import { Binding } from "./templates.ts";
 
 export const Selection = Schema.Struct({
@@ -51,10 +52,9 @@ export interface PreparedWorkspace {
   readonly inputs: SourceInputs;
 }
 
-export interface RegistryInstruction {
-  readonly item: string;
-  readonly text: string;
-}
+export type RegistryInstruction =
+  | { readonly item: string; readonly text: string }
+  | { readonly item: string; readonly setup: SetupInstructions };
 
 // Derived during preparation, never a second authored inventory or receipt.
 export interface SourceInputs {

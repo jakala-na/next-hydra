@@ -14,9 +14,5 @@
     "paths": { "@repo/*": ["../*"] }
   },
   "include": ["**/*.ts", "**/*.tsx", "scripts/**/*.mjs"],
-  "exclude": [
-    "node_modules",
-    "registry",
-    "scripts/canvas-workbench-headless-props.test.mjs"
-  ]
+  "exclude": ["node_modules", "registry"]
 }

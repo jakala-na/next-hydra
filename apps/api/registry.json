@@ -258,7 +258,8 @@
           "target": "~/apps/api/workflows/register-company.ts",
           "type": "registry:file"
         }
-      ]
+      ],
+      "registryDependencies": ["payments-stripe-setup", "email-resend-setup"]
     }
   ]
 }

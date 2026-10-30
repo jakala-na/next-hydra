@@ -43,13 +43,51 @@ export const contentIndexingOperations = [
   "clear",
 ] as const satisfies readonly ContentIndexingOperation[];
 
-export const createContentIndexingHandoff = (indexName: string) =>
+export const createContentIndexingHandoff = (
+  indexName: string,
+  context: {
+    readonly credentialsLocation?: string;
+  } = {}
+) =>
   ({
-    instructions: [
-      `Configure Drupal with ALGOLIA_APPLICATION_ID, ALGOLIA_CONTENT_WRITE_API_KEY, and ALGOLIA_CONTENT_INDEX_NAME="${indexName}" from the output of search provision. Choose --store local for manual CMS setup; Vercel sensitive keys cannot be read back.`,
-      "Run `drush cr` (`ddev drush cr` locally) so Drupal loads the Algolia credentials and provisioned index name.",
-      "Run `drush search-api:rebuild-tracker content`, then `drush search-api:index content` for the initial backfill (prefix both commands with `ddev` locally).",
-      "New Content saves are indexed directly. Keep Drupal cron running to drain pending work. Search API Algolia can log failed writes while marking items processed; after correcting a delivery failure, rebuild the tracker and reindex, then verify the records in Algolia.",
+    tasks: [
+      {
+        id: "cms.drupal.configure-credentials",
+        title: "Configure Drupal's search credentials",
+        where: "Drupal deployment configuration",
+        detail: `Use ALGOLIA_APPLICATION_ID, ALGOLIA_CONTENT_WRITE_API_KEY, and ALGOLIA_CONTENT_INDEX_NAME="${indexName}" from ${context.credentialsLocation ?? "the private search credential file"}. Choose --store local for manual CMS setup; Vercel sensitive keys cannot be read back.`,
+        verify:
+          "Drupal has the scoped content write key and provisioned index name.",
+      },
+      {
+        id: "cms.drupal.reload-config",
+        title: "Reload Drupal configuration",
+        where: "Terminal > Drupal application root",
+        detail:
+          "Clear caches so Drupal loads the new credentials. For DDEV, prefix each command with ddev.",
+        commands: ["drush cr"],
+      },
+      {
+        id: "cms.drupal.initial-sync",
+        title: "Run the initial content backfill",
+        where: "Terminal > Drupal application root",
+        detail:
+          "Rebuild the tracker, then index content. For DDEV, prefix each command with ddev.",
+        commands: [
+          "drush search-api:rebuild-tracker content",
+          "drush search-api:index content",
+        ],
+        verify: `Published records appear in "${indexName}" in Algolia.`,
+      },
+      {
+        id: "cms.drupal.maintain-indexing",
+        title: "Keep Drupal cron running and check indexing failures",
+        where: "Drupal cron and Search API logs",
+        detail:
+          "New Content saves are indexed directly. Keep Drupal cron running to drain pending work. Search API Algolia can log failed writes while marking items processed; after correcting a delivery failure, rebuild the tracker and reindex.",
+        verify:
+          "Expected records reach Algolia and failed deliveries are reconciled.",
+      },
     ],
     title: "Complete Content indexing in Drupal",
   }) as const;

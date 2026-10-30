@@ -1,6 +1,7 @@
+import { phase } from "@repo/cli-core/command-output";
 import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
-import { Console, Effect, Random, Ref } from "effect";
+import { Effect, Random, Ref } from "effect";
 
 import { CommercetoolsProjectAdministration } from "./administration";
 import { BootstrapCommercetoolsConfig } from "./bootstrap-config";
@@ -9,6 +10,7 @@ import {
   commerceRuntimeEnvironmentManifest,
 } from "./credential-handoff";
 import { BootstrapApiClientScopeError, ProvisioningReceipt } from "./model";
+import { commerceSteps } from "./output";
 import { RuntimeProjectSetup } from "./runtime-project-setup";
 import { missingBootstrapScopes, runtimeScopeFor } from "./scopes";
 
@@ -37,39 +39,52 @@ export const provisionCommerceProject = Effect.fn("provisionCommerceProject")(
       });
     }
 
-    const preparedDestination = yield* publisher.prepare({
-      destination: options.destination,
-      manifest: commerceRuntimeEnvironmentManifest,
-    });
-    yield* Console.log("Preparing the Commercetools project...");
-    const project = yield* administration.prepareProject;
+    const preparedDestination = yield* phase(
+      commerceSteps.destination,
+      publisher.prepare({
+        destination: options.destination,
+        manifest: commerceRuntimeEnvironmentManifest,
+      })
+    );
+    const project = yield* phase(
+      commerceSteps.project,
+      administration.prepareProject
+    );
     const scope = runtimeScopeFor(bootstrapConfig.projectKey);
-    yield* Console.log(`Creating runtime API Client "${clientName}"...`);
-    const credentials = yield* administration.createRuntimeClient({
-      name: clientName,
-      scope,
-    });
+    const credentials = yield* phase(
+      commerceSteps.client,
+      administration.createRuntimeClient({
+        name: clientName,
+        scope,
+      })
+    );
     const committed = yield* Ref.make(false);
 
     const finishProvisioning = Effect.gen(function* () {
-      yield* Console.log("Applying starter-kit migrations...");
-      const seed = yield* runtimeSetup.setup(credentials);
-      yield* Console.log("Publishing runtime credentials...");
-      const publishedCredentials = yield* publisher
-        .publish(preparedDestination, commerceRuntimeEnvironment(credentials))
-        .pipe(
-          Effect.tapErrorTag(
-            [
-              "RuntimeEnvironmentPublicationIncomplete",
-              "RuntimeEnvironmentPublicationOutcomeUnknown",
-            ],
-            () => Ref.set(committed, true)
-          ),
-          Effect.tap(() => Ref.set(committed, true)),
-          Effect.uninterruptible
-        );
-      yield* Console.log("Revoking the bootstrap API Client...");
-      yield* administration.deleteApiClient(bootstrapConfig.clientId);
+      const seed = yield* phase(
+        commerceSteps.migrations,
+        runtimeSetup.setup(credentials)
+      );
+      const publishedCredentials = yield* phase(
+        commerceSteps.publication,
+        publisher
+          .publish(preparedDestination, commerceRuntimeEnvironment(credentials))
+          .pipe(
+            Effect.tapErrorTag(
+              [
+                "RuntimeEnvironmentPublicationIncomplete",
+                "RuntimeEnvironmentPublicationOutcomeUnknown",
+              ],
+              () => Ref.set(committed, true)
+            ),
+            Effect.tap(() => Ref.set(committed, true)),
+            Effect.uninterruptible
+          )
+      );
+      yield* phase(
+        commerceSteps.revocation,
+        administration.deleteApiClient(bootstrapConfig.clientId)
+      );
 
       return new ProvisioningReceipt({
         bootstrapClientRevoked: true,

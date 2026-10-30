@@ -1,8 +1,9 @@
+import { note, phase } from "@repo/cli-core/command-output";
 import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import type { RuntimeEnvironmentDestination } from "@repo/cli-core/runtime-environment";
 import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
-import { Console, Effect } from "effect";
+import { Effect } from "effect";
 
 import { contentIndexSettings } from "../../content-mapping";
 import { createAlgoliaIndexGraph } from "../../index-graph";
@@ -12,6 +13,7 @@ import { AlgoliaProvisioningConfig } from "./config";
 import { managedAlgoliaResourceNames } from "./managed-resource-names";
 import { AlgoliaProvisioningReceipt } from "./model";
 import type { AlgoliaProvisioningError } from "./model";
+import { contentIndexStep, searchSteps, suggestionsStep } from "./output";
 import {
   searchRuntimeEnvironment,
   searchRuntimeEnvironmentManifest,
@@ -40,8 +42,6 @@ export interface ProvisionAlgoliaOptions {
   readonly locales: readonly string[];
 }
 
-const progress = (message: string) => Console.log(`  ${message}`);
-
 export const provisionAlgolia = Effect.fn("AlgoliaProvisioning.provision")(
   function* (options: ProvisionAlgoliaOptions) {
     const administration = yield* AlgoliaAdministration;
@@ -62,22 +62,24 @@ export const provisionAlgolia = Effect.fn("AlgoliaProvisioning.provision")(
         : undefined;
 
     if (options.destination.destination === "vercel") {
-      yield* Console.log(
+      yield* note(
         "Search and Content write credentials will be available to the Vercel web application's server runtime. Sensitive keys cannot be read back from Vercel; use local output when you need to copy credentials to your CMS."
       );
     }
-    const preparedDestination = yield* publisher.prepare({
-      destination: options.destination,
-      manifest: [
-        ...searchRuntimeEnvironmentManifest(
-          graph.prefix,
-          options.products !== undefined
-        ),
-        ...contentRuntimeEnvironmentManifest(contentIndexName !== undefined),
-      ],
-    });
-
-    yield* Console.log("Provisioning Algolia search resources...");
+    const runtimeEnvironment = [
+      ...searchRuntimeEnvironmentManifest(
+        graph.prefix,
+        options.products !== undefined
+      ),
+      ...contentRuntimeEnvironmentManifest(contentIndexName !== undefined),
+    ];
+    const preparedDestination = yield* phase(
+      searchSteps.destination,
+      publisher.prepare({
+        destination: options.destination,
+        manifest: runtimeEnvironment,
+      })
+    );
 
     const productReceipt =
       options.products === undefined
@@ -87,37 +89,33 @@ export const provisionAlgolia = Effect.fn("AlgoliaProvisioning.provision")(
     yield* Effect.forEach(
       graph.contentIndices,
       ({ indexName, locales }) =>
-        progress(
-          `Configuring Content index "${indexName}" for ${locales.join(", ")}...`
-        ).pipe(
-          Effect.andThen(
-            administration.configureIndex({
-              indexName,
-              settings: contentIndexSettings(contentProjection, locales),
-            })
-          )
+        phase(
+          contentIndexStep(indexName, locales),
+          administration.configureIndex({
+            indexName,
+            settings: contentIndexSettings(contentProjection, locales),
+          })
         ),
       { discard: true }
     );
     yield* Effect.forEach(
       graph.querySuggestions,
       (suggestions) =>
-        progress(
-          `Configuring Query Suggestions index "${suggestions.indexName}" for ${suggestions.locale} from ${suggestions.sources.map(({ indexName, analyticsTags }) => `"${indexName}" (${analyticsTags.join(", ")})`).join(" and ")}...`
-        ).pipe(
-          Effect.andThen(administration.configureQuerySuggestions(suggestions))
+        phase(
+          suggestionsStep(suggestions.indexName, suggestions.locale),
+          administration.configureQuerySuggestions(suggestions)
         ),
       { discard: true }
     );
 
-    yield* progress(
-      `Creating or updating the scoped Content write API key for ${graph.contentIndices.length} Content indices...`
+    const contentWriteApiKey = yield* phase(
+      searchSteps.contentKey,
+      administration.configureContentKey({
+        description: managedNames.contentKey.name,
+        indexNames: graph.contentIndices.map(({ indexName }) => indexName),
+        operations: options.contentIndexingOperations,
+      })
     );
-    const contentWriteApiKey = yield* administration.configureContentKey({
-      description: managedNames.contentKey.name,
-      indexNames: graph.contentIndices.map(({ indexName }) => indexName),
-      operations: options.contentIndexingOperations,
-    });
     const contentKeyCredentials = {
       ALGOLIA_APPLICATION_ID: config.applicationId,
       ALGOLIA_CONTENT_WRITE_API_KEY: contentWriteApiKey,
@@ -130,25 +128,26 @@ export const provisionAlgolia = Effect.fn("AlgoliaProvisioning.provision")(
             ALGOLIA_CONTENT_INDEX_NAME: contentIndexName,
           };
 
-    yield* progress(
-      `Creating or updating the scoped runtime search API key for ${graph.queryableIndexNames.length} queryable indices...`
+    const searchApiKey = yield* phase(
+      searchSteps.searchKey,
+      administration.configureSearchKey({
+        description: managedNames.searchKey.name,
+        indexNames: graph.queryableIndexNames,
+        legacyDescriptions: managedNames.searchKey.legacyNames,
+      })
     );
-    const searchApiKey = yield* administration.configureSearchKey({
-      description: managedNames.searchKey.name,
-      indexNames: graph.queryableIndexNames,
-      legacyDescriptions: managedNames.searchKey.legacyNames,
-    });
-    yield* progress("Publishing Search and Content credentials...");
-    yield* publisher.publish(preparedDestination, {
-      ...contentCredentials,
-      ...searchRuntimeEnvironment({
-        applicationId: config.applicationId,
-        indexPrefix: graph.prefix,
-        priceCustomerGroupIds: options.products?.priceCustomerGroupIds,
-        searchApiKey,
-      }),
-    });
-    yield* progress("Search and Content credentials published.");
+    const publication = yield* phase(
+      searchSteps.publication,
+      publisher.publish(preparedDestination, {
+        ...contentCredentials,
+        ...searchRuntimeEnvironment({
+          applicationId: config.applicationId,
+          indexPrefix: graph.prefix,
+          priceCustomerGroupIds: options.products?.priceCustomerGroupIds,
+          searchApiKey,
+        }),
+      })
+    );
 
     const receipt = {
       connectors: productReceipt.connectors,
@@ -169,6 +168,12 @@ export const provisionAlgolia = Effect.fn("AlgoliaProvisioning.provision")(
             managedCommerceApiClientId:
               productReceipt.managedCommerceApiClientId,
           });
-    return { contentCredentials, receipt: provisioningReceipt };
+    return {
+      contentCredentials,
+      contentIndexNames: graph.contentIndices.map(({ indexName }) => indexName),
+      publication,
+      receipt: provisioningReceipt,
+      runtimeEnvironment,
+    };
   }
 );

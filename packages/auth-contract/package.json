@@ -25,6 +25,7 @@
     "@repo/cli-core": "workspace:*"
   },
   "devDependencies": {
+    "@effect/platform-node": "catalog:",
     "@repo/e2e-testing": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
