@@ -1,6 +1,6 @@
 {
   "name": "create-next-hydra",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "CLI to compose applications from the Next Hydra registry",
   "keywords": [
     "cli",
