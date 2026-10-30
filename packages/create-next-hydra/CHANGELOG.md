@@ -1,5 +1,15 @@
 # create-next-hydra
 
+## 0.5.0
+
+### Minor Changes
+
+- 2bdda76: Support native TypeScript/TSX composition templates using LiquidJS comment directives, with diagnostics for invalid template references.
+
+  Display grouped, selection-specific setup instructions after project creation, composition, and registry installation.
+
+  Breaking: source composition templates must use the new comment-based syntax.
+
 ## 0.4.3
 
 ### Patch Changes
