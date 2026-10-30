@@ -4,6 +4,7 @@ import { Effect, FileSystem, Path, Schema } from "effect";
 
 import {
   prepareApplicationTypes,
+  typecheckApplication,
   typecheckApplications,
 } from "../src/application-typecheck.ts";
 
@@ -153,5 +154,98 @@ describe("Application typechecking", () => {
         ]).pipe(Effect.flip);
         expect(semanticError.message).toContain("TS2322");
       }).pipe(Effect.provide(NodeServices.layer))
+  );
+});
+
+describe("Next development route declarations", () => {
+  it.live(
+    "checks renamed routes with fresh types while preserving authored environment declarations",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const root = yield* fs.makeTempDirectoryScoped();
+        const destination = path.join(root, "workspace");
+        const web = path.join(destination, "apps/web");
+        const next = path.join(web, "node_modules/.bin/next");
+        const environment = path.join(web, "next-env.d.ts");
+        const config = path.join(web, "tsconfig.json");
+        const nextConfig = path.join(web, "next.config.ts");
+        const page = path.join(web, "app/new/page.tsx");
+        const devTypes = path.join(web, ".next/dev/types");
+        yield* fs.makeDirectory(path.dirname(next), { recursive: true });
+        yield* fs.makeDirectory(path.dirname(page), { recursive: true });
+        yield* fs.makeDirectory(devTypes, { recursive: true });
+        yield* fs.writeFileString(path.join(web, "package.json"), "{}");
+        const originalNextConfig = "// authored Next configuration\n";
+        yield* fs.writeFileString(nextConfig, originalNextConfig);
+        const originalEnvironment =
+          'import "./.next/dev/types/routes.d.ts";\nimport "./custom-env.d.ts";\n';
+        yield* fs.writeFileString(environment, originalEnvironment);
+        yield* fs.writeFileString(
+          path.join(web, "custom-env.d.ts"),
+          'export {}; declare global { type AuthoringToken = "preserved"; }'
+        );
+        const originalConfig = yield* Schema.encodeEffect(
+          Schema.fromJsonString(Schema.Unknown)
+        )({
+          compilerOptions: {
+            jsx: "preserve",
+            module: "ESNext",
+            moduleResolution: "Bundler",
+            skipLibCheck: true,
+            strict: true,
+            target: "ES2022",
+            types: [],
+          },
+          include: [
+            "next-env.d.ts",
+            "app/**/*.tsx",
+            ".next/types/**/*.ts",
+            ".next/dev/types/**/*.ts",
+          ],
+        });
+        yield* fs.writeFileString(config, originalConfig);
+        // The route constraints and validator imports mirror Next's generated
+        // declarations. TypeScript enforces their real downstream contract.
+        yield* fs.writeFileString(
+          path.join(devTypes, "routes.d.ts"),
+          'type AppRoutes = "/old"; export type { AppRoutes }; declare global { interface PageProps<AppRoute extends AppRoutes> { params: Promise<{}>; } }'
+        );
+        yield* fs.writeFileString(
+          path.join(devTypes, "validator.ts"),
+          'export type PreviousRoute = typeof import("../../../app/old/page.js");'
+        );
+        yield* fs.writeFileString(
+          page,
+          'export default function Page(props: PageProps<"/new">) { const token: AuthoringToken = "preserved"; return token; }'
+        );
+        const freshRoutes = yield* Schema.encodeEffect(
+          Schema.fromJsonString(Schema.String)
+        )(
+          'type AppRoutes = "/new"; export type { AppRoutes }; declare global { interface PageProps<AppRoute extends AppRoutes> { params: Promise<{}>; } }'
+        );
+        yield* fs.writeFileString(
+          next,
+          `#!${process.execPath}
+const fs = require("node:fs");
+fs.mkdirSync(".next/types", { recursive: true });
+fs.writeFileSync(".next/types/routes.d.ts", ${freshRoutes});
+fs.writeFileSync("next-env.d.ts", 'import "./.next/types/routes.d.ts";');
+`
+        );
+        yield* fs.chmod(next, 0o755);
+        yield* prepareApplicationTypes(destination);
+        yield* typecheckApplication(config, [page]);
+        expect(yield* fs.readFileString(environment)).toBe(originalEnvironment);
+        expect(yield* fs.readFileString(config)).toBe(originalConfig);
+        expect(yield* fs.readFileString(nextConfig)).toBe(originalNextConfig);
+        yield* fs.writeFileString(
+          page,
+          'export default function Page(props: PageProps<"/missing">) { return null; }'
+        );
+        const error = yield* typecheckApplication(config).pipe(Effect.flip);
+        expect(error.message).toContain("TS2344");
+      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
   );
 });

@@ -102,10 +102,31 @@ export const typecheckApplication = Effect.fn(
         ...(config.error ? [config.error] : []),
         ...parsed.errors,
       ];
+      const project = path.resolve(path.dirname(configFile));
+      const host = ts.createCompilerHost(parsed.options);
+      const generatedRoutes = path.join(project, ".next/types/routes.d.ts");
+      const hasGeneratedRoutes = host.fileExists(generatedRoutes);
+      const devTypes = path.join(project, ".next/dev/types") + path.sep;
+      if (hasGeneratedRoutes) {
+        const environment = path.join(project, "next-env.d.ts");
+        const readFile = host.readFile.bind(host);
+        // next dev points the environment file at its own cache. Use fresh
+        // declarations only in the compiler view; keep authored files intact.
+        host.readFile = (file) => {
+          const content = readFile(file);
+          return path.resolve(file) === environment
+            ? content?.replaceAll("./.next/dev/types/", "./.next/types/")
+            : content;
+        };
+      }
       const program = ts.createProgram({
+        host,
         options: parsed.options,
         projectReferences: parsed.projectReferences,
-        rootNames: parsed.fileNames,
+        rootNames: parsed.fileNames.filter(
+          (file) =>
+            !hasGeneratedRoutes || !path.resolve(file).startsWith(devTypes)
+        ),
       });
       const inspected = new Set(
         program.getSourceFiles().map((file) => path.resolve(file.fileName))
