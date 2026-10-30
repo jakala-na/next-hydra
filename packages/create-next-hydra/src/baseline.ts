@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
-import { parseDocument } from "yaml";
+import type { Document } from "yaml";
+import { parseAllDocuments, parseDocument } from "yaml";
 
 import { InvalidComposition } from "./errors.ts";
 import { applicationPackagePatterns } from "./package-catalog.ts";
@@ -46,15 +47,11 @@ const Lockfile = Schema.Struct({
   ),
 });
 
-export const yamlDocument = Effect.fn("Composition.yamlDocument")(function* <A>(
-  bytes: Uint8Array,
+const decodeDocument = Effect.fn("Composition.decodeDocument")(function* <A>(
+  document: Document,
   target: string,
   schema: Schema.Decoder<A>
 ) {
-  const document = yield* Effect.try({
-    catch: () => new InvalidComposition({ message: `Invalid YAML: ${target}` }),
-    try: () => parseDocument(new TextDecoder().decode(bytes)),
-  });
   if (document.errors.length > 0) {
     return yield* new InvalidComposition({
       message: `Invalid YAML: ${target}`,
@@ -66,6 +63,18 @@ export const yamlDocument = Effect.fn("Composition.yamlDocument")(function* <A>(
   });
   const data = yield* decode;
   return { data, document };
+});
+
+export const yamlDocument = Effect.fn("Composition.yamlDocument")(function* <A>(
+  bytes: Uint8Array,
+  target: string,
+  schema: Schema.Decoder<A>
+) {
+  const document = yield* Effect.try({
+    catch: () => new InvalidComposition({ message: `Invalid YAML: ${target}` }),
+    try: () => parseDocument(new TextDecoder().decode(bytes)),
+  });
+  return yield* decodeDocument(document, target, schema);
 });
 
 export const applicationWorkspace = Effect.fn(
@@ -81,7 +90,20 @@ export const applicationWorkspace = Effect.fn(
     applicationPackagePatterns(settings.data.packages, targets)
   );
   settings.document.set("patchedDependencies", Object.fromEntries(patches));
-  const lock = yield* yamlDocument(lockSource, "pnpm-lock.yaml", Lockfile);
+  // pnpm 12 keeps its own dependency graph in an optional leading document.
+  // Preserve it and filter only the application's graph in the last document.
+  const documents = yield* Effect.try({
+    catch: () =>
+      new InvalidComposition({ message: "Invalid YAML: pnpm-lock.yaml" }),
+    try: () => parseAllDocuments(new TextDecoder().decode(lockSource)),
+  });
+  const project = documents.at(-1);
+  if (!project || documents.some((document) => document.errors.length > 0)) {
+    return yield* new InvalidComposition({
+      message: "Invalid YAML: pnpm-lock.yaml",
+    });
+  }
+  const lock = yield* decodeDocument(project, "pnpm-lock.yaml", Lockfile);
   lock.document.set(
     "importers",
     Object.fromEntries(
@@ -103,7 +125,12 @@ export const applicationWorkspace = Effect.fn(
       "pnpm-workspace.yaml",
       new TextEncoder().encode(settings.document.toString()),
     ],
-    ["pnpm-lock.yaml", new TextEncoder().encode(lock.document.toString())],
+    [
+      "pnpm-lock.yaml",
+      new TextEncoder().encode(
+        documents.map((document) => document.toString()).join("")
+      ),
+    ],
   ]);
 });
 

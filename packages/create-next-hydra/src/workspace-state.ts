@@ -240,7 +240,11 @@ const validateFileIntent = (receipt: Receipt) =>
             !sameFingerprint(file.before, file.after)
           : file.before !== null &&
             !(
-              receipt.preserved.includes(file.target) &&
+              (receipt.preserved.includes(file.target) ||
+                (file.target === "turbo.json" &&
+                  file.origin?.kind === "policy" &&
+                  file.origin.policy === "application-tasks" &&
+                  sameFingerprint(file.after, file.desired))) &&
               sameFingerprint(file.before, file.after)
             ))
       ) {

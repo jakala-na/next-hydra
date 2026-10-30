@@ -26,7 +26,6 @@ import {
 } from "./client";
 import type {
   CommercetoolsProductProjection,
-  CommercetoolsProductSelectionRule,
   CommercetoolsProductVariant,
   ListCommercetoolsProductProjectionsInput,
   CommercetoolsProductDiscoveryClient as ProductClient,
@@ -61,6 +60,7 @@ const commerceContextLayer = (authenticated = false) =>
 const context = {
   distributionChannelId: "distribution-channel-1",
   distributionChannelKey: "north-america",
+  storeId: "store-1",
   supplyChannelIds: ["supply-channel-1", "supply-channel-2"],
   supplyChannelKeys: ["main-warehouse", "overflow-warehouse"],
 } as const;
@@ -128,22 +128,10 @@ const projection = (
   ...overrides,
 });
 
-const includeAll: readonly CommercetoolsProductSelectionRule[] = [
-  {
-    mode: "Individual",
-    variantExclusion: null,
-    variantSelection: null,
-  },
-];
-
 const makeClientLayer = (
   handlers: Parameters<typeof CommercetoolsProductDiscoveryClient.testLayer>[0]
 ) =>
   CommercetoolsProductDiscoveryClient.testLayer({
-    getProductSelectionRules: (_storeKey, productIds) =>
-      Effect.succeed(
-        new Map(productIds.map((id) => [id, includeAll] as const))
-      ),
     resolveProductContext: () => Effect.succeed(context),
     ...handlers,
   });
@@ -303,111 +291,42 @@ describe("Commercetools Product Discovery", () => {
     })
   );
 
-  it.effect(
-    "uses the first eligible variant as the default after Product Selection filtering",
-    () =>
-      Effect.gen(function* () {
-        const clientLayer = makeClientLayer({
-          findProductBySlug: () =>
-            Effect.succeed(
-              projection({
-                allVariants: [
-                  variant({
-                    attributesRaw: [{ name: "model", value: 100 }],
-                    id: 1,
-                    sku: "excluded",
-                  }),
-                  variant({
-                    attributesRaw: [{ name: "model", value: 200 }],
-                    id: 2,
-                    sku: "eligible",
-                  }),
-                ],
-              })
-            ),
-          getProductSelectionRules: () =>
-            Effect.succeed(
-              new Map([
-                [
-                  productId,
-                  [
-                    {
-                      mode: "Individual" as const,
-                      variantExclusion: null,
-                      variantSelection: {
-                        skus: ["eligible"],
-                        type: "includeOnly" as const,
-                      },
-                    },
-                  ],
-                ],
-              ])
-            ),
-        });
-
-        const result = yield* runWithClient(
-          findProductBySlug(ProductSlug.make("crawler-crane")),
-          clientLayer
-        );
-        const detail = Option.getOrThrow(result);
-
-        expect(detail.defaultVariantId).toBe("2");
-        expect(detail.variants.map(({ id }) => id)).toStrictEqual(["2"]);
-      })
-  );
-
-  it.effect("removes variants excluded by the Store's Product Selection", () =>
+  it.effect("uses the first Store-matching variant as the default", () =>
     Effect.gen(function* () {
       const clientLayer = makeClientLayer({
         findProductBySlug: () =>
           Effect.succeed(
             projection({
               allVariants: [
-                variant({ id: 1, sku: "eligible" }),
-                variant({ id: 2, sku: "excluded" }),
+                variant({
+                  attributesRaw: [{ name: "model", value: 200 }],
+                  id: 2,
+                  sku: "store-matching",
+                }),
               ],
             })
           ),
-        getProductSelectionRules: () =>
-          Effect.succeed(
-            new Map([
-              [
-                productId,
-                [
-                  {
-                    mode: "IndividualExclusion" as const,
-                    variantExclusion: { skus: ["excluded"] },
-                    variantSelection: null,
-                  },
-                ],
-              ],
-            ])
-          ),
       });
-
       const result = yield* runWithClient(
         findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
-
-      expect(
-        Option.getOrThrow(result).variants.map(({ sku }) => sku)
-      ).toStrictEqual(["eligible"]);
+      const detail = Option.getOrThrow(result);
+      expect(detail.defaultVariantId).toBe("2");
+      expect(detail.variants.map(({ id }) => id)).toStrictEqual(["2"]);
     })
   );
 
-  it.effect("treats a Product with no Store assignment as absent", () =>
+  it.effect("treats a Product with no matching Store variants as absent", () =>
     Effect.gen(function* () {
       const clientLayer = makeClientLayer({
-        findProductBySlug: () => Effect.succeed(projection()),
-        getProductSelectionRules: () => Effect.succeed(new Map()),
+        findProductBySlug: () =>
+          Effect.succeed(projection({ allVariants: [] })),
       });
-
       const result = yield* runWithClient(
         findProductBySlug(ProductSlug.make("crawler-crane")),
         clientLayer
       );
-
       expect(Option.isNone(result)).toBeTruthy();
     })
   );
@@ -570,22 +489,13 @@ describe("Commercetools Product Discovery", () => {
   );
 
   it.effect(
-    "derives Product Card aggregates only from eligible variants and excludes the requested Product",
+    "derives Product Card aggregates from Store-matching variants and excludes the requested Product",
     () =>
       Effect.gen(function* () {
         const eligibleProduct = ProductId.make("product-eligible");
         const excludedProduct = ProductId.make("product-excluded");
-        const productWithIneligibleCheapVariant = projection({
+        const storeMatchedProduct = projection({
           allVariants: [
-            variant({
-              availability: { channels: [{ availableQuantity: 20 }] },
-              id: 1,
-              price: {
-                discounted: null,
-                value: { centAmount: 100, currencyCode: "USD" },
-              },
-              sku: "cheap-ineligible",
-            }),
             variant({
               availability: { channels: [{ availableQuantity: 0 }] },
               id: 2,
@@ -600,27 +510,10 @@ describe("Commercetools Product Discovery", () => {
           name: "Eligible",
           slug: "eligible",
         });
-        const rules = new Map([
-          [
-            eligibleProduct,
-            [
-              {
-                mode: "Individual" as const,
-                variantExclusion: null,
-                variantSelection: {
-                  skus: ["eligible"],
-                  type: "includeOnly" as const,
-                },
-              },
-            ],
-          ],
-          [excludedProduct, includeAll],
-        ]);
         const clientLayer = makeClientLayer({
-          getProductSelectionRules: () => Effect.succeed(rules),
           listProductProjections: () =>
             Effect.succeed([
-              productWithIneligibleCheapVariant,
+              storeMatchedProduct,
               projection({
                 id: excludedProduct,
                 name: "Excluded",

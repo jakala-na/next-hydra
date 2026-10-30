@@ -1,5 +1,35 @@
 # create-next-hydra
 
+## 0.4.3
+
+### Patch Changes
+
+- 872863a: Support pnpm 12 when creating and refreshing workspaces. Preserve the package-manager lockfile document while selecting application dependencies, and recognize pnpm configuration environment variables when deciding whether to reinstall dependencies.
+
+  New workspaces also deduplicate nested peer variants so application middleware shares the same Next.js runtime classes.
+
+## 0.4.2
+
+### Patch Changes
+
+- 7f11f69: Pin the shared Node runtime to the matching Effect prerelease so fresh CLI installs start successfully instead of failing with a missing ChildProcess module. Validate packed CLI startup and composition with freshly resolved dependencies before release.
+
+## 0.4.1
+
+### Patch Changes
+
+- 749064e: Fix Compose Watch missing package additions and removals when Linux reports only the directory change. Reconcile structural notifications against Git-visible inputs while continuing to ignore unselected source changes.
+
+## 0.4.0
+
+### Minor Changes
+
+- e562eb2: Update the CLI for the current registry contract: Search providers, package/recipe kinds, conditional dependencies, and provider requirements. Scaffolding now materializes only selected applications and packages, including CMS-only compositions.
+
+  Add named-workspace `compose` with safe refresh, watching, file checks, diffs, source explanations, and opt-in environment copying. Registry additions validate the complete dependency graph before installation.
+
+  Breaking: `compose` replaces `use`; programmatic composition exports are replaced by the Effect-backed `cliProgram`/`runCli` entry points. See the CLI README for migration and command options.
+
 ## 0.3.0
 
 ### Minor Changes

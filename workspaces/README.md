@@ -5,7 +5,7 @@ The architecture and its ownership boundaries are recorded in [ADR-0010: Compose
 These named definitions, their `.gitignore` files, optional READMEs and app-local Vercel settings are source-controlled. Their materialized apps, packages, dependencies, local state and credentials are not. The same folders serve development and deployment. For local development after cloning, install the composition tooling, then initialize one workspace or all four:
 
 ```sh
-pnpm --filter 'next-hydra...' --filter 'create-next-hydra...' install --frozen-lockfile
+node scripts/install-composition-tooling.ts
 pnpm --filter create-next-hydra compose cms-contentstack --copy-env
 pnpm --filter create-next-hydra compose --all --copy-env
 pnpm --dir workspaces/cms-contentstack dev
@@ -149,7 +149,7 @@ Development, deployment and scaffolded workspaces use the same Turbo task config
 
 ## Lint verification
 
-`pnpm lint` checks source and rendered code using all named definitions. The commit hook formats staged files, then runs `pnpm --filter create-next-hydra lint:staged`. For a focused check after building the CLI:
+`pnpm lint` checks source and rendered code using all named definitions. The commit hook validates test-environment scripts and formats staged files; composition-aware lint runs in CI for affected workspaces. For a focused check after building the CLI:
 
 ```sh
 node packages/create-next-hydra/dist/lint-workspaces.js packages/cms-contentstack/components/component-renderer.tsx
@@ -210,7 +210,7 @@ Set Root Directory and enable access to files outside it in Vercel. Use Node 24 
 
 The app's committed configuration explicitly selects Next.js and provides:
 
-1. **Install Command:** from the repository root, install only the `next-hydra...` and `create-next-hydra...` dependency closures, compose that workspace, and install its selected dependency graph.
+1. **Install Command:** from the repository root, run `scripts/install-composition-tooling.ts`, compose that workspace, and install its selected dependency graph. The helper normally installs only the `next-hydra...` and `create-next-hydra...` dependency closures with a frozen lockfile. If pnpm reports `ERR_PNPM_UNEXPECTED_STORE` for restored dependencies, it retries a full frozen source install so pnpm can rebuild the dependency links. Other failures stop the deployment.
 2. **Build Command:** run `turbo run build --filter=<app>` from the composed workspace, using Turbo's default cache behavior.
 3. **Output Directory:** `.next`, directly beneath this app. No parent-relative output redirection or canonical-app stand-in is needed.
 
@@ -224,7 +224,7 @@ Each deployment composes its selected workspace, then runs ordinary Turbo tasks 
 
 ```sh
 # Install Command, starting in workspaces/storefront-contentstack/apps/api
-cd ../../../.. && pnpm --filter 'next-hydra...' --filter 'create-next-hydra...' install --frozen-lockfile && pnpm --filter create-next-hydra compose storefront-contentstack
+cd ../../../.. && node scripts/install-composition-tooling.ts && pnpm --filter create-next-hydra compose storefront-contentstack
 
 # Build Command, starting in that same app directory
 cd ../.. && pnpm exec turbo run build --filter=api
@@ -234,7 +234,7 @@ Turbo hashes materialized files, the selected package graph and build-affecting 
 
 Composition and installation reconciliation still run before the application build. Turbo Remote Cache stores task outputs, not an installed `node_modules` tree. Vercel's build cache and pnpm's package store can reduce installation work, but do not guarantee it is free or skipped. Remote Cache must be available to the project, and reuse across different projects requires matching task inputs and environment. External CMS content is not a file input; when it must be refreshed at build time, force the relevant Turbo build or disable its cache explicitly.
 
-The source checkout retains its pnpm package declarations because composition uses them to discover canonical packages, and package-level development still uses their dependency graphs. The filtered tooling install does not install every source app/provider. Use a full root `pnpm install` when working on source-level package tests that need those dependencies.
+The source checkout retains its pnpm package declarations because composition uses them to discover canonical packages, and package-level development still uses their dependency graphs. The normal filtered tooling install does not install every source app/provider. Recovery from an incompatible restored store installs the complete source graph once; subsequent compatible installs use the filtered path again. Use a full root `pnpm install` when working on source-level package tests that need those dependencies.
 
 A new definition needs no task registration: compose it, then run its application commands. In Vercel, Install and Build commands each start in the configured app Root Directory. The `cd ../..` in Build moves to the composed workspace root, not the source repository root. The explicit app filter selects API in this example; it does not build sibling web or admin apps. Vercel also supports app-directory Turbo invocation through automatic scoping, but these committed commands keep application selection explicit.
 
@@ -259,7 +259,9 @@ On a clean hosted checkout, committed settings may coexist with restored caches 
 
 Application task configuration is shared with customer creation, including environment inputs, dependency ordering, source hashing and output declarations. Turbo uses its default local cache at `.turbo/cache` and its configured Remote Cache. Deployment commands override neither cache placement nor cache backends; remote-cache environment is passed through unchanged. Preserving an existing local cache during composition does not guarantee Vercel restores it between deployments. Next's incremental compiler cache is separate from Turbo's complete build-output cache.
 
-Environment variable names from the selected environment examples, plus public Next variables and the standard build environment, participate in Turbo's cache keys. Values are not written into composition state or generated configuration. This is conservative across the selected workspace; maintainers must keep examples or explicit Turbo `env` declarations current when adding build-affecting variables. Composition does not copy ignored local credentials into hosted builds.
+Each application's build hashes private variable names from its own environment examples and those of its selected dependency packages. Public Next variables use framework inference; the standard build environment is shared. Unit-test and typecheck hashes exclude deployment variable values, and unit tests also exclude local environment files. Values are not written into composition state or generated configuration. Keep examples or explicit Turbo `env` declarations current when adding build-affecting variables. Composition does not copy ignored local credentials into hosted builds.
+
+Generated root `turbo.json` files are source-controlled for review. After changing task policy or relevant environment examples, run `compose --all --no-install` and include the resulting configuration changes. CI verifies every committed generated configuration without installing applications, then installs and lints only compositions affected by the changed source, selected dependencies, definitions or shared tooling. Documentation-only changes skip the composition lint matrix. The separate Commercetools `test:live` task is uncached and is not a build dependency.
 
 Before changing production settings, verify a Git-triggered preview and a subsequent cached rebuild, including server routes, static assets and provider-specific handlers. Local composition/cache checks do not validate the hosted builder, external credentials or provider services. Stable named paths allow subsequent builds to reuse caches.
 

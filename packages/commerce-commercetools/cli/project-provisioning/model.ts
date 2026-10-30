@@ -64,7 +64,7 @@ export class ProjectAdministrationError extends Schema.TaggedError<ProjectAdmini
     operation: Schema.Literals([
       "createRuntimeClient",
       "deleteApiClient",
-      "enableProductProjectionSearch",
+      "enableProductSearch",
       "getProject",
     ]),
   }
@@ -87,8 +87,8 @@ export class RuntimeClientCreationOutcomeUnknown extends Schema.TaggedError<Runt
   }
 ) {}
 
-export class ProductProjectionSearchTimeout extends Schema.TaggedError<ProductProjectionSearchTimeout>()(
-  "ProductProjectionSearchTimeout",
+export class ProductSearchTimeout extends Schema.TaggedError<ProductSearchTimeout>()(
+  "ProductSearchTimeout",
   {
     lastStatus: Schema.String,
     message: Schema.String,

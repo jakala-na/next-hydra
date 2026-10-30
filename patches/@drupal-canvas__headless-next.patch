@@ -1,3 +1,4 @@
+diff --git a/dist/with-canvas.js b/dist/with-canvas.js
 --- a/dist/with-canvas.js
 +++ b/dist/with-canvas.js
 @@ -44,10 +44,11 @@
@@ -13,6 +14,7 @@
  		if (phase === PHASE_PRODUCTION_BUILD && !process.env["CANVAS_COMPONENT_MANIFEST_JSON"]) {
  			const manifest = await writeComponentManifest({ projectRoot });
  			process.env[MANIFEST_ENV_VARIABLE] = JSON.stringify(manifest);
+diff --git a/dist/with-canvas.d.ts b/dist/with-canvas.d.ts
 --- a/dist/with-canvas.d.ts
 +++ b/dist/with-canvas.d.ts
 @@ -9,6 +9,8 @@

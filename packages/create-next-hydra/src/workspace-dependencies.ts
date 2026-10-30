@@ -93,13 +93,13 @@ const hasUnboundedInputs = (value: Schema.Json): boolean => {
   return false;
 };
 
-// These structured pnpm settings can be mirrored into scripts from workspace YAML.
-// They affect installation even when they match an ancestor's configuration.
+// Structured pnpm environment settings affect installation even when they
+// match an ancestor's configuration.
 const structuredPnpmSettings = {
-  npm_config_catalog: "catalog",
-  npm_config_catalogs: "catalogs",
-  npm_config_overrides: "overrides",
-  npm_config_patched_dependencies: "patchedDependencies",
+  pnpm_config_catalog: "catalog",
+  pnpm_config_catalogs: "catalogs",
+  pnpm_config_overrides: "overrides",
+  pnpm_config_patched_dependencies: "patchedDependencies",
 };
 
 const inputsFor = (
@@ -202,7 +202,7 @@ const inputsFor = (
           continue;
         }
         unbounded ||= hasUnboundedInputs(decoded.value);
-        if (name.toLowerCase() === "npm_config_patched_dependencies") {
+        if (name.toLowerCase() === "pnpm_config_patched_dependencies") {
           const environmentPatches = Schema.decodeUnknownOption(
             Schema.Record(Schema.String, Schema.String)
           )(decoded.value);
@@ -465,14 +465,13 @@ export class WorkspaceDependencies extends Context.Service<
           const metadata = new Set([
             "npm_config_user_agent",
             "npm_config_recursive",
-            "npm_config_manage_package_manager_versions",
-            "npm_config_verify_deps_before_run",
+            "npm_config_node_gyp",
+            "pnpm_config_verify_deps_before_run",
           ]);
           return Object.entries(process.env).some(([name, value]) => {
             const key = name.toLowerCase();
-            // pnpm run exports workspace objects as JSON, plus default registries.
-            // Accept mirrors only when they equal declared configuration; overrides
-            // and unknown settings must still be reconciled by pnpm.
+            // Accept inherited workspace objects only when they match declared
+            // settings; overrides and unknown settings require pnpm.
             const candidates = mirrored.get(key);
             if (candidates) {
               const decoded = Schema.decodeUnknownOption(
@@ -488,22 +487,23 @@ export class WorkspaceDependencies extends Context.Service<
               }
             }
             if (
-              (key === "npm_config_registry" &&
+              (key === "pnpm_config_registry" &&
                 value === "https://registry.npmjs.org/") ||
-              (key === "npm_config__jsr_registry" &&
+              (key === "pnpm_config__jsr_registry" &&
                 value === "https://npm.jsr.io/") ||
-              (key === "npm_config_frozen_lockfile" && value === "")
+              (key === "pnpm_config_frozen_lockfile" && value === "")
             ) {
               return false;
             }
             return (
               (key.startsWith("npm_config_") && !metadata.has(key)) ||
-              (name.startsWith("PNPM_") &&
+              (key.startsWith("pnpm_") &&
+                !metadata.has(key) &&
                 ![
-                  "PNPM_HOME",
-                  "PNPM_PACKAGE_NAME",
-                  "PNPM_SCRIPT_SRC_DIR",
-                ].includes(name))
+                  "pnpm_home",
+                  "pnpm_package_name",
+                  "pnpm_script_src_dir",
+                ].includes(key))
             );
           });
         });

@@ -133,7 +133,7 @@ type Capture = (
   PlatformError.PlatformError | InvalidComposition
 >;
 
-function internalDependencies(manifest: typeof Manifest.Type): string[] {
+export function internalDependencies(manifest: typeof Manifest.Type): string[] {
   return [
     manifest.dependencies,
     manifest.devDependencies,

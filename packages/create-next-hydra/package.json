@@ -1,6 +1,6 @@
 {
   "name": "create-next-hydra",
-  "version": "0.3.0",
+  "version": "0.4.3",
   "description": "CLI to compose applications from the Next Hydra registry",
   "keywords": [
     "cli",
@@ -55,10 +55,12 @@
     "workspace:test": "node dist/test-reference-workspace.js",
     "workspace:lint": "node dist/lint-workspaces.js",
     "lint:staged": "pnpm run build && node dist/lint-workspaces.js --staged",
-    "workspace:check": "node dist/check-workspace.js"
+    "workspace:check": "node dist/check-workspace.js",
+    "test:package": "node scripts/check-package.mjs"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@effect/platform-node-shared": "catalog:",
     "@parcel/watcher": "^2.6.0",
     "effect": "catalog:",
     "jsonc-parser": "^3.3.1",
