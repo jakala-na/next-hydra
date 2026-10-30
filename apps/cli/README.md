@@ -100,7 +100,7 @@ To add commands from another package:
 2. Validate configuration in the command handler or service that needs it. Provisioning may need bootstrap credentials before application runtime credentials exist; unrelated commands must not require either.
 3. Wire the factory according to where you are authoring:
 
-   - In the maintainer source, add a registry `slotBindings` entry targeting the `commands` slot of `apps/cli/src/program.ts`, with the factory's module and export. Composition uses `apps/cli/registry/templates/program.ts.template` to materialize the program. Edit that template when changing its shared structure.
+   - In the maintainer source, add a registry `slotBindings` entry targeting the `commands` slot of `apps/cli/src/program.ts`, with the factory's module and export. Composition uses `apps/cli/registry/templates/program.template.ts` to materialize the program. Edit that template when changing its shared structure.
    - In an installed customer workspace, edit the ordinary `apps/cli/src/program.ts` directly: import the factory and add its result to `Command.withSubcommands`, passing the existing `configProvider`. No registry or template refresh is needed.
 
 The app owns environment-file loading and command wiring. Packages own command-specific schemas and validation; application startup validation remains separate.

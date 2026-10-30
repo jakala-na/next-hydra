@@ -55,6 +55,7 @@
     "workspace:test": "node dist/test-reference-workspace.js",
     "workspace:lint": "node dist/lint-workspaces.js",
     "lint:staged": "pnpm run build && node dist/lint-workspaces.js --staged",
+    "workspace:check": "node dist/check-workspace.js",
     "test:package": "node scripts/check-package.mjs"
   },
   "dependencies": {
@@ -63,6 +64,7 @@
     "@parcel/watcher": "^2.6.0",
     "effect": "catalog:",
     "jsonc-parser": "^3.3.1",
+    "liquidjs": "10.29.0",
     "oxfmt": "0.61.0",
     "shadcn": "^4.16.2",
     "typescript": "catalog:",

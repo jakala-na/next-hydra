@@ -170,10 +170,10 @@ it.effect(
         const fs = yield* FileSystem.FileSystem;
         yield* (yield* named).sync({ install: "skip" }).pipe(Effect.exit);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Recovered")
         );
         const report = yield* Effect.gen(function* () {

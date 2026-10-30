@@ -1,4 +1,0 @@
-import type { SearchCollection } from "./search-collection";
-{{imports}}
-
-export const searchCollections: readonly [SearchCollection, ...SearchCollection[]] = [{{collections}}];

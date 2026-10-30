@@ -14,7 +14,7 @@
         "composition": {
           "templates": [
             {
-              "source": "shell.tsx.template",
+              "source": "shell.template.tsx",
               "target": "packages/view/shell.tsx",
               "slots": {
                 "content": "element"

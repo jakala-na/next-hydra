@@ -1,3 +1,0 @@
-{{imports}}
-
-export const config = {{configuration.open}}{ features: [{{environment}}] }{{configuration.close}};

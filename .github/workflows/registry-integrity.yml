@@ -120,10 +120,52 @@ jobs:
           LINT_WORKSPACE: ${{ matrix.workspace }}
         run: node packages/create-next-hydra/dist/lint-workspaces.js "--workspace=$LINT_WORKSPACE" "--changed-from=$LINT_BASE"
 
+  composed-applications:
+    name: Generated code / ${{ matrix.workspace }}
+    needs: source
+    if: ${{ needs.source.outputs.workspaces != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        workspace: ${{ fromJSON(needs.source.outputs.workspaces) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v1
+        with:
+          install: false
+
+      - name: Setup Node.js and composition package cache
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            workspaces/${{ matrix.workspace }}/next-hydra.json
+
+      - name: Install only composition tooling
+        run: pnpm --filter 'next-hydra...' --filter 'create-next-hydra...' install --frozen-lockfile --ignore-scripts
+
+      - name: Materialize application and install selected dependencies
+        run: pnpm --filter create-next-hydra compose "${{ matrix.workspace }}"
+
+      - name: Check freshness and typecheck generated applications
+        run: pnpm --filter create-next-hydra workspace:check "${{ matrix.workspace }}"
+
   validate:
     # Preserve the existing check name for branch protection.
     name: Validate registry integrity
-    needs: [source, lint-composition]
+    needs: [source, lint-composition, composed-applications]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -131,6 +173,7 @@ jobs:
         env:
           SOURCE_RESULT: ${{ needs.source.result }}
           COMPOSITION_RESULT: ${{ needs.lint-composition.result }}
+          GENERATED_RESULT: ${{ needs.composed-applications.result }}
           LINT_WORKSPACES: ${{ needs.source.outputs.workspaces }}
         run: |
           if [[ "$SOURCE_RESULT" != "success" ]]; then
@@ -138,5 +181,9 @@ jobs:
           fi
           if [[ "$COMPOSITION_RESULT" != "success" && !( "$COMPOSITION_RESULT" == "skipped" && "$LINT_WORKSPACES" == "[]" ) ]]; then
             echo "Source: $SOURCE_RESULT; compositions: $COMPOSITION_RESULT"
+            exit 1
+          fi
+          if [[ "$GENERATED_RESULT" != "success" && !( "$GENERATED_RESULT" == "skipped" && "$LINT_WORKSPACES" == "[]" ) ]]; then
+            echo "Generated applications: $GENERATED_RESULT"
             exit 1
           fi

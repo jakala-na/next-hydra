@@ -84,7 +84,7 @@ it.effect(
         ).toMatchObject({ _tag: "WorkspaceStateInvalid" });
         expect(yield* fs.readFileString(receiptPath)).toBe(damaged);
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Hello</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
         );
       }).pipe(Effect.provide(layer));
     })
@@ -335,7 +335,7 @@ it.effect(
         expect(yield* fs.exists(`${root}/apps/web/.env.local`)).toBeFalsy();
         expect(yield* fs.exists(`${root}/.gitignore`)).toBeTruthy();
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Hello</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
         );
       }).pipe(Effect.provide(layer));
     })

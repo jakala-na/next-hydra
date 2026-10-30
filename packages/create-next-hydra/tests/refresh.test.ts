@@ -192,10 +192,10 @@ it.effect(
         });
         yield* workspace.sync({ install: "skip" });
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         expect((yield* workspace.check).changes).toEqual([
@@ -226,9 +226,9 @@ it.effect("refreshes source without removing compiled package output", () =>
         `${root}/apps/web/dist/page.js`,
         "export const compiled = true;\n"
       );
-      const source = yield* fs.readFileString("/source/layout.tsx.template");
+      const source = yield* fs.readFileString("/source/layout.template.tsx");
       yield* fs.writeFileString(
-        "/source/layout.tsx.template",
+        "/source/layout.template.tsx",
         `${source}\n// Updated canonical layout\n`
       );
       yield* sync;
@@ -312,7 +312,9 @@ it.effect(
           yield* (yield* FileSystem.FileSystem).readFileString(
             `${root}/apps/web/layout.tsx`
           )
-        ).toBe("export function Layout() {\n  return <main>Hello</main>;\n}\n");
+        ).toBe(
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
+        );
       }).pipe(Effect.provide(layer));
     })
 );
@@ -326,15 +328,15 @@ it.effect(
         const fs = yield* FileSystem.FileSystem;
         yield* sync;
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         yield* sync.pipe(Effect.provide(memoryWorkspaceServices()));
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Welcome</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Welcome\n    </main>\n  );\n}\n"
         );
         expect(yield* fs.readFileString(`${root}/.gitignore`)).toBe("");
         expect(yield* fs.exists(`${root}/.env.local`)).toBeFalsy();
@@ -387,7 +389,7 @@ it.effect(
           selectedAsset: false,
         });
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Hello</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
         );
       }).pipe(Effect.provide(layer));
     })
@@ -480,10 +482,10 @@ it.effect(
           "unregistered draft"
         );
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         yield* sync;
@@ -491,7 +493,7 @@ it.effect(
           "unregistered draft"
         );
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Welcome</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Welcome\n    </main>\n  );\n}\n"
         );
         yield* fs.writeFileString(`${root}/apps/web/draft.ts`, "revised draft");
         yield* sync;
@@ -528,10 +530,10 @@ it.effect(
         yield* sync;
         const before = yield* fs.readFile(`${root}/apps/web/layout.tsx`);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         rejectReplacement = true;
@@ -561,7 +563,7 @@ it.effect(
           receipt: yield* fs.readFile(`${root}/.workspace-composition.json`),
         }).toEqual({ layout: before, receipt });
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Recovered from current source")
         );
         yield* sync.pipe(Effect.provide(memoryWorkspaceServices()));
@@ -572,7 +574,7 @@ it.effect(
           ),
         }).toEqual({
           layout:
-            "export function Layout() {\n  return <main>Recovered from current source</main>;\n}\n",
+            "export function Layout() {\n  return (\n    <main>\n      {}\n      Recovered from current source\n    </main>\n  );\n}\n",
           pending: [],
         });
       }).pipe(Effect.provide(layer));
@@ -601,9 +603,9 @@ it.effect("rejects an incomplete journal before cleaning retained files", () =>
     yield* Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       yield* sync;
-      const template = yield* fs.readFileString("/source/layout.tsx.template");
+      const template = yield* fs.readFileString("/source/layout.template.tsx");
       yield* fs.writeFileString(
-        "/source/layout.tsx.template",
+        "/source/layout.template.tsx",
         template.replace("Hello", "Welcome")
       );
       rejectReplacement = true;
@@ -667,8 +669,8 @@ for (const change of ["edit", "deletion", "mode", "temporary"] as const) {
         const fs = yield* FileSystem.FileSystem;
         yield* sync;
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
-          (yield* fs.readFileString("/source/layout.tsx.template")).replace(
+          "/source/layout.template.tsx",
+          (yield* fs.readFileString("/source/layout.template.tsx")).replace(
             "Hello",
             "Welcome"
           )
@@ -774,7 +776,7 @@ it.effect(
           yield* fs.exists(`${root}/apps/web/public/brand.svg`)
         ).toBeFalsy();
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-          "export function Layout() {\n  return <main>Hello</main>;\n}\n"
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
         );
       }).pipe(Effect.provide(layer));
     })
@@ -833,10 +835,10 @@ it.effect(
         yield* fs.remove(`${root}/apps/web/query.ts`);
         yield* fs.chmod(`${root}/apps/web/configuration.ts`, 0o755);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         const error = yield* sync.pipe(

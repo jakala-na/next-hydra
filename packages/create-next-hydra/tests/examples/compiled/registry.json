@@ -26,7 +26,7 @@
         "composition": {
           "templates": [
             {
-              "source": "page.ts.template",
+              "source": "page.template.ts",
               "target": "apps/web/page.ts",
               "slots": { "content": "members" }
             }

@@ -214,12 +214,12 @@
         "composition": {
           "templates": [
             {
-              "source": "packages/search/registry/templates/collections.ts.template",
+              "source": "packages/search/registry/templates/collections.template.ts",
               "target": "packages/search/collections.ts",
               "slots": { "collections": "members" }
             },
             {
-              "source": "packages/search/registry/templates/cards.ts.template",
+              "source": "packages/search/registry/templates/cards.template.ts",
               "target": "packages/search/cards.ts",
               "slots": { "cards": "members" }
             }

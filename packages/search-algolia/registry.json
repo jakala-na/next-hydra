@@ -28,7 +28,7 @@
         "composition": {
           "templates": [
             {
-              "source": "packages/search-algolia/registry/templates/composition.ts.template",
+              "source": "packages/search-algolia/registry/templates/composition.template.ts",
               "target": "packages/search-algolia/composition.ts",
               "slots": { "products": "members" }
             }

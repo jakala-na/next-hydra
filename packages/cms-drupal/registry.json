@@ -62,12 +62,12 @@
         "composition": {
           "templates": [
             {
-              "source": "packages/cms-drupal/registry/templates/component-registry.ts.template",
+              "source": "packages/cms-drupal/registry/templates/component-registry.template.ts",
               "target": "packages/cms-drupal/components/component-registry.ts",
               "slots": { "blocks": "members" }
             },
             {
-              "source": "packages/cms-drupal/registry/templates/landing-page-query.ts.template",
+              "source": "packages/cms-drupal/registry/templates/landing-page-query.template.ts",
               "target": "packages/cms-drupal/components/pages/landing-page-query.ts",
               "slots": { "pageBlocks": "graphql" }
             }

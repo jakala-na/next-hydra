@@ -136,7 +136,7 @@ it.effect(
           ...fs,
           readFile: (file) =>
             Effect.gen(function* () {
-              if (pause && file === "/source/layout.tsx.template") {
+              if (pause && file === "/source/layout.template.tsx") {
                 pause = false;
                 yield* Deferred.succeed(entered, undefined);
                 yield* Deferred.await(release);
@@ -170,7 +170,7 @@ it.effect("does not inspect an actively synchronizing workspace", () =>
         ...fs,
         readFile: (file) =>
           Effect.gen(function* () {
-            if (pause && file === "/source/layout.tsx.template") {
+            if (pause && file === "/source/layout.template.tsx") {
               pause = false;
               yield* Deferred.succeed(entered, undefined);
               yield* Deferred.await(release);
@@ -233,10 +233,10 @@ it.effect(
         yield* workspace.sync({ install: "skip" });
         const before = yield* fs.readFile(`${root}/apps/web/layout.tsx`);
         const template = yield* fs.readFileString(
-          "/source/layout.tsx.template"
+          "/source/layout.template.tsx"
         );
         yield* fs.writeFileString(
-          "/source/layout.tsx.template",
+          "/source/layout.template.tsx",
           template.replace("Hello", "Welcome")
         );
         yield* fs.writeFileString(`${root}/.gitignore`, "*\n");

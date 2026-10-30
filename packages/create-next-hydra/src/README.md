@@ -203,3 +203,5 @@ Published registry acquisition, preset resolution, repository/ref creation, deve
 Process completion is exercised on Linux. Windows worker installation is rejected before launch until its completion policy is implemented and tested. The POSIX process-group policy does not claim containment of arbitrary processes that deliberately escape their group.
 
 No automatic rollback is promised after destination publication starts. A write failure reports the failed target and completed files, retains private diagnostics, and leaves those files available for inspection.
+
+`template-language.ts` delegates comment-delimited parsing and rendering to LiquidJS, validates the complete variable graph against declared slots, and checks native syntax without typechecking authored placeholders. `application-typecheck.ts` prepares local declarations and checks rendered files in their installed compiler context; `check-workspace.ts` requires named-workspace freshness before running those checks.

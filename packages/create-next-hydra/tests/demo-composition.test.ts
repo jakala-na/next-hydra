@@ -50,7 +50,7 @@ it.effect(
           )?.origin
         ).toMatchObject({
           kind: "template",
-          source: "shell.tsx.template",
+          source: "shell.template.tsx",
           transforms: ["remove-demo-architecture"],
         });
         expect(

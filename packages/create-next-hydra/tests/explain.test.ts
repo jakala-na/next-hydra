@@ -24,7 +24,7 @@ it.effect(
                 bindings: [],
                 kind: "template",
                 owner: "app-web",
-                source: "tokens.ts.template",
+                source: "tokens.template.ts",
               },
               target: "packages/tokens/index.ts",
             },
@@ -78,7 +78,7 @@ it.effect(
               bindings: [],
               kind: "template",
               owner: "app-web",
-              source: "layout.tsx.template",
+              source: "layout.template.tsx",
             },
             target: "apps/web/layout.tsx",
           },
@@ -118,7 +118,7 @@ it.effect(
         const report = yield* workspace.explain("apps/web/layout.tsx");
         expect(report.files[0]?.origin).toMatchObject({
           kind: "template",
-          source: "layout.tsx.template",
+          source: "layout.template.tsx",
         });
         expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
           "Unreconciled local edit\n"
@@ -178,7 +178,7 @@ it.effect(
           ...fs,
           readFile: (file) =>
             Effect.gen(function* () {
-              if (!changed && file === "/source/layout.tsx.template") {
+              if (!changed && file === "/source/layout.template.tsx") {
                 changed = true;
                 yield* fs.writeFile(
                   `${root}/next-hydra.json`,
@@ -280,7 +280,7 @@ it.effect(
               ],
               kind: "template",
               owner: "app-web",
-              source: "layout.tsx.template",
+              source: "layout.template.tsx",
             },
             target: "apps/web/layout.tsx",
           },

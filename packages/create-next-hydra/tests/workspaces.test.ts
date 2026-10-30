@@ -93,7 +93,7 @@ it.live(
       const processes = yield* ChildProcessSpawner.ChildProcessSpawner;
       const { source } = yield* fixture("application");
       const added = yield* processes.exitCode(
-        ChildProcess.make("git", ["add", "layout.tsx.template"], {
+        ChildProcess.make("git", ["add", "layout.template.tsx"], {
           cwd: source,
         })
       );
@@ -274,8 +274,8 @@ it.live(
       yield* workspace.sync({ install: "skip" });
       const previous = yield* workspace.diff;
       yield* fs.writeFileString(
-        `${source}/layout.tsx.template`,
-        (yield* fs.readFileString(`${source}/layout.tsx.template`)).replace(
+        `${source}/layout.template.tsx`,
+        (yield* fs.readFileString(`${source}/layout.template.tsx`)).replace(
           "Hello",
           "Updated"
         )
@@ -330,7 +330,7 @@ it.live(
         incomplete: true,
         snapshot: previous.snapshot,
       });
-      expect(report.patch).toContain("-  return <main>Hello</main>;");
+      expect(report.patch).toContain("-      Hello");
       expect(report.patch).toContain("+Local edit during publication");
       expect(
         yield* workspace.sync({ install: "skip" }).pipe(Effect.flip)
@@ -353,8 +353,8 @@ it.live(
       const previous = yield* workspace.diff;
       const original = yield* fs.readFile(`${directory}/apps/web/layout.tsx`);
       yield* fs.writeFileString(
-        `${source}/layout.tsx.template`,
-        (yield* fs.readFileString(`${source}/layout.tsx.template`)).replace(
+        `${source}/layout.template.tsx`,
+        (yield* fs.readFileString(`${source}/layout.template.tsx`)).replace(
           "Hello",
           "Updated"
         )
@@ -422,7 +422,7 @@ it.live(
       }).toMatchObject({
         diff: { changes: [], incomplete: false, patch: "" },
         layout:
-          "export function Layout() {\n  return <main>Updated</main>;\n}\n",
+          "export function Layout() {\n  return (\n    <main>\n      {}\n      Updated\n    </main>\n  );\n}\n",
       });
     }).pipe(Effect.provide(testLayer))
 );
@@ -500,8 +500,8 @@ it.live(
       const receipt = yield* fs.readFile(`${root}/.workspace-composition.json`);
       const layout = yield* fs.readFile(`${root}/apps/web/layout.tsx`);
       yield* fs.writeFileString(
-        `${source}/layout.tsx.template`,
-        (yield* fs.readFileString(`${source}/layout.tsx.template`)).replace(
+        `${source}/layout.template.tsx`,
+        (yield* fs.readFileString(`${source}/layout.template.tsx`)).replace(
           "Hello",
           "Welcome"
         )
@@ -556,7 +556,7 @@ it.live("lists selected origins when the command omits an Explain file", () =>
     ]);
     const output = (yield* TestConsole.logLines).join("\n");
     expect(output).toContain(
-      `apps/web/layout.tsx\n  template: ${source}/layout.tsx.template (app-web)`
+      `apps/web/layout.tsx\n  template: ${source}/layout.template.tsx (app-web)`
     );
     expect(output).toContain(
       `apps/web/package.json\n  source: ${source}/apps/web/package.json (app-web)`
@@ -582,7 +582,7 @@ it.live("explains one file through the command without composing it", () =>
     ]);
     const output = (yield* TestConsole.logLines).join("\n");
     expect(output).toContain(
-      `apps/web/layout.tsx\n  template: ${source}/layout.tsx.template (app-web)`
+      `apps/web/layout.tsx\n  template: ${source}/layout.template.tsx (app-web)`
     );
     expect(output).not.toContain("apps/web/package.json");
     expect(
@@ -696,7 +696,7 @@ it.live(
       );
       expect(yield* fs.readFileString(`${root}/.gitignore`)).toBe("");
       expect(yield* fs.readFileString(`${root}/apps/web/layout.tsx`)).toBe(
-        "export function Layout() {\n  return <main>Hello</main>;\n}\n"
+        "export function Layout() {\n  return (\n    <main>\n      {}\n      Hello\n    </main>\n  );\n}\n"
       );
     }).pipe(Effect.provide(testLayer))
 );
@@ -792,7 +792,7 @@ it.live(
       expect(
         yield* fs.readFileString(`${root}/apps/web/configuration.ts`)
       ).toBe(
-        'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({ features: [keys()] });\n'
+        'import { configure, keys } from "./configuration-support";\n\nexport const config = configure({\n  features: [keys()],\n}) satisfies { features: unknown[] };\n'
       );
       expect(yield* fs.readFileString(`${root}/apps/web/query.ts`)).toBe(
         'import { HeroFields as HeroDocument } from "./hero-fragment";\n\nexport const document = `query Content { content { ...HeroFields } }`;\nexport const fragments = [HeroDocument];\n'

@@ -154,7 +154,7 @@ it.live(
       const fs = yield* FileSystem.FileSystem;
       const { source } = yield* fixture("application");
       const subscription = yield* (yield* SourceChanges).open({
-        files: ["layout.tsx.template"],
+        files: ["layout.template.tsx"],
         inputs: null,
         root: source,
       });
@@ -181,7 +181,7 @@ it.live(
       const { source } = yield* fixture("application");
       const definition = "workspaces/configured-site/next-hydra.json";
       const subscription = yield* (yield* SourceChanges).open({
-        files: ["layout.tsx.template", definition],
+        files: ["layout.template.tsx", definition],
         inputs: null,
         root: source,
       });
@@ -191,7 +191,7 @@ it.live(
         "EXAMPLE_VALUE=local-only"
       );
       yield* fs.copyFile(
-        `${source}/layout.tsx.template`,
+        `${source}/layout.template.tsx`,
         `${source}/workspaces/configured-site/apps/web/page.tsx`
       );
       expect(

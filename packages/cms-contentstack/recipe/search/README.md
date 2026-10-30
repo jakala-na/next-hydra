@@ -4,7 +4,7 @@ Each selected recipe supplies its search definition beside its CMS schema. `land
 
 `types.ts` defines `SearchContentType` and resolves selected definitions and extensions. A type is independently searchable; a block can extend a parent type's instructions through `SearchContentTypeExtension`. `product-collection.ts` is the Commerce example: it extends the Landing Page guide without creating a Product content type or another sync operation.
 
-Composition owns the initial list through `registry/templates/search-content-types.ts.template`. The base `cms-contentstack-search` item contributes Landing Page. The conditional `cms-contentstack-search-commerce` item contributes the Commerce extension only when both Search and Commerce are selected. Their `registry.json` slot bindings target `packages/cms-contentstack/search-content-types.ts`.
+Composition owns the initial list through `registry/templates/search-content-types.template.ts`. The base `cms-contentstack-search` item contributes Landing Page. The conditional `cms-contentstack-search-commerce` item contributes the Commerce extension only when both Search and Commerce are selected. Their `registry.json` slot bindings target `packages/cms-contentstack/search-content-types.ts`.
 
 In a scaffolded project the aggregate is ordinary source:
 
