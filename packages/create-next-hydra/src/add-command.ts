@@ -3,6 +3,7 @@ import { Argument, Command, Flag, Prompt } from "effect/unstable/cli";
 
 import { AdditionConflict } from "./addition.ts";
 import { InvalidComposition } from "./errors.ts";
+import { printSetupInstructions } from "./setup-instructions.ts";
 import { Workspaces } from "./workspaces.ts";
 
 export const addCommand = (cwd: string) =>
@@ -100,8 +101,6 @@ export const addCommand = (cwd: string) =>
           reference: options.reference,
         });
         yield* Console.log("Registry item installed.");
-        for (const instruction of result.instructions) {
-          yield* Console.log(`${instruction.item}:\n${instruction.text}`);
-        }
+        yield* printSetupInstructions(result.instructions);
       })
   ).pipe(Command.withDescription("Add a registry item to this project."));

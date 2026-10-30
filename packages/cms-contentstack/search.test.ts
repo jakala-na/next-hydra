@@ -1,25 +1,52 @@
 import { ConfigProvider, Effect } from "effect";
 import { describe, expect, it } from "vitest";
 
+import { landingPageSearchType } from "./recipe/search/landing-page";
 import {
-  createContentIndexingHandoff,
+  createContentstackSearch,
   createContentstackSearchProjection,
-  loadContentSearchProjection,
-} from "./search";
+} from "./search-provider";
+
+const contentTypes = [landingPageSearchType];
+const { createContentIndexingHandoff, loadContentSearchProjection } =
+  createContentstackSearch(contentTypes);
 
 describe(createContentstackSearchProjection, () => {
+  it("omits completed app setup but retains mapping, sync and record verification after installation", () => {
+    const handoff = createContentIndexingHandoff("acceptance--content", {
+      appInstalled: true,
+    });
+    expect(handoff.tasks.map(({ id }) => id)).toEqual([
+      "cms.contentstack.mapping.landing_page",
+      "cms.contentstack.review.landing_page",
+      "cms.contentstack.initial-sync",
+      "cms.contentstack.verify-records",
+    ]);
+    expect(handoff.tasks[0]?.detail).toContain(
+      "Algolia > acceptance--content > Configuration"
+    );
+    expect(JSON.stringify(handoff)).not.toMatch(/article/iu);
+    expect(handoff.tasks[3]?.where).toContain("acceptance--content");
+    expect(handoff.tasks[3]?.detail).toContain("content.path");
+  });
+
   it("provides the Contentstack app handoff for the provisioned index", () => {
     const handoff = createContentIndexingHandoff("acceptance--content");
+    const instructions = handoff.tasks.map(({ detail }) => detail).join("\n");
 
     expect(handoff.title).toBe("Complete Content indexing in Contentstack");
-    expect(handoff.instructions.join("\n")).toContain(
+    expect(instructions).toContain(
       'destination index to "acceptance--content"'
     );
-    expect(handoff.instructions.join("\n")).toContain("initial content sync");
+    expect(instructions).toContain("initial content sync");
+    expect(instructions).toContain("Searchable attributes");
+    expect(instructions).toContain("Landing Page (landing_page)");
+    expect(instructions).toContain("publish_details.locale");
   });
 
   it("describes the connector's shared localized Content index", () => {
     const projection = createContentstackSearchProjection({
+      contentTypes,
       branch: "preview",
       environment: "development",
       indexName: "acceptance--content",
@@ -37,14 +64,9 @@ describe(createContentstackSearchProjection, () => {
         { attribute: "publish_details.locale", values: ["en-us"] },
       ],
       indexName: "acceptance--content",
-      restrictedFields: [
-        "articles.preview.en-US",
-        "landing_pages.preview.en-US",
-      ],
+      restrictedFields: ["landing_pages.preview.en-US"],
       searchableFields: [
-        { attribute: "articles.preview.en-US", ordered: true },
         { attribute: "landing_pages.preview.en-US", ordered: true },
-        { attribute: "articles.preview.de-DE", ordered: true },
         { attribute: "landing_pages.preview.de-DE", ordered: true },
       ],
     });
@@ -52,13 +74,13 @@ describe(createContentstackSearchProjection, () => {
 
   it("uses the unqualified connector fields for the main branch", () => {
     const projection = createContentstackSearchProjection({
+      contentTypes,
       branch: "main",
       environment: "production",
       indexName: "production--content",
     });
 
     expect(projection.searchableAttributes(["en-US"])).toEqual([
-      { attribute: "articles.en-US", ordered: true },
       { attribute: "landing_pages.en-US", ordered: true },
     ]);
   });
@@ -85,7 +107,6 @@ describe(createContentstackSearchProjection, () => {
       ],
       indexName: "acceptance--content",
       searchableFields: [
-        { attribute: "articles.release-candidate.en-US", ordered: true },
         {
           attribute: "landing_pages.release-candidate.en-US",
           ordered: true,
@@ -96,6 +117,7 @@ describe(createContentstackSearchProjection, () => {
 
   it("normalizes a Contentstack record at the CMS boundary", () => {
     const projection = createContentstackSearchProjection({
+      contentTypes,
       branch: "preview",
       environment: "development",
       indexName: "acceptance--content",

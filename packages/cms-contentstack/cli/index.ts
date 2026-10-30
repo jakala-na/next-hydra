@@ -1,4 +1,4 @@
-import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import { renderReport, withCommandOutput } from "@repo/cli-core/command-output";
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
@@ -13,6 +13,7 @@ import {
   migrateContentstack,
 } from "./migrations/migrate";
 import type { ContentstackMigrationState } from "./migrations/model";
+import { cmsProvisioningReport } from "./output";
 import { CONTENTSTACK_ENVIRONMENTS } from "./provisioning/model";
 import { provisionContentstack } from "./provisioning/provision";
 
@@ -95,31 +96,24 @@ export const createCmsCommand = <E, R>(
         stackMasterLocale,
       };
 
-      return asUserError(provisionContentstack(provisioningOptions)).pipe(
-        Effect.flatMap((receipt) =>
-          Console.log("✓ Contentstack stack provisioned").pipe(
-            Effect.andThen(Console.log(`  Stack API Key: ${receipt.apiKey}`)),
-            Effect.andThen(
-              Console.log(`  Environments: ${receipt.environments.join(", ")}`)
-            ),
-            Effect.andThen(Console.log(`  Region: ${receipt.region}`)),
-            Effect.andThen(
+      return withCommandOutput(
+        {
+          title: "Provision CMS",
+          context: `Contentstack · ${contentstackEnvironment}`,
+          failureNote:
+            "Earlier stack changes may remain. Inspect the failed phase and provider error before retrying.",
+        },
+        (style) =>
+          asUserError(provisionContentstack(provisioningOptions)).pipe(
+            Effect.flatMap((receipt) =>
               Console.log(
-                `  Credentials: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
-              )
-            ),
-            Effect.andThen(
-              Console.log(
-                "  Live Preview: configure the stack-level local and production preview URLs manually"
-              )
-            ),
-            Effect.andThen(
-              Console.log(
-                `  Management Token alias retained locally: ${managementTokenAlias}`
+                renderReport(
+                  cmsProvisioningReport(receipt, provisioningOptions),
+                  style
+                )
               )
             )
           )
-        )
       );
     }
   ).pipe(

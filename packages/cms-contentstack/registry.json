@@ -75,6 +75,28 @@
               "order": 0
             }
           ]
+        },
+        "setup": {
+          "group": "cms",
+          "title": "CMS · Contentstack",
+          "order": 10,
+          "steps": [
+            {
+              "id": "cms.access",
+              "title": "Connect your stack",
+              "order": 10,
+              "detail": "Create an empty stack and register its Management Token as a local csdx alias. See packages/cms-contentstack/README.md."
+            },
+            {
+              "id": "cms.provision",
+              "title": "Provision the content model",
+              "order": 20,
+              "detail": "The command asks for the production URL and missing runtime tokens. Follow its Live Preview instructions afterward.",
+              "commands": [
+                "pnpm --filter cli cli cms provision \\\n  --management-token-alias <alias> --output cms.env"
+              ]
+            }
+          ]
         }
       },
       "files": [
@@ -126,6 +148,21 @@
         {
           "path": "cli/migrations/model.ts",
           "target": "~/packages/cms-contentstack/cli/migrations/model.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/output.test.ts",
+          "target": "~/packages/cms-contentstack/cli/output.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/output.ts",
+          "target": "~/packages/cms-contentstack/cli/output.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/provision-command.test.ts",
+          "target": "~/packages/cms-contentstack/cli/provision-command.test.ts",
           "type": "registry:file"
         },
         {
@@ -543,7 +580,13 @@
               "specifier": "workspace:*"
             }
           ],
-          "compatibility": { "requires": ["next-hydra/cms/contentstack"] }
+          "compatibility": { "requires": ["next-hydra/cms/contentstack"] },
+          "conditionalDependencies": [
+            {
+              "providers": ["commerce"],
+              "items": ["cms-contentstack-search-commerce"]
+            }
+          ]
         },
         "composition": {
           "slotBindings": [
@@ -553,16 +596,48 @@
               "module": "@repo/cms/content-search-app",
               "export": "installContentSearchApp",
               "as": "installCmsSearchApp"
+            },
+            {
+              "target": "packages/cms-contentstack/search-content-types.ts",
+              "slot": "types",
+              "module": "./recipe/search/landing-page.ts",
+              "export": "landingPageSearchType",
+              "order": 0
+            }
+          ],
+          "templates": [
+            {
+              "source": "packages/cms-contentstack/registry/templates/search-content-types.ts.template",
+              "target": "packages/cms-contentstack/search-content-types.ts",
+              "slots": { "types": "members" }
+            },
+            {
+              "source": "packages/cms-contentstack/registry/templates/search.ts.template",
+              "target": "packages/cms-contentstack/search.ts",
+              "slots": {}
+            },
+            {
+              "source": "packages/cms-contentstack/registry/templates/content-search-app.ts.template",
+              "target": "packages/cms-contentstack/cli/content-search-app/index.ts",
+              "slots": {}
+            }
+          ]
+        },
+        "setup": {
+          "group": "search",
+          "title": "Search · Algolia",
+          "order": 40,
+          "steps": [
+            {
+              "id": "search.contentstack",
+              "title": "Choose Contentstack app setup",
+              "order": 18,
+              "detail": "Add --install-content-search-app to the command below for automatic setup; otherwise follow the manual steps in its result. Automatic setup needs the installation credentials in packages/cms-contentstack/README.md."
             }
           ]
         }
       },
       "files": [
-        {
-          "path": "cli/content-search-app/index.ts",
-          "target": "~/packages/cms-contentstack/cli/content-search-app/index.ts",
-          "type": "registry:file"
-        },
         {
           "path": "cli/content-search-app/installation.test.ts",
           "target": "~/packages/cms-contentstack/cli/content-search-app/installation.test.ts",
@@ -584,8 +659,74 @@
           "type": "registry:file"
         },
         {
-          "path": "search.ts",
-          "target": "~/packages/cms-contentstack/search.ts",
+          "path": "search-provider.ts",
+          "target": "~/packages/cms-contentstack/search-provider.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/search/types.ts",
+          "target": "~/packages/cms-contentstack/recipe/search/types.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/search/landing-page.ts",
+          "target": "~/packages/cms-contentstack/recipe/search/landing-page.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/content-search-app/program.ts",
+          "target": "~/packages/cms-contentstack/cli/content-search-app/program.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "search-content-types.test.ts",
+          "target": "~/packages/cms-contentstack/search-content-types.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/search/README.md",
+          "target": "~/packages/cms-contentstack/recipe/search/README.md",
+          "type": "registry:file"
+        }
+      ]
+    },
+    {
+      "name": "cms-contentstack-search-commerce",
+      "type": "registry:item",
+      "title": "Contentstack Commerce search instructions",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/cms-contentstack-search-commerce",
+          "kind": "recipe",
+          "compatibility": {
+            "requires": [
+              "next-hydra/cms/contentstack",
+              "next-hydra/cms/contentstack-search",
+              "next-hydra/recipe/cms-contentstack-commerce"
+            ]
+          }
+        },
+        "composition": {
+          "slotBindings": [
+            {
+              "target": "packages/cms-contentstack/search-content-types.ts",
+              "slot": "types",
+              "module": "./recipe/search/product-collection.ts",
+              "export": "productCollectionSearchInstructions",
+              "order": 10
+            }
+          ]
+        }
+      },
+      "files": [
+        {
+          "path": "recipe/search/product-collection.ts",
+          "target": "~/packages/cms-contentstack/recipe/search/product-collection.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "recipe/search/product-collection.test.ts",
+          "target": "~/packages/cms-contentstack/recipe/search/product-collection.test.ts",
           "type": "registry:file"
         }
       ]

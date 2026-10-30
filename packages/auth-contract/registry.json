@@ -18,6 +18,11 @@
           "type": "registry:file"
         },
         {
+          "path": "cli.test.ts",
+          "target": "~/packages/auth-contract/cli.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli.ts",
           "target": "~/packages/auth-contract/cli.ts",
           "type": "registry:file"
@@ -60,6 +65,16 @@
         {
           "path": "invitations.ts",
           "target": "~/packages/auth-contract/invitations.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "output.test.ts",
+          "target": "~/packages/auth-contract/output.test.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "output.ts",
+          "target": "~/packages/auth-contract/output.ts",
           "type": "registry:file"
         },
         {

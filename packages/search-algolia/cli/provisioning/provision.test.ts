@@ -1,13 +1,10 @@
+import { CommandProgress, makeProgress } from "@repo/cli-core/command-output";
 import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import type { RuntimeEnvironmentValues } from "@repo/cli-core/runtime-environment";
 import { storeConfiguration } from "@repo/commerce/store";
 import { createCanonicalContentSearchProjection } from "@repo/search/content-search-projection";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
 import { Effect, Layer, Redacted } from "effect";
-import {
-  layer as testConsoleLayer,
-  logLines as testConsoleLogLines,
-} from "effect/testing/TestConsole";
 import { describe, expect, it, vi } from "vitest";
 
 import { ALGOLIA_COMMERCETOOLS_TRANSFORMATION_SOURCE } from "../../connector/commercetools/generated-transform";
@@ -200,9 +197,20 @@ describe(provisionAlgolia, () => {
       ),
       RuntimeEnvironmentPublisher.layerFrom({ prepare, publish })
     );
-    const ProvisionTestLayer = Layer.mergeAll(TestLayer, testConsoleLayer);
+    const progressLines: string[] = [];
+    const output = makeProgress({
+      style: { color: false, width: 100 },
+      write: (text) =>
+        Effect.sync(() => {
+          progressLines.push(text);
+        }),
+    });
+    const ProvisionTestLayer = Layer.mergeAll(
+      TestLayer,
+      Layer.succeed(CommandProgress, output)
+    );
 
-    const { progressLines, receipt } = await Effect.gen(function* () {
+    const { receipt } = await Effect.gen(function* () {
       const { receipt: provisioningReceipt } = yield* provisionAlgolia({
         contentIndexingOperations: ["search", "browse", "upsert", "delete"],
         contentProjection,
@@ -223,11 +231,7 @@ describe(provisionAlgolia, () => {
           storefronts: storeConfiguration,
         },
       });
-      const capturedProgressLines = yield* testConsoleLogLines;
-      return {
-        progressLines: capturedProgressLines,
-        receipt: provisioningReceipt,
-      };
+      return { receipt: provisioningReceipt };
     }).pipe(Effect.provide(ProvisionTestLayer), Effect.runPromise);
 
     expect({
@@ -276,28 +280,17 @@ describe(provisionAlgolia, () => {
         legacyDescriptions: [],
       },
     });
-    expect(progressLines).toEqual(
-      expect.arrayContaining([
-        "Provisioning Algolia search resources...",
-        '  Configuring Product index "acceptance--products--default-store" for en-US...',
-        '  Configuring Product replica "acceptance--products--default-store--USD--price-asc" for USD with ascending price...',
-        '  Configuring Content index "acceptance--content" for en-US, de-DE...',
-        '  Configuring Query Suggestions index "acceptance--query-suggestions--default-store--en-US" for en-US from "acceptance--products--default-store" (environment:acceptance|locale:en-us) and "acceptance--content" (environment:acceptance|locale:en-us)...',
-        "  Creating or updating the scoped connector API key for 2 Product indices...",
-        "  Creating or updating the Algolia destination authentication...",
-        "  Reading commerce Stores and validating 1 pricing Customer Group ID...",
-        "  Creating, updating, or verifying the managed commerce API Client...",
-        '  Managed commerce API Client "connector-client-id" was created.',
-        "  Creating or updating the commercetools connector authentication...",
-        '  Creating or updating the Product transformation configuration for Store "default-store"...',
-        '  Configuring the commercetools connector for Store "default-store" and Product index "acceptance--products--default-store"...',
-        "  Applying the source, Product transformation, destination, task, and waiting for the initial reindex...",
-        '  Completed initial reindex "run-id" for Store "default-store".',
-        "  Creating or updating the scoped runtime search API key for 9 queryable indices...",
-        "  Publishing Search and Content credentials...",
-        "  Search and Content credentials published.",
-      ])
+    const progressText = progressLines.join("\n");
+    expect(progressText).toContain(
+      "OK  Commerce · Configure product indices, connectors and initial reindexes"
     );
+    expect(progressText).toContain(
+      'OK  CMS · Configure content index "acceptance--content"'
+    );
+    expect(progressText).toContain(
+      "OK  Search · Publish search and content credentials"
+    );
+    expect(progressText).not.toContain("connector-client-secret");
     const publishedSearchKey = publishedValues?.ALGOLIA_SEARCH_API_KEY;
     if (!Redacted.isRedacted(publishedSearchKey)) {
       throw new Error("Expected a redacted runtime Search API key");

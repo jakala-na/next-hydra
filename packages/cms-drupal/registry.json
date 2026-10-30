@@ -102,6 +102,26 @@
               "order": 10
             }
           ]
+        },
+        "setup": {
+          "group": "cms",
+          "title": "CMS · Drupal",
+          "order": 10,
+          "steps": [
+            {
+              "id": "cms.install",
+              "title": "Install Drupal",
+              "order": 10,
+              "detail": "Run from apps/drupal. This applies the base recipe and the selected Commerce integration.",
+              "commands": ["ddev install"]
+            },
+            {
+              "id": "cms.configure",
+              "title": "Connect the application",
+              "order": 20,
+              "detail": "Configure the Drupal and Canvas variables documented in packages/cms-drupal and apps/drupal."
+            }
+          ]
         }
       },
       "files": [
@@ -251,8 +271,18 @@
           "type": "registry:file"
         },
         {
+          "path": "cli/index.test.ts",
+          "target": "~/packages/cms-drupal/cli/index.test.ts",
+          "type": "registry:file"
+        },
+        {
           "path": "cli/index.ts",
           "target": "~/packages/cms-drupal/cli/index.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "cli/output.ts",
+          "target": "~/packages/cms-drupal/cli/output.ts",
           "type": "registry:file"
         },
         {

@@ -209,7 +209,12 @@
           "type": "registry:file"
         }
       ],
-      "registryDependencies": ["workspace-cli", "workspace-e2e"]
+      "registryDependencies": [
+        "workspace-cli",
+        "workspace-e2e",
+        "analytics-setup",
+        "observability-setup"
+      ]
     },
     {
       "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",

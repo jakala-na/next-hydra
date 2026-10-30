@@ -99,3 +99,11 @@ pnpm --filter @repo/cms-contentstack test
 ## Embedding origins
 
 Set `FRAME_ANCESTORS=https://editor.example.com,https://portal.example.com` in the frontend environment to allow additional sites to embed the application. This shared web setting preserves same-origin framing and Contentstack's regional editor origin. Use comma-separated exact HTTP(S) origins (including ports when needed), without paths, credentials or wildcards. Empty or unset adds nothing; invalid entries fail validation. Restart development or redeploy after changing it.
+
+## Install the content search app
+
+When Search is selected, `search provision --install-content-search-app` installs or updates the Contentstack Algolia app and applies the composed content-type mappings. It consumes the generated scoped Algolia write key directly.
+
+Supply `CONTENTSTACK_AUTHTOKEN` (a user authtoken, not a Management Token), `CONTENTSTACK_ORG_UID`, `CONTENTSTACK_STACK_API_KEY`, `CONTENTSTACK_ENVIRONMENT`, `CONTENTSTACK_DELIVERY_TOKEN` and `CONTENTSTACK_DELIVERY_TOKEN_UID`. Set `CONTENTSTACK_BRANCH` and `CONTENTSTACK_REGION` for the target stack when needed; the complete inputs are documented in `.env.example`.
+
+The command does not start content indexing. Follow its remaining content review, initial sync and record verification tasks. For manual app setup, use local credential output because Vercel sensitive values cannot be read back.

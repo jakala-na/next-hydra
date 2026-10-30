@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 
-import { Effect, FileSystem, Path } from "effect";
+import { Effect, FileSystem, Path, Schema } from "effect";
 import type { RegistryItem } from "shadcn/schema";
 
 import { InvalidComposition } from "./errors.ts";
@@ -10,16 +10,31 @@ import {
   resolveSelection,
   selectedConditionalDependencies,
 } from "./selection.ts";
+import { SetupInstructions } from "./setup-instructions.ts";
 import { Shadcn } from "./shadcn.ts";
 import type { RegistryCatalog } from "./shadcn.ts";
 
-export function registryInstructions(
-  items: readonly RegistryItem[]
-): readonly RegistryInstruction[] {
-  return items.flatMap((item) =>
-    item.docs?.trim() ? [{ item: item.name, text: item.docs }] : []
-  );
-}
+export const registryInstructions = (items: readonly RegistryItem[]) =>
+  Effect.gen(function* () {
+    const instructions: RegistryInstruction[] = [];
+    for (const item of items) {
+      if (item.meta?.setup !== undefined) {
+        const setup = yield* Schema.decodeUnknownEffect(SetupInstructions)(
+          item.meta.setup
+        ).pipe(
+          Effect.mapError(
+            () =>
+              new InvalidComposition({
+                message: `Invalid setup instructions: ${item.name}`,
+              })
+          )
+        );
+        instructions.push({ item: item.name, setup });
+      } else if (item.docs?.trim())
+        instructions.push({ item: item.name, text: item.docs });
+    }
+    return instructions;
+  });
 
 const emptyRegistry: RegistryCatalog = {
   homepage: "",

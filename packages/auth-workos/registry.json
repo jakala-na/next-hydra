@@ -7,7 +7,7 @@
       "type": "registry:item",
       "title": "Next Hydra WorkOS Auth provider",
       "description": "Installs the WorkOS AuthKit provider package.",
-      "docs": "Configure separate WorkOS projects for the customer web app and admin app. Keep each session cookie host-only by leaving WORKOS_COOKIE_DOMAIN unset. The admin app uses its own generic WORKOS_* credentials, while the API uses ADMIN_WORKOS_API_KEY and ADMIN_WORKOS_CLIENT_ID to verify reviewer tokens and resolve reviewer identities from the admin project. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output workos-webhook.env` once with the customer WORKOS_API_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets.",
+      "docs": "Configure customer WorkOS authentication in apps/web and keep session cookies host-only. When Commerce is selected, its identity recipe adds administration and customer webhook setup. See packages/auth-workos/README.md.",
       "registryDependencies": ["auth-contract", "auth-web"],
       "meta": {
         "nextHydra": {
@@ -20,6 +20,19 @@
           },
           "conditionalDependencies": [
             { "providers": ["commerce"], "items": ["auth-workos-commerce"] }
+          ]
+        },
+        "setup": {
+          "group": "auth",
+          "title": "Identity · WorkOS",
+          "order": 20,
+          "steps": [
+            {
+              "id": "auth.configure",
+              "title": "Configure customer access",
+              "order": 10,
+              "detail": "Configure WorkOS credentials for apps/web and its actual origin. Keep cookies host-only. See packages/auth-workos/README.md."
+            }
           ]
         }
       },
@@ -87,6 +100,11 @@
         {
           "path": "proxy.ts",
           "target": "~/packages/auth-workos/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/auth-workos/README.md",
           "type": "registry:file"
         },
         {
@@ -190,6 +208,28 @@
               "name": "@repo/registration",
               "specifier": "workspace:*",
               "section": "dependencies"
+            }
+          ]
+        },
+        "setup": {
+          "group": "auth",
+          "title": "Identity · WorkOS",
+          "order": 20,
+          "steps": [
+            {
+              "id": "auth.admin",
+              "title": "Configure administration access",
+              "order": 15,
+              "detail": "Use a separate WorkOS project for apps/admin. Configure its credentials in apps/admin and the matching ADMIN_WORKOS_* credentials in apps/api. See packages/auth-workos/README.md."
+            },
+            {
+              "id": "auth.provision",
+              "title": "Register the customer webhook",
+              "order": 20,
+              "detail": "Use the customer provider credentials and your public API URL.",
+              "commands": [
+                "pnpm --filter cli cli auth provision \\\n  --api-url <api-url> --output auth.env"
+              ]
             }
           ]
         }

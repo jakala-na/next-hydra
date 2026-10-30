@@ -7,7 +7,7 @@
       "type": "registry:item",
       "title": "Next Hydra Clerk Auth provider",
       "description": "Installs the Clerk Auth provider package and component-backed authentication routes.",
-      "docs": "Configure separate Clerk applications for the customer web app and admin app. The admin app uses its own Clerk credentials and host-only cookies; the API uses ADMIN_CLERK_* credentials to verify reviewer tokens and resolve reviewer identities from that admin application. Configure CLERK_AUTHORIZED_PARTIES for the customer origin and ADMIN_CLERK_AUTHORIZED_PARTIES for the admin origin. Do not configure the admin subdomain as a Clerk satellite of the customer application. Run `pnpm --filter cli cli auth provision --api-url https://api.example.com --output clerk-webhook.env` once with the customer CLERK_SECRET_KEY to create the customer webhook and signing-secret file. Alternatively, use `--store vercel` with repeated `--environment production|preview|preview:<branch>|<custom-environment>` selectors. The provider selects its required apps, and preflight checks each linked `apps/web` or `apps/api` Vercel project. The provider endpoint remains create-only and an exact managed endpoint can only be read on rerun to recover its secret. Vercel variables are create-only by default; operators may pass `--overwrite` to upsert only the exact provider manifest in the selected targets. Registration approvals issue application invitations that redirect to /accept-invitation, where Clerk's SignUp component consumes the invitation ticket.",
+      "docs": "Configure customer Clerk authentication in apps/web and keep session cookies host-only. When Commerce is selected, its identity recipe adds administration and customer webhook setup. See packages/auth-clerk/README.md.",
       "registryDependencies": ["auth-contract", "auth-web"],
       "meta": {
         "nextHydra": {
@@ -20,6 +20,19 @@
           },
           "conditionalDependencies": [
             { "providers": ["commerce"], "items": ["auth-clerk-commerce"] }
+          ]
+        },
+        "setup": {
+          "group": "auth",
+          "title": "Identity · Clerk",
+          "order": 20,
+          "steps": [
+            {
+              "id": "auth.configure",
+              "title": "Configure customer access",
+              "order": 10,
+              "detail": "Configure Clerk credentials for apps/web and its actual origin. Keep cookies host-only. See packages/auth-clerk/README.md."
+            }
           ]
         }
       },
@@ -97,6 +110,11 @@
         {
           "path": "proxy.ts",
           "target": "~/packages/auth-clerk/proxy.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "README.md",
+          "target": "~/packages/auth-clerk/README.md",
           "type": "registry:file"
         },
         {
@@ -190,6 +208,28 @@
               "name": "@repo/registration",
               "specifier": "workspace:*",
               "section": "dependencies"
+            }
+          ]
+        },
+        "setup": {
+          "group": "auth",
+          "title": "Identity · Clerk",
+          "order": 20,
+          "steps": [
+            {
+              "id": "auth.admin",
+              "title": "Configure administration access",
+              "order": 15,
+              "detail": "Use a separate Clerk application for apps/admin. Configure its credentials in apps/admin and the matching ADMIN_CLERK_* credentials in apps/api. See packages/auth-clerk/README.md."
+            },
+            {
+              "id": "auth.provision",
+              "title": "Register the customer webhook",
+              "order": 20,
+              "detail": "Use the customer provider credentials and your public API URL.",
+              "commands": [
+                "pnpm --filter cli cli auth provision \\\n  --api-url <api-url> --output auth.env"
+              ]
             }
           ]
         }

@@ -9,20 +9,22 @@ import {
 describe(createDrupalSearchProjection, () => {
   it("provides the Drupal Search API handoff for the provisioned index", () => {
     const handoff = createContentIndexingHandoff("acceptance--content");
+    const instructions = handoff.tasks
+      .map((task) =>
+        [
+          task.detail,
+          ...("commands" in task ? (task.commands ?? []) : []),
+        ].join("\n")
+      )
+      .join("\n");
 
-    expect(handoff.instructions.join("\n")).toContain(
+    expect(instructions).toContain(
       'ALGOLIA_CONTENT_INDEX_NAME="acceptance--content"'
     );
-    expect(handoff.instructions.join("\n")).toContain(
-      "drush search-api:rebuild-tracker content"
-    );
-    expect(handoff.instructions.join("\n")).toContain(
-      "drush search-api:index content"
-    );
-    expect(handoff.instructions.join("\n")).toContain(
-      "New Content saves are indexed directly"
-    );
-    expect(handoff.instructions.join("\n")).toContain("Drupal cron");
+    expect(instructions).toContain("drush search-api:rebuild-tracker content");
+    expect(instructions).toContain("drush search-api:index content");
+    expect(instructions).toContain("New Content saves are indexed directly");
+    expect(instructions).toContain("Drupal cron");
   });
 
   it("describes Drupal Search API's flat Content index", () => {

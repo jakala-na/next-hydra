@@ -118,6 +118,41 @@ it.effect(
 );
 
 it.effect(
+  "copies production package additions without shipping design prototypes",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("packages");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* fs.writeFileString(
+          "/source/packages/colors/output.ts",
+          'export const title = "Ready";\n'
+        );
+        yield* fs.makeDirectory("/source/packages/colors/prototypes", {
+          recursive: true,
+        });
+        yield* fs.writeFileString(
+          "/source/packages/colors/prototypes/output.ts",
+          'export const title = "Simulated";\n'
+        );
+        const workspace = yield* (yield* Workspaces).fresh({
+          destination: "/application",
+          name: "palette",
+          selection: { addOns: [], providers: {} },
+          source: { kind: "working-tree", root: "/source" },
+        });
+        yield* workspace.materialize({ install: "skip" });
+        expect(
+          yield* fs.readFileString("/application/packages/colors/output.ts")
+        ).toBe('export const title = "Ready";\n');
+        expect(
+          yield* fs.exists("/application/packages/colors/prototypes")
+        ).toBeFalsy();
+      }).pipe(Effect.provide(layer));
+    })
+);
+
+it.effect(
   "copies environment-related source and examples without copying runtime environment files",
   () =>
     Effect.gen(function* () {

@@ -1,4 +1,4 @@
-import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import { renderReport, withCommandOutput } from "@repo/cli-core/command-output";
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
@@ -18,6 +18,7 @@ import {
   providerErrorSummary,
 } from "../project-provisioning/error-details";
 import { RuntimeClientCreationOutcomeUnknown } from "../project-provisioning/model";
+import { commerceProvisioningReport } from "../project-provisioning/output";
 import { provisionCommerceProject } from "../project-provisioning/provision";
 import { seedCommerceProject } from "../project-provisioning/seed";
 
@@ -79,25 +80,21 @@ export const createProjectCommand = <E, R>(
               destination,
             });
 
-      return asUserError(program).pipe(
-        Effect.flatMap((receipt) =>
-          Console.log(chalk.green("✓ Commercetools project provisioned")).pipe(
-            Effect.andThen(
-              Console.log(`  Runtime API Client: ${receipt.runtimeClientId}`)
-            ),
-            Effect.andThen(
+      return withCommandOutput(
+        {
+          title: "Provision Commerce",
+          context: "commercetools",
+          failureNote:
+            "Earlier project changes may remain. Read the failed phase and provider error before retrying.",
+        },
+        (style) =>
+          asUserError(program).pipe(
+            Effect.flatMap((receipt) =>
               Console.log(
-                `  Credentials: ${runtimeEnvironmentReceiptDescription(receipt.credentials)}`
+                renderReport(commerceProvisioningReport(receipt), style)
               )
-            ),
-            Effect.andThen(
-              Console.log(
-                `  Migrations applied: ${receipt.seed.migrationsApplied}`
-              )
-            ),
-            Effect.andThen(Console.log("  Bootstrap API Client: revoked"))
+            )
           )
-        )
       );
     }
   ).pipe(

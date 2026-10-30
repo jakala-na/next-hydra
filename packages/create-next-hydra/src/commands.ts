@@ -9,6 +9,7 @@ import {
   WorkspaceNotCurrent,
 } from "./errors.ts";
 import type { FileExplanation, MaterializationReport } from "./model.ts";
+import { printSetupInstructions } from "./setup-instructions.ts";
 import { findSourceRoot } from "./source-root.ts";
 import { Workspaces } from "./workspaces.ts";
 import type { NamedSyncOptions, NamedWorkspaceRef } from "./workspaces.ts";
@@ -70,7 +71,6 @@ function synchronizationResult(
       ? `Broke the authorized lock; retained evidence at ${result.recoveryEvidence}.`
       : null,
     `${name}: materialized ${result.files.length} files; removed ${result.removedFiles.length} files; copied ${result.environmentFilesCreated.length} environment files. Dependencies ${result.dependencies}.${result.dependencyReasons.length ? ` ${result.dependencyReasons.join("; ")}.` : ""}`,
-    ...result.instructions.map(({ item, text }) => `${item}:\n${text}`),
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -202,7 +202,8 @@ export function command(cwd: string) {
               ).pipe(
                 Stream.runForEach(({ event, name: workspaceName }) =>
                   event._tag === "Synchronized"
-                    ? Console.log(
+                    ? printSetupInstructions(
+                        event.result.instructions,
                         synchronizationResult(workspaceName, event.result)
                       )
                     : Console.error(`${workspaceName}: ${event.error.message}`)
@@ -304,7 +305,10 @@ export function command(cwd: string) {
                   })
                 )
               );
-              yield* Console.log(synchronizationResult(name, result));
+              yield* printSetupInstructions(
+                result.instructions,
+                synchronizationResult(name, result)
+              );
             });
             if (Option.isSome(requestedName)) {
               return yield* run({ name: requestedName.value, sourceRoot });

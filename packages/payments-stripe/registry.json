@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/source-registry.json",
+  "items": [
+    {
+      "$schema": "https://raw.githubusercontent.com/jakala-na/next-hydra/main/packages/create-next-hydra/schema/selection-definition.json",
+      "name": "payments-stripe-setup",
+      "type": "registry:item",
+      "title": "Payments · Stripe setup",
+      "meta": {
+        "nextHydra": {
+          "id": "next-hydra/recipe/payments-stripe-setup",
+          "kind": "recipe"
+        },
+        "setup": {
+          "group": "payments",
+          "title": "Payments · Stripe",
+          "order": 35,
+          "steps": [
+            {
+              "id": "payments.stripe.configure",
+              "title": "Configure Stripe credentials",
+              "order": 10,
+              "detail": "Set STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY in apps/api. Use keys from the same Stripe account and mode; keep the secret server-only."
+            },
+            {
+              "id": "payments.stripe.verify",
+              "title": "Verify card payments",
+              "order": 20,
+              "detail": "Restart or redeploy the API, then test checkout using Stripe sandbox credentials. See packages/payments-stripe/README.md."
+            }
+          ]
+        }
+      },
+      "files": []
+    }
+  ]
+}

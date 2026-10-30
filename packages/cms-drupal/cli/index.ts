@@ -1,9 +1,16 @@
 /* oxlint-disable unicorn/throw-new-error -- Schema.TaggedError is the Effect error-class factory. */
 
+import {
+  phase,
+  renderReport,
+  withCommandOutput,
+} from "@repo/cli-core/command-output";
 import type { ConfigProvider, Effect as EffectType } from "effect";
-import { Effect, Path, Schema } from "effect";
+import { Console, Effect, Path, Schema } from "effect";
 import { CliError, Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+
+import { drupalProvisioningReport } from "./output";
 
 class DrupalProvisioningError extends Schema.TaggedError<DrupalProvisioningError>()(
   "DrupalProvisioningError",
@@ -45,7 +52,7 @@ const provisionDrupal = Effect.fn("DrupalProvisioning.provision")(function* (
     });
   }
 
-  return yield* Effect.void;
+  return directory;
 });
 
 export const createCmsCommand = <E, R>(
@@ -60,8 +67,29 @@ export const createCmsCommand = <E, R>(
       ),
     },
     ({ appDirectory }) =>
-      provisionDrupal(appDirectory).pipe(
-        Effect.mapError((cause) => new CliError.UserError({ cause }))
+      withCommandOutput(
+        {
+          title: "Provision CMS",
+          context: `Drupal · ${appDirectory}`,
+          failureNote:
+            "The installer may have applied part of the setup. Inspect its output before retrying.",
+        },
+        (style) =>
+          phase(
+            {
+              group: "CMS",
+              title: "Run the Drupal installer and selected recipes",
+              interactive: true,
+            },
+            provisionDrupal(appDirectory)
+          ).pipe(
+            Effect.mapError((cause) => new CliError.UserError({ cause })),
+            Effect.flatMap((directory) =>
+              Console.log(
+                renderReport(drupalProvisioningReport(directory), style)
+              )
+            )
+          )
       )
   ).pipe(
     Command.withDescription("Install Drupal and apply the selected recipes")
