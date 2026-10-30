@@ -4,6 +4,43 @@ import { Effect, FileSystem } from "effect";
 import { Workspaces } from "../src/workspaces.ts";
 import { memoryWorkspace } from "./fixtures/memory-workspace.ts";
 
+it.effect(
+  "adopts an exact generated Turbo config on a fresh checkout while refusing differing output",
+  () =>
+    Effect.gen(function* () {
+      const layer = yield* memoryWorkspace("application");
+      yield* Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const root = "/source/workspaces/configured-site";
+        const workspace = yield* (yield* Workspaces).named({
+          name: "configured-site",
+          sourceRoot: "/source",
+        });
+        const result = yield* workspace.sync({ install: "skip" });
+        const generated = yield* fs.readFileString(`${root}/turbo.json`);
+        // A Git checkout retains the generated file, but not composition receipts or app copies.
+        for (const target of result.files) {
+          if (target !== "turbo.json") {
+            yield* fs.remove(`${root}/${target}`);
+          }
+        }
+        yield* fs.remove(`${root}/.workspace-composition.json`);
+        yield* fs.writeFileString(`${root}/turbo.json`, `${generated}\n`);
+        expect(
+          yield* workspace.sync({ install: "skip" }).pipe(Effect.flip)
+        ).toMatchObject({ _tag: "WorkspaceConflict", paths: ["turbo.json"] });
+        expect(yield* fs.exists(`${root}/package.json`)).toBeFalsy();
+        expect(yield* fs.readFileString(`${root}/turbo.json`)).toBe(
+          `${generated}\n`
+        );
+        yield* fs.writeFileString(`${root}/turbo.json`, generated);
+        yield* workspace.sync({ install: "skip" });
+        expect(yield* workspace.check).toMatchObject({ ready: true });
+        expect(yield* fs.readFileString(`${root}/turbo.json`)).toBe(generated);
+      }).pipe(Effect.provide(layer));
+    })
+);
+
 for (const target of [".git", ".gitignore", "apps/web/vercel.json"]) {
   it.effect(`refuses a directory at ${target} before publishing source`, () =>
     Effect.gen(function* () {

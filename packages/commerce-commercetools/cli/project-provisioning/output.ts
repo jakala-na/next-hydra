@@ -61,7 +61,7 @@ export function commerceProvisioningReport(
           { label: "Project", value: receipt.project.projectKey },
           { label: "Runtime API Client", value: receipt.runtimeClientId },
           {
-            label: "Product projection search",
+            label: "Product Search",
             value: receipt.project.searchIndexingStatus,
           },
           {

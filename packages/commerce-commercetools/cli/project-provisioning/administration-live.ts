@@ -12,7 +12,7 @@ import { decodeErrorDetails } from "./error-details";
 import {
   ApiClientId,
   PreparedProject,
-  ProductProjectionSearchTimeout,
+  ProductSearchTimeout,
   ProjectAdministrationError,
   RuntimeClientCreationOutcomeUnknown,
   RuntimeCredentials,
@@ -91,15 +91,16 @@ export const projectAdministrationLayer = Layer.effect(
       })
     );
 
-    const waitForProductProjectionSearch = (
+    const waitForProductSearch = (
       remainingAttempts: number
     ): Effect.Effect<
       PreparedProject,
-      ProjectAdministrationError | ProductProjectionSearchTimeout
+      ProjectAdministrationError | ProductSearchTimeout
     > =>
       Effect.gen(function* () {
         const project = yield* getProject();
-        const status = project.searchIndexing?.products?.status ?? "Unknown";
+        const status =
+          project.searchIndexing?.productsSearch?.status ?? "Unknown";
 
         if (status === "Activated") {
           return new PreparedProject({
@@ -108,27 +109,27 @@ export const projectAdministrationLayer = Layer.effect(
           });
         }
         if (remainingAttempts === 0) {
-          return yield* new ProductProjectionSearchTimeout({
+          return yield* new ProductSearchTimeout({
             lastStatus: status,
-            message: "Product Projection Search did not activate in time",
+            message: "Product Search did not activate in time",
           });
         }
 
         yield* Effect.sleep(SEARCH_POLL_INTERVAL);
-        return yield* waitForProductProjectionSearch(remainingAttempts - 1);
+        return yield* waitForProductSearch(remainingAttempts - 1);
       });
 
     const prepareProject = Effect.fn("ProjectAdministration.prepareProject")(
       function* () {
         const project = yield* getProject();
-        const status = project.searchIndexing?.products?.status;
+        const status = project.searchIndexing?.productsSearch?.status;
 
         if (status !== "Activated" && status !== "Indexing") {
           yield* Effect.tryPromise({
             catch: (cause) =>
               administrationError(
-                "enableProductProjectionSearch",
-                "Could not enable Product Projection Search",
+                "enableProductSearch",
+                "Could not enable Product Search",
                 cause
               ),
             try: async () => {
@@ -139,7 +140,7 @@ export const projectAdministrationLayer = Layer.effect(
                       {
                         action: "changeProductSearchIndexingEnabled",
                         enabled: true,
-                        mode: "ProductProjectionsSearch",
+                        mode: "ProductsSearch",
                       },
                     ],
                     version: project.version,
@@ -150,7 +151,7 @@ export const projectAdministrationLayer = Layer.effect(
           });
         }
 
-        return yield* waitForProductProjectionSearch(SEARCH_POLL_ATTEMPTS);
+        return yield* waitForProductSearch(SEARCH_POLL_ATTEMPTS);
       }
     );
 

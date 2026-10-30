@@ -32,6 +32,7 @@ describe(commerceProvisioningReport, () => {
     const text = renderReport(report, { color: false, width: 88 });
     expect(text).toContain("┌─ Commerce · commercetools");
     expect(text).toContain("Project: catalog-project");
+    expect(text).toContain("Product Search: Activated");
     expect(text).toContain("Migrations applied: 2");
     expect(text).toContain("Bootstrap API Client: revoked");
     expect(report.tasks.map((task) => task.id)).toEqual([

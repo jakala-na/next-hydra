@@ -614,11 +614,6 @@
           "type": "registry:file"
         },
         {
-          "path": "product/catalog.ts",
-          "target": "~/packages/commerce-commercetools/product/catalog.ts",
-          "type": "registry:file"
-        },
-        {
           "path": "product/client-live.test.ts",
           "target": "~/packages/commerce-commercetools/product/client-live.test.ts",
           "type": "registry:file"
@@ -774,6 +769,11 @@
           "type": "registry:file"
         },
         {
+          "path": "turbo.json",
+          "target": "~/packages/commerce-commercetools/turbo.json",
+          "type": "registry:file"
+        },
+        {
           "path": "versioned-store/index.ts",
           "target": "~/packages/commerce-commercetools/versioned-store/index.ts",
           "type": "registry:file"
@@ -791,6 +791,11 @@
         {
           "path": "vitest.config.ts",
           "target": "~/packages/commerce-commercetools/vitest.config.ts",
+          "type": "registry:file"
+        },
+        {
+          "path": "vitest.live.config.ts",
+          "target": "~/packages/commerce-commercetools/vitest.live.config.ts",
           "type": "registry:file"
         }
       ]

@@ -28,7 +28,9 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/setup@v1
+        with:
+          install: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -52,6 +54,9 @@ jobs:
       - name: Build create-next-hydra
         run: pnpm --filter create-next-hydra build
 
+      - name: Test packed create-next-hydra with fresh dependencies
+        run: pnpm --filter create-next-hydra test:package
+
   release:
     name: Version or publish create-next-hydra
     if: github.ref == 'refs/heads/main'
@@ -71,7 +76,9 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/setup@v1
+        with:
+          install: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -96,5 +103,5 @@ jobs:
           pr-title: "chore(create-next-hydra): version package"
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          NPM_CONFIG_IGNORE_SCRIPTS: "true"
-          NPM_CONFIG_PROVENANCE: "true"
+          PNPM_CONFIG_IGNORE_SCRIPTS: "true"
+          PNPM_CONFIG_PROVENANCE: "true"

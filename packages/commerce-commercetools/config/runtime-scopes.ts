@@ -19,6 +19,7 @@ export const RUNTIME_SCOPE_NAMES = [
   "view_connectors_deployments",
   "view_cart_discounts",
   "view_products",
+  "view_published_products",
   "view_order_edits",
   "view_shopping_lists",
   "manage_payments",

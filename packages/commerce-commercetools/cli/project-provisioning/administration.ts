@@ -4,7 +4,7 @@ import { Context, Layer } from "effect";
 import type {
   ApiClientId,
   PreparedProject,
-  ProductProjectionSearchTimeout,
+  ProductSearchTimeout,
   ProjectAdministrationError,
   RuntimeClientCreationOutcomeUnknown,
   RuntimeCredentials,
@@ -27,7 +27,7 @@ interface CommercetoolsProjectAdministrationValue {
   ) => Effect.Effect<void, ProjectAdministrationError>;
   readonly prepareProject: Effect.Effect<
     PreparedProject,
-    ProjectAdministrationError | ProductProjectionSearchTimeout
+    ProjectAdministrationError | ProductSearchTimeout
   >;
 }
 

@@ -90,6 +90,8 @@ packages/
 
 ## Getting Started
 
+Use Node.js 24 and pnpm 12.16.1, as pinned in `.node-version` and `package.json`. CI and composed workspaces use the same pnpm version.
+
 ```bash
 pnpm install
 pnpm exec portless trust

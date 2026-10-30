@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+import type { Event } from "@parcel/watcher";
 import {
   Array as EffectArray,
   Cause,
@@ -44,6 +45,7 @@ import {
 } from "effect";
 import type { Scope } from "effect";
 
+import { isCanonicalSource } from "./file-policy.ts";
 import type { SourceInputs } from "./model.ts";
 import {
   SourceInventory,
@@ -179,7 +181,7 @@ export class SourceChanges extends Context.Service<
           // before honoring interruption so a late subscription cannot leak.
           const observe = (
             directory: string,
-            receive: (file: string) => boolean,
+            receive: (file: string, type: Event["type"]) => boolean,
             ignore: string[]
           ) =>
             Effect.acquireRelease(
@@ -199,7 +201,7 @@ export class SourceChanges extends Context.Service<
                       // Do not short-circuit: retain every candidate in the batch.
                       let relevant = false;
                       for (const event of events) {
-                        relevant = receive(event.path) || relevant;
+                        relevant = receive(event.path, event.type) || relevant;
                       }
                       if (relevant) {
                         Queue.offerUnsafe(pending, undefined);
@@ -215,9 +217,17 @@ export class SourceChanges extends Context.Service<
             );
           yield* observe(
             root,
-            (file) => {
+            (file, type) => {
               if (!matches(file)) {
-                return false;
+                // Linux can report only a directory when its contents arrive
+                // before recursive observation connects. Reconcile structural
+                // events through visibility without selecting unrelated paths.
+                return (
+                  type !== "update" &&
+                  isCanonicalSource(
+                    path.relative(root, file).split(path.sep).join("/")
+                  )
+                );
               }
               // Remember explicit inputs at arrival, before coverage can narrow.
               candidates.set(

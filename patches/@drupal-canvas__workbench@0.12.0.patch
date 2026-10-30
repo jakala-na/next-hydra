@@ -1,3 +1,4 @@
+diff --git a/README.md b/README.md
 --- a/README.md
 +++ b/README.md
 @@ -45,7 +45,8 @@
@@ -21,6 +22,7 @@
  
  ## Preview build command
  
+diff --git a/dist/server/system-ca-DPNJGk2J.mjs b/dist/server/system-ca-DPNJGk2J.mjs
 --- a/dist/server/system-ca-DPNJGk2J.mjs
 +++ b/dist/server/system-ca-DPNJGk2J.mjs
 @@ -24148,8 +24148,13 @@
@@ -46,6 +48,7 @@
  			...Object.keys(legacy).length > 0 ? { legacy } : {}
  		};
  	} catch {
+diff --git a/dist/server/vite.published.config.mjs b/dist/server/vite.published.config.mjs
 --- a/dist/server/vite.published.config.mjs
 +++ b/dist/server/vite.published.config.mjs
 @@ -347,6 +347,7 @@
@@ -106,6 +109,7 @@
  		siteUrl: loadEnv("development", hostProjectRoot, "CANVAS_").CANVAS_SITE_URL?.trim() || null,
  		hostProjectRoot,
  		packageRoot,
+diff --git a/dist/client/src/lib/preview-contract.ts b/dist/client/src/lib/preview-contract.ts
 --- a/dist/client/src/lib/preview-contract.ts
 +++ b/dist/client/src/lib/preview-contract.ts
 @@ -39,6 +39,7 @@
@@ -142,6 +146,7 @@
      mocks: [],
    };
  }
+diff --git a/dist/client/src/lib/preview-content-entity-reference.ts b/dist/client/src/lib/preview-content-entity-reference.ts
 --- a/dist/client/src/lib/preview-content-entity-reference.ts
 +++ b/dist/client/src/lib/preview-content-entity-reference.ts
 @@ -26,6 +26,23 @@
@@ -181,6 +186,7 @@
 +    ]),
 +  );
 +}
+diff --git a/dist/client/src/client/App.tsx b/dist/client/src/client/App.tsx
 --- a/dist/client/src/client/App.tsx
 +++ b/dist/client/src/client/App.tsx
 @@ -159,13 +159,13 @@

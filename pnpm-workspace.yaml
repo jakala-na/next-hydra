@@ -2,8 +2,11 @@ packages:
   - apps/*
   - packages/*
   - tests/*
+# Keep framework instances shared when only nested peer dependencies differ.
+dedupePeers: true
 catalog:
   "@effect/platform-node": 4.0.0-rc.117
+  "@effect/platform-node-shared": 4.0.0-rc.117
   "@effect/vitest": 4.0.0-rc.117
   "@next/bundle-analyzer": 16.3.1
   "@next/env": 16.3.1
@@ -34,20 +37,19 @@ patchedDependencies:
   "@drupal-canvas/headless-next": patches/@drupal-canvas__headless-next.patch
   "@drupal-canvas/workbench@0.12.0": patches/@drupal-canvas__workbench@0.12.0.patch
   "@zanreal/nemo@3.0.1": patches/@zanreal__nemo@3.0.1.patch
-ignoredBuiltDependencies:
-  - "@clerk/shared"
-  - "@nestjs/core"
-  - bufferutil
-  - cbor-extract
-  - core-js
-  - core-js-pure
-  - msgpackr-extract
-  - msw
-  - yarn
-onlyBuiltDependencies:
-  - "@parcel/watcher"
-  - "@sentry/cli"
-  - "@swc/core"
-  - esbuild
-  - sharp
-  - unrs-resolver
+allowBuilds:
+  "@clerk/shared": false
+  "@nestjs/core": false
+  "@parcel/watcher": true
+  "@sentry/cli": true
+  "@swc/core": true
+  bufferutil: false
+  cbor-extract: false
+  core-js: false
+  core-js-pure: false
+  esbuild: true
+  msgpackr-extract: false
+  msw: false
+  sharp: true
+  unrs-resolver: true
+  yarn: false

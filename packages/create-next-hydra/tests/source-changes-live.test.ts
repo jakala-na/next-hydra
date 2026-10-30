@@ -224,3 +224,49 @@ it.live(
       });
     }).pipe(Effect.provide(observation))
 );
+
+it.live(
+  "source observation discovers a populated package directory moved into declared coverage",
+  () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const { source, root } = yield* fixture("package-layout");
+      yield* fs.makeDirectory(`${root}/duplicate`);
+      yield* fs.copyFile(
+        `${source}/unlisted/package.json`,
+        `${root}/duplicate/package.json`
+      );
+      const subscription = yield* (yield* SourceChanges).open({
+        files: ["workspaces/palette/next-hydra.json"],
+        inputs: {
+          excluded: [],
+          files: [
+            "modules/design/colors/index.ts",
+            "modules/design/colors/package.json",
+          ],
+          packagePatterns: ["modules/**", "!modules/excluded"],
+          packages: ["modules/design/colors"],
+        },
+        root: source,
+      });
+      yield* fs.writeFileString(
+        `${source}/unlisted/unselected.ts`,
+        "export {};\n"
+      );
+      expect(
+        Option.isNone(
+          yield* Stream.runHead(subscription.invalidations).pipe(
+            Effect.timeoutOption("350 millis")
+          )
+        )
+      ).toBeTruthy();
+      // Linux reports the directory move without separate child-file events.
+      yield* fs.rename(`${root}/duplicate`, `${source}/modules/duplicate`);
+      const next = Stream.runHead(subscription.invalidations).pipe(
+        Effect.timeout("3 seconds")
+      );
+      expect(Option.isSome(yield* next)).toBeTruthy();
+      yield* fs.rename(`${source}/modules/duplicate`, `${root}/duplicate`);
+      expect(Option.isSome(yield* next)).toBeTruthy();
+    }).pipe(Effect.provide(observation))
+);

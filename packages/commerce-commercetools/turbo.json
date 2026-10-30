@@ -1,0 +1,17 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test:live": {
+      "cache": false,
+      "env": [
+        "COMMERCETOOLS_LIVE_TESTS",
+        "COMMERCETOOLS_PROJECT_KEY",
+        "COMMERCETOOLS_CLIENT_ID",
+        "COMMERCETOOLS_CLIENT_SECRET",
+        "COMMERCETOOLS_SCOPE",
+        "COMMERCETOOLS_REGION"
+      ]
+    }
+  }
+}
