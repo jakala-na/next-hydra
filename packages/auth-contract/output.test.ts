@@ -7,14 +7,15 @@ import {
   authWebhookRuntimeEnvironment,
 } from "./provisioning";
 
-const receipt = new AuthProvisioningReceipt({
+const receiptData = {
   action: "created",
   credentials: { destination: "local", mode: 0o600, path: "/private/auth.env" },
   endpointId: "endpoint-example",
   endpointUrl: "https://api.example.test/api/webhooks/clerk",
   events: ["user.created", "user.updated"],
   provider: "clerk",
-});
+} as const;
+const receipt = new AuthProvisioningReceipt(receiptData);
 
 describe(authProvisioningReport, () => {
   it("frames the actual endpoint, events and private output location with API-only follow-up work", () => {
@@ -23,11 +24,15 @@ describe(authProvisioningReport, () => {
       authWebhookRuntimeEnvironment("CLERK_WEBHOOK_SECRET")
     );
     const text = renderReport(report, { color: false, width: 88 });
-    expect(text).toContain("┌─ Identity · Clerk");
-    expect(text).toContain("Status: created");
-    expect(text).toContain(receipt.endpointUrl);
-    expect(text).toContain("user.created, user.updated");
-    expect(text).toContain("/private/auth.env");
+    for (const fragment of [
+      "┌─ Identity · Clerk",
+      "Status: created",
+      receipt.endpointUrl,
+      "user.created, user.updated",
+      "/private/auth.env",
+    ]) {
+      expect(text).toContain(fragment);
+    }
     expect(report.tasks[0]?.where).toBe("apps/api");
     expect(report.tasks.map((task) => task.id)).toEqual([
       "runtime.apply-local",
@@ -38,7 +43,7 @@ describe(authProvisioningReport, () => {
   it("reports an unchanged WorkOS endpoint and uses actual Vercel publication targets", () => {
     const report = authProvisioningReport(
       new AuthProvisioningReceipt({
-        ...receipt,
+        ...receiptData,
         action: "unchanged",
         provider: "workos",
         endpointUrl: "https://api.example.test/api/webhooks/workos",
@@ -60,8 +65,9 @@ describe(authProvisioningReport, () => {
       authWebhookRuntimeEnvironment("WORKOS_WEBHOOK_SECRET")
     );
     const text = renderReport(report, { color: false, width: 88 });
-    expect(text).toContain("┌─ Identity · WorkOS");
-    expect(text).toContain("Status: unchanged");
+    for (const fragment of ["┌─ Identity · WorkOS", "Status: unchanged"]) {
+      expect(text).toContain(fragment);
+    }
     expect(report.tasks.map((task) => task.id)).toEqual([
       "runtime.redeploy",
       "auth.verify-webhook",

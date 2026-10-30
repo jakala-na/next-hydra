@@ -5,7 +5,7 @@ import type { ProgressStep } from "./output-model";
 import { renderIntro, renderPhase } from "./output-render";
 import type { OutputStyle } from "./output-render";
 
-export * from "./output-model";
+export type * from "./output-model";
 export { renderReport } from "./output-render";
 
 interface Progress {
@@ -18,8 +18,8 @@ interface Progress {
 
 interface Spinner {
   text: string;
-  readonly start: () => unknown;
-  readonly stop: () => unknown;
+  readonly start: () => void;
+  readonly stop: () => void;
 }
 
 /** Leaf programs remain usable without a terminal or an output layer. */
@@ -37,10 +37,12 @@ export const phase = <A, E, R>(
   step: ProgressStep,
   operation: Effect.Effect<A, E, R>
 ): Effect.Effect<A, E, R> =>
-  Effect.flatMap(CommandProgress, (output) => output.phase(step, operation));
+  CommandProgress.pipe(
+    Effect.flatMap((output) => output.phase(step, operation))
+  );
 
 export const note = (message: string): Effect.Effect<void> =>
-  Effect.flatMap(CommandProgress, (output) => output.note(message));
+  CommandProgress.pipe(Effect.flatMap((output) => output.note(message)));
 
 /** Sequential phases own Ora; child operations use note for details inside a phase. */
 export function makeProgress(options: {
@@ -56,29 +58,29 @@ export function makeProgress(options: {
     const spinnerFactory = step.interactive ? undefined : options.spinner;
     const executing = Effect.scoped(
       Effect.gen(function* () {
-        if (spinnerFactory) {
-          yield* Effect.acquireRelease(
-            Effect.sync(() => {
-              const spinner = spinnerFactory(`${step.group} · ${step.title}`);
-              spinner.start();
-              activeSpinner = spinner;
-              return spinner;
-            }),
-            (spinner) =>
+        yield* spinnerFactory
+          ? Effect.acquireRelease(
               Effect.sync(() => {
-                spinner.stop();
-                activeSpinner = undefined;
-              })
-          );
-        } else
-          yield* options.write(renderPhase(step, "working", options.style));
+                const spinner = spinnerFactory(`${step.group} · ${step.title}`);
+                spinner.start();
+                activeSpinner = spinner;
+                return spinner;
+              }),
+              (spinner) =>
+                Effect.sync(() => {
+                  spinner.stop();
+                  activeSpinner = undefined;
+                })
+            )
+          : options.write(renderPhase(step, "working", options.style));
         return yield* operation;
       })
     );
     return executing.pipe(
       Effect.onExit((exit) => {
-        if (Exit.isSuccess(exit))
+        if (Exit.isSuccess(exit)) {
           return options.write(renderPhase(step, "done", options.style));
+        }
         const status = Cause.hasInterrupts(exit.cause) ? "cancelled" : "failed";
         return options.write(renderPhase(step, status, options.style));
       })
@@ -89,10 +91,11 @@ export function makeProgress(options: {
     note: (message) =>
       Effect.suspend(() => {
         const spinner = activeSpinner;
-        if (spinner)
+        if (spinner) {
           return Effect.sync(() => {
             spinner.text = message;
           });
+        }
         return options.write(`  ${message}`);
       }),
   };
@@ -116,7 +119,7 @@ export const withCommandOutput = <A, E, R>(
     const progressStyle = {
       ...style,
       color:
-        Boolean(process.stderr.isTTY) &&
+        process.stderr.isTTY &&
         !process.env.NO_COLOR &&
         process.env.TERM !== "dumb",
     };
@@ -140,7 +143,9 @@ export const withCommandOutput = <A, E, R>(
     return yield* program(style).pipe(
       Effect.provideService(CommandProgress, output),
       Effect.onExit((exit) => {
-        if (Exit.isSuccess(exit)) return Effect.void;
+        if (Exit.isSuccess(exit)) {
+          return Effect.void;
+        }
         const status = Cause.hasInterrupts(exit.cause)
           ? "CANCELLED"
           : "STOPPED";

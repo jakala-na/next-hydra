@@ -39,7 +39,7 @@ export function cmsProvisioningReport(
   >
 ): CommandReport {
   const tasks: NextTask[] = [];
-  if (receipt.livePreviewConfigurationRequired)
+  if (receipt.livePreviewConfigurationRequired) {
     tasks.push({
       id: "cms.contentstack.live-preview",
       title: "Configure Live Preview",
@@ -48,6 +48,7 @@ export function cmsProvisioningReport(
       verify:
         "Preview opens the intended application and displays draft changes.",
     });
+  }
   tasks.push(
     ...runtimeEnvironmentNextTasks(
       receipt.credentials,

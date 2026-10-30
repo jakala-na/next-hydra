@@ -586,8 +586,8 @@
           "type": "registry:file"
         },
         {
-          "path": "scripts/canvas-workbench-headless-props.test.mjs",
-          "target": "~/packages/cms-drupal/scripts/canvas-workbench-headless-props.test.mjs",
+          "path": "scripts/canvas-workbench-headless-props.test.ts",
+          "target": "~/packages/cms-drupal/scripts/canvas-workbench-headless-props.test.ts",
           "type": "registry:file"
         },
         {

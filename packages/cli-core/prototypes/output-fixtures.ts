@@ -73,7 +73,7 @@ export const scenarioNames = [
 ] as const;
 export type ScenarioName = (typeof scenarioNames)[number];
 
-export const scenarios: Record<ScenarioName, Scenario> = {
+export const scenarios = {
   search: searchBase,
   "search-installed": {
     ...searchBase,
@@ -228,4 +228,4 @@ export const scenarios: Record<ScenarioName, Scenario> = {
     ],
     note: "Contentstack app configuration and initial sync remain manual after provisioning.",
   },
-};
+} satisfies Record<ScenarioName, Scenario>;

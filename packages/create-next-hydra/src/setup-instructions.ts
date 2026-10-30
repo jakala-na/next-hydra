@@ -7,9 +7,8 @@ import type { RegistryInstruction } from "./model.ts";
 /** Package-authored terminal guidance. This describes work; it never executes it. */
 export const SetupInstructions = Schema.Struct({
   group: Schema.NonEmptyString,
-  title: Schema.NonEmptyString,
-  order: Schema.Finite,
   optional: Schema.optionalKey(Schema.Boolean),
+  order: Schema.Finite,
   steps: Schema.Array(
     Schema.Struct({
       id: Schema.NonEmptyString,
@@ -20,6 +19,7 @@ export const SetupInstructions = Schema.Struct({
       commands: Schema.optionalKey(Schema.Array(Schema.NonEmptyString)),
     })
   ),
+  title: Schema.NonEmptyString,
 });
 export type SetupInstructions = typeof SetupInstructions.Type;
 
@@ -33,7 +33,6 @@ export function groupSetupInstructions(
         ? instruction.setup
         : {
             group: instruction.item,
-            title: instruction.item,
             order: 100,
             steps: [
               {
@@ -43,6 +42,7 @@ export function groupSetupInstructions(
                 detail: instruction.text,
               },
             ],
+            title: instruction.item,
           };
     // Preserve an optional recipe's intent when it joins a required package group.
     const contribution: SetupInstructions = {
@@ -57,30 +57,34 @@ export function groupSetupInstructions(
       existing
         ? {
             ...existing,
-            order: Math.min(existing.order, contribution.order),
             optional:
               existing.optional === true && contribution.optional === true,
+            order: Math.min(existing.order, contribution.order),
             steps: [...existing.steps, ...contribution.steps],
           }
         : contribution
     );
   }
-  return [...groups.values()]
-    .sort(
-      (a, b) =>
-        Number(a.optional === true) - Number(b.optional === true) ||
-        a.order - b.order ||
-        a.group.localeCompare(b.group)
-    )
-    .map((group) => ({
-      ...group,
-      steps: [...group.steps].sort(
+  return (
+    [...groups.values()]
+      // eslint-disable-next-line unicorn/no-array-sort -- sort a fresh copy; target lib is ES2022.
+      .sort(
         (a, b) =>
           Number(a.optional === true) - Number(b.optional === true) ||
           a.order - b.order ||
-          a.id.localeCompare(b.id)
-      ),
-    }));
+          a.group.localeCompare(b.group)
+      )
+      .map((group) => ({
+        ...group,
+        // eslint-disable-next-line unicorn/no-array-sort -- preserve authored step arrays.
+        steps: [...group.steps].sort(
+          (a, b) =>
+            Number(a.optional === true) - Number(b.optional === true) ||
+            a.order - b.order ||
+            a.id.localeCompare(b.id)
+        ),
+      }))
+  );
 }
 
 function wrap(text: string, width: number): string[] {
@@ -92,7 +96,9 @@ function wrap(text: string, width: number): string[] {
       if (line && line.length + 1 + word.length > width) {
         lines.push(line);
         line = word;
-      } else line += (line ? " " : "") + word;
+      } else {
+        line += (line ? " " : "") + word;
+      }
     }
     lines.push(line);
   }
@@ -106,7 +112,9 @@ export function renderSetupInstructions(
   const paint = (format: Parameters<typeof styleText>[0], text: string) =>
     style.color ? styleText(format, text, { validateStream: false }) : text;
   const groups = groupSetupInstructions(instructions);
-  if (!groups.length) return "";
+  if (!groups.length) {
+    return "";
+  }
   const lines = [
     "",
     paint("bold", "Set up your application"),
@@ -128,7 +136,7 @@ export function renderSetupInstructions(
     const inner = width - 4;
     const frame = (text: string, format?: Parameters<typeof styleText>[0]) =>
       paint(group.optional ? ["yellow", "dim"] : "dim", "│ ") +
-      (format ? paint(format, text) : text) +
+      (format === undefined ? text : paint(format, text)) +
       " ".repeat(Math.max(0, inner - text.length)) +
       paint(group.optional ? ["yellow", "dim"] : "dim", " │");
     lines.push(
@@ -136,34 +144,35 @@ export function renderSetupInstructions(
       paint(accent, `┌─ ${title} ${"─".repeat(width - title.length - 5)}┐`),
       frame("")
     );
-    group.steps.forEach((step, index) => {
-      if (index) lines.push(frame(""));
-      const optional = group.optional || step.optional;
+    for (const [index, step] of group.steps.entries()) {
+      if (index) {
+        lines.push(frame(""));
+      }
+      const optional = group.optional === true || step.optional === true;
       const label = `${index + 1}. ${step.title}${step.optional && !group.optional ? " · Optional" : ""}`;
-      wrap(label, inner).forEach((line) =>
-        lines.push(frame(line, optional ? ["yellow", "bold"] : "bold"))
-      );
-      if (step.detail)
-        wrap(step.detail, inner - 3).forEach((line) =>
-          lines.push(frame(`   ${line}`))
-        );
+      for (const line of wrap(label, inner)) {
+        lines.push(frame(line, optional ? ["yellow", "bold"] : "bold"));
+      }
+      if (step.detail) {
+        for (const line of wrap(step.detail, inner - 3)) {
+          lines.push(frame(`   ${line}`));
+        }
+      }
       for (const command of step.commands ?? []) {
         lines.push(frame(""));
-        command
-          .split("\n")
-          .forEach((line, lineIndex) =>
-            lines.push(
-              frame(
-                `   ${lineIndex ? "  " : "$ "}${line}`,
-                optional ? "yellow" : "cyan"
-              )
+        for (const [lineIndex, line] of command.split("\n").entries()) {
+          lines.push(
+            frame(
+              `   ${lineIndex ? "  " : "$ "}${line}`,
+              optional ? "yellow" : "cyan"
             )
           );
+        }
       }
-    });
+    }
     lines.push(frame(""), paint(accent, `└${"─".repeat(width - 2)}┘`));
   }
-  return lines.join("\n") + "\n";
+  return `${lines.join("\n")}\n`;
 }
 
 export const printSetupInstructions = (
@@ -172,7 +181,9 @@ export const printSetupInstructions = (
 ) =>
   Effect.gen(function* () {
     if (!instructions.length) {
-      if (summary) yield* Console.log(summary);
+      if (summary) {
+        yield* Console.log(summary);
+      }
       return;
     }
     const stdio = yield* Stdio.Stdio;

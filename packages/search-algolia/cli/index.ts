@@ -4,13 +4,14 @@ import {
   withCommandOutput,
 } from "@repo/cli-core/command-output";
 import { runtimeEnvironmentReceiptDescription } from "@repo/cli-core/runtime-environment";
+import type { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
 import type { ContentIndexingOperation } from "@repo/search/content-indexing";
 import type { ContentSearchProjection } from "@repo/search/content-search-projection";
-import type { ConfigProvider, Effect as EffectType } from "effect";
+import type { ConfigProvider, Layer, Effect as EffectType } from "effect";
 import { Cause, Console, Effect, Option } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
 
@@ -28,6 +29,8 @@ import {
 import { searchCliError } from "./error-message";
 import { createSearchProvisioningLayer } from "./layer";
 import { searchOutput, searchProvisioningReport } from "./output";
+import type { AlgoliaAdministration } from "./provisioning/administration";
+import type { AlgoliaProvisioningConfig } from "./provisioning/config";
 import { createAlgoliaProvisioningPlan } from "./provisioning/plan";
 import type { ProvisionAlgoliaOptions } from "./provisioning/provision";
 import { provisionAlgolia } from "./provisioning/provision";
@@ -74,9 +77,20 @@ const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
     )
   );
 
+type SearchProvisioningLayer = Layer.Layer<
+  | AlgoliaAdministration
+  | AlgoliaProvisioningConfig
+  | RuntimeEnvironmentPublisher,
+  Layer.Error<ReturnType<typeof createSearchProvisioningLayer<never, never>>>,
+  Layer.Services<ReturnType<typeof createSearchProvisioningLayer<never, never>>>
+>;
+
 export const createSearchCommand = <E, R, CommerceError, ContentError>(
   configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>,
-  composition: SearchCliComposition<CommerceError, ContentError>
+  composition: SearchCliComposition<CommerceError, ContentError>,
+  provisioningLayer: (
+    provider: EffectType.Effect<ConfigProvider.ConfigProvider>
+  ) => SearchProvisioningLayer = createSearchProvisioningLayer
 ) => {
   const provision = Command.make(
     "provision",
@@ -194,7 +208,7 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
               indexPrefix: requestedIndexPrefix,
               locales,
               products,
-            }).pipe(Effect.provide(createSearchProvisioningLayer(provider)));
+            }).pipe(Effect.provide(provisioningLayer(provider)));
             let contentSearchApp;
             if (installContentSearchApp) {
               const installHook = yield* requireContentSearchAppHook(
@@ -224,11 +238,7 @@ export const createSearchCommand = <E, R, CommerceError, ContentError>(
                 credentialsLocation: runtimeEnvironmentReceiptDescription(
                   provisioning.publication
                 ),
-                ...(contentSearchApp?.configuredMappings === undefined
-                  ? {}
-                  : {
-                      configuredMappings: contentSearchApp.configuredMappings,
-                    }),
+                configuredMappings: contentSearchApp?.configuredMappings,
               }
             );
             yield* Console.log(

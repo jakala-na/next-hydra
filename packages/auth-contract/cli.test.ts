@@ -73,16 +73,23 @@ describe("auth provision command output", () => {
           ]).pipe(Effect.exit);
           const stdout = (yield* TestConsole.logLines).join("\n");
           const stderr = (yield* TestConsole.errorLines).join("\n");
-          if (Exit.isFailure(exit)) yield* Effect.failCause(exit.cause);
-          expect(Exit.isSuccess(exit)).toBe(true);
-          expect(stdout).toContain(`┌─ Identity · ${label}`);
-          expect(stdout).toContain(`Status: ${action}`);
-          expect(stdout).toContain("Where: apps/api");
-          expect(stdout).not.toContain(secret);
-          expect(stderr).not.toContain(secret);
+          if (Exit.isFailure(exit)) {
+            return yield* Effect.failCause(exit.cause);
+          }
+          expect(Exit.isSuccess(exit)).toBeTruthy();
+          for (const fragment of [
+            `┌─ Identity · ${label}`,
+            `Status: ${action}`,
+            "Where: apps/api",
+          ]) {
+            expect(stdout).toContain(fragment);
+          }
+          expect(stdout + stderr).not.toContain(secret);
           expect(stderr).toContain("OK  Identity");
-          expect(inputs).toEqual(["https://api.example.test"]);
-          expect(yield* fs.exists(outputFile)).toBe(true);
+          expect({ inputs, saved: yield* fs.exists(outputFile) }).toEqual({
+            inputs: ["https://api.example.test"],
+            saved: true,
+          });
         })
       ).pipe(
         Effect.provide(NodeServices.layer),
@@ -131,14 +138,14 @@ describe("auth provision command output", () => {
           outputFile,
           "--yes",
         ]).pipe(Effect.exit);
-        expect(Exit.isFailure(exit)).toBe(true);
+        expect(Exit.isFailure(exit)).toBeTruthy();
         expect((yield* TestConsole.logLines).join("\n")).not.toContain(
           "┌─ Identity"
         );
         const stderr = (yield* TestConsole.errorLines).join("\n");
         expect(stderr).toContain("FAIL  Identity");
         expect(stderr).toContain("STOPPED");
-        expect(yield* fs.exists(outputFile)).toBe(false);
+        expect(yield* fs.exists(outputFile)).toBeFalsy();
       })
     ).pipe(
       Effect.provide(NodeServices.layer),

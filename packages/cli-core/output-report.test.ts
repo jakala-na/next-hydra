@@ -35,12 +35,19 @@ describe("provisioning receipt presentation", () => {
     } as const;
     const plain = renderReport(report, { color: false, width: 72 });
     const color = renderReport(report, { color: true, width: 72 });
-    expect(plain).toContain("┌─ CMS · Example");
-    expect(plain).toContain("$ pnpm cli verify --project example");
-    expect(plain).toContain("Verify: The check succeeds.");
+    for (const fragment of [
+      "┌─ CMS · Example",
+      "$ pnpm cli verify --project example",
+      "Verify: The check succeeds.",
+    ]) {
+      expect(plain).toContain(fragment);
+    }
     expect(stripVTControlCharacters(color)).toBe(plain);
-    for (const line of plain.split("\n").filter((line) => /^[│┌└]/u.test(line)))
-      expect(line.length).toBe(72);
+    for (const line of plain
+      .split("\n")
+      .filter((line) => /^[│┌└]/u.test(line))) {
+      expect(line).toHaveLength(72);
+    }
   });
 
   it("targets only the applications declared by the provider for a local publication", () => {

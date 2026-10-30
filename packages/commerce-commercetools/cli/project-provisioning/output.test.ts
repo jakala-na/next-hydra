@@ -10,7 +10,7 @@ import {
 } from "./model";
 import { commerceProvisioningReport } from "./output";
 
-const receipt = new ProvisioningReceipt({
+const receiptData = {
   bootstrapClientRevoked: true,
   credentials: {
     destination: "local",
@@ -24,17 +24,22 @@ const receipt = new ProvisioningReceipt({
   runtimeClientId: ApiClientId.make("runtime-123"),
   scope: "view_products:catalog-project",
   seed: new ProjectSeedReceipt({ migrationsApplied: 2 }),
-});
+} as const;
+const receipt = new ProvisioningReceipt(receiptData);
 
 describe(commerceProvisioningReport, () => {
   it("reports committed results without repeating migrations or revocation as remaining tasks", () => {
     const report = commerceProvisioningReport(receipt);
     const text = renderReport(report, { color: false, width: 88 });
-    expect(text).toContain("┌─ Commerce · commercetools");
-    expect(text).toContain("Project: catalog-project");
-    expect(text).toContain("Product Search: Activated");
-    expect(text).toContain("Migrations applied: 2");
-    expect(text).toContain("Bootstrap API Client: revoked");
+    for (const fragment of [
+      "┌─ Commerce · commercetools",
+      "Project: catalog-project",
+      "Product Search: Activated",
+      "Migrations applied: 2",
+      "Bootstrap API Client: revoked",
+    ]) {
+      expect(text).toContain(fragment);
+    }
     expect(report.tasks.map((task) => task.id)).toEqual([
       "runtime.apply-local",
       "commerce.verify",
@@ -45,7 +50,7 @@ describe(commerceProvisioningReport, () => {
   it("uses the receipt's revocation state and actual Vercel publication targets", () => {
     const report = commerceProvisioningReport(
       new ProvisioningReceipt({
-        ...receipt,
+        ...receiptData,
         bootstrapClientRevoked: false,
         credentials: {
           destination: "vercel",

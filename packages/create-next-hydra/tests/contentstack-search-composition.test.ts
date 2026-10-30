@@ -14,10 +14,10 @@ import { liveWorkspace } from "./fixtures/live-workspace.ts";
 const SearchExports = Schema.Struct({
   searchableContentTypes: Schema.Array(
     Schema.Struct({
-      uid: Schema.String,
+      instructions: Schema.Array(Schema.String),
       label: Schema.String,
       searchTextRoot: Schema.String,
-      instructions: Schema.Array(Schema.String),
+      uid: Schema.String,
     })
   ),
 });
@@ -41,11 +41,11 @@ it.live(
           { name: "cms", providers: { cms: "contentstack" } },
           {
             name: "auth-workos",
-            providers: { cms: "contentstack", auth: "workos" },
+            providers: { auth: "workos", cms: "contentstack" },
           },
           {
             name: "auth-clerk",
-            providers: { cms: "contentstack", auth: "clerk" },
+            providers: { auth: "clerk", cms: "contentstack" },
           },
           {
             name: "search",
@@ -54,19 +54,19 @@ it.live(
           {
             name: "commerce",
             providers: {
-              cms: "contentstack",
-              search: "algolia",
-              commerce: "commercetools",
               auth: "workos",
+              cms: "contentstack",
+              commerce: "commercetools",
+              search: "algolia",
             },
           },
           {
             name: "commerce-clerk",
             providers: {
-              cms: "contentstack",
-              search: "algolia",
-              commerce: "commercetools",
               auth: "clerk",
+              cms: "contentstack",
+              commerce: "commercetools",
+              search: "algolia",
             },
           },
         ]) {
@@ -77,125 +77,133 @@ it.live(
           const workspace = yield* workspaces.fresh({
             destination,
             name,
-            selection: { providers, addOns: [] },
+            selection: { addOns: [], providers },
             source: { kind: "working-tree", root: sourceRoot },
           });
           const result = yield* workspace.materialize({ install: "skip" });
           const groups = groupSetupInstructions(result.instructions);
-          expect(groups.map((group) => group.group)).toEqual([
-            "cms",
-            ...(hasAuth ? ["auth"] : []),
-            ...(hasCommerce ? ["commerce", "payments", "email"] : []),
-            ...(hasSearch ? ["search"] : []),
-            "analytics",
-            "observability",
-          ]);
-          expect(
-            groups.find((group) => group.group === "observability")?.optional
-          ).toBe(true);
-          expect(
-            groups.find((group) => group.group === "analytics")?.optional
-          ).not.toBe(true);
-          expect(
-            yield* fs.exists(
-              path.join(destination, "packages/analytics/README.md")
-            )
-          ).toBe(true);
-          expect(
-            yield* fs.exists(
-              path.join(destination, "packages/observability/README.md")
-            )
-          ).toBe(true);
           const instructions = renderSetupInstructions(result.instructions, {
             color: false,
             width: 88,
           });
-          expect(instructions).not.toContain(
-            "projected prices as authoritative"
+          const expectedAuthTitle =
+            providers.auth === "clerk"
+              ? "Identity · Clerk"
+              : "Identity · WorkOS";
+          const auth = groups.find((group) => group.group === "auth");
+          const authInstructions = renderSetupInstructions(
+            result.instructions.filter(
+              (instruction) =>
+                "setup" in instruction && instruction.setup.group === "auth"
+            ),
+            { color: false, width: 88 }
           );
-          expect(instructions.includes("Payments · Stripe")).toBe(hasCommerce);
-          expect(instructions.includes("Email · Resend")).toBe(hasCommerce);
-          if (hasAuth) {
-            const auth = groups.find((group) => group.group === "auth");
-            expect(auth?.title).toBe(
-              providers.auth === "clerk"
-                ? "Identity · Clerk"
-                : "Identity · WorkOS"
-            );
-            expect(auth?.steps.map(({ id }) => id)).toEqual([
-              "auth.configure",
-              ...(hasCommerce ? ["auth.admin", "auth.provision"] : []),
-            ]);
-            expect(yield* fs.exists(path.join(destination, "apps/admin"))).toBe(
-              hasCommerce
-            );
-            expect(yield* fs.exists(path.join(destination, "apps/api"))).toBe(
-              hasCommerce
-            );
-            expect(
-              yield* fs.exists(
-                path.join(
-                  destination,
-                  `apps/api/app/api/webhooks/${providers.auth}/route.ts`
-                )
+          expect({
+            groups: groups.map((group) => group.group),
+            monitoringOptional: groups.find(
+              (group) => group.group === "observability"
+            )?.optional,
+            analyticsOptional:
+              groups.find((group) => group.group === "analytics")?.optional ===
+              true,
+            analyticsDocs: yield* fs.exists(
+              path.join(destination, "packages/analytics/README.md")
+            ),
+            monitoringDocs: yield* fs.exists(
+              path.join(destination, "packages/observability/README.md")
+            ),
+            authTitle: auth?.title,
+            authSteps: auth?.steps.map(({ id }) => id),
+            adminApp: yield* fs.exists(path.join(destination, "apps/admin")),
+            apiApp: yield* fs.exists(path.join(destination, "apps/api")),
+            authWebhook: yield* fs.exists(
+              path.join(
+                destination,
+                `apps/api/app/api/webhooks/${providers.auth}/route.ts`
               )
-            ).toBe(hasCommerce);
-            expect(instructions.includes("cli auth provision")).toBe(
-              hasCommerce
-            );
-            expect(
-              yield* fs.exists(
+            ),
+            authDocs:
+              hasAuth &&
+              (yield* fs.exists(
                 path.join(
                   destination,
                   `packages/auth-${providers.auth}/README.md`
                 )
-              )
-            ).toBe(true);
-            if (!hasCommerce) {
-              const authInstructions = renderSetupInstructions(
-                result.instructions.filter(
-                  (instruction) =>
-                    "setup" in instruction && instruction.setup.group === "auth"
-                ),
-                { color: false, width: 88 }
-              );
-              expect(authInstructions).toContain("apps/web");
-              expect(authInstructions).not.toMatch(/admin|webhook|--api-url/iu);
-            }
-          }
-          if (hasCommerce) {
-            expect(instructions).toContain("STRIPE_SECRET_KEY");
-            expect(instructions).toContain("RESEND_TOKEN");
-            expect(
-              yield* fs.exists(
-                path.join(destination, "packages/payments-stripe/README.md")
-              )
-            ).toBe(true);
-            expect(
-              yield* fs.exists(
-                path.join(destination, "packages/email/README.md")
-              )
-            ).toBe(true);
-          }
-
-          if (hasSearch) {
-            expect(instructions.match(/cli search provision/gu)).toHaveLength(
-              1
-            );
-            expect(
-              instructions.includes("Prepare Commerce indexing access")
-            ).toBe(hasCommerce);
-            expect(instructions).toContain("--locale <locale>");
-          }
+              )),
+            authWebSetup: !hasAuth || authInstructions.includes("apps/web"),
+            authAdminSetup: /admin|webhook|--api-url/iu.test(authInstructions),
+          }).toEqual({
+            groups: [
+              "cms",
+              ...(hasAuth ? ["auth"] : []),
+              ...(hasCommerce ? ["commerce", "payments", "email"] : []),
+              ...(hasSearch ? ["search"] : []),
+              "analytics",
+              "observability",
+            ],
+            monitoringOptional: true,
+            analyticsOptional: false,
+            analyticsDocs: true,
+            monitoringDocs: true,
+            authTitle: hasAuth ? expectedAuthTitle : undefined,
+            authSteps: hasAuth
+              ? [
+                  "auth.configure",
+                  ...(hasCommerce ? ["auth.admin", "auth.provision"] : []),
+                ]
+              : undefined,
+            adminApp: hasCommerce,
+            apiApp: hasCommerce,
+            authWebhook: hasCommerce,
+            authDocs: hasAuth,
+            authWebSetup: true,
+            authAdminSetup: hasCommerce,
+          });
+          expect({
+            priceWarning: instructions.includes(
+              "projected prices as authoritative"
+            ),
+            payments: instructions.includes("Payments · Stripe"),
+            email: instructions.includes("Email · Resend"),
+            stripeKey: instructions.includes("STRIPE_SECRET_KEY"),
+            resendToken: instructions.includes("RESEND_TOKEN"),
+            authProvision: instructions.includes("cli auth provision"),
+            searchProvisionCount:
+              instructions.match(/cli search provision/gu)?.length ?? 0,
+            commerceIndexing: instructions.includes(
+              "Prepare Commerce indexing access"
+            ),
+            explicitLocale: instructions.includes("--locale <locale>"),
+            paymentsDocs: yield* fs.exists(
+              path.join(destination, "packages/payments-stripe/README.md")
+            ),
+            emailDocs: yield* fs.exists(
+              path.join(destination, "packages/email/README.md")
+            ),
+          }).toEqual({
+            priceWarning: false,
+            payments: hasCommerce,
+            email: hasCommerce,
+            stripeKey: hasCommerce,
+            resendToken: hasCommerce,
+            authProvision: hasCommerce,
+            searchProvisionCount: Number(hasSearch),
+            commerceIndexing: hasCommerce,
+            explicitLocale: hasSearch,
+            paymentsDocs: hasCommerce,
+            emailDocs: true,
+          });
           const cms = path.join(destination, "packages/cms-contentstack");
           const aggregate = path.join(cms, "search-content-types.ts");
-          expect(yield* fs.exists(aggregate)).toBe(hasSearch);
-          expect(
-            yield* fs.exists(
+          expect({
+            aggregate: yield* fs.exists(aggregate),
+            commerceRecipe: yield* fs.exists(
               path.join(cms, "recipe/search/product-collection.ts")
-            )
-          ).toBe(hasCommerce);
-          if (!hasSearch) continue;
+            ),
+          }).toEqual({ aggregate: hasSearch, commerceRecipe: hasCommerce });
+          if (!hasSearch) {
+            continue;
+          }
           // Resolve the actual application's config through its selected packages,
           // without installing the full application dependency graph.
           const configModules = path.join(destination, "node_modules/@repo");
@@ -210,8 +218,9 @@ it.live(
             );
           }
           const configFile = path.join(destination, "apps/web/tsconfig.json");
-          const config = ts.readConfigFile(configFile, ts.sys.readFile);
-          expect(config.error).toBeUndefined();
+          const config = ts.readConfigFile(configFile, (file) =>
+            ts.sys.readFile(file)
+          );
           const parsed = ts.parseJsonConfigFileContent(
             config.config,
             ts.sys,
@@ -226,12 +235,13 @@ it.live(
             ...parsed.errors,
             ...ts.getPreEmitDiagnostics(program),
           ];
-          expect(
-            diagnostics.map(
+          expect({
+            configError: config.error,
+            diagnostics: diagnostics.map(
               (diagnostic) =>
                 `TS${diagnostic.code}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`
-            )
-          ).toEqual([]);
+            ),
+          }).toEqual({ configError: undefined, diagnostics: [] });
           const moduleUrl = yield* path.toFileUrl(aggregate);
           const loaded = yield* processes.string(
             ChildProcess.make(process.execPath, [
@@ -243,22 +253,28 @@ it.live(
           const { searchableContentTypes } = yield* Schema.decodeEffect(
             Schema.fromJsonString(SearchExports)
           )(loaded);
-          expect(searchableContentTypes.map(({ uid }) => uid)).toEqual([
-            "landing_page",
-          ]);
-          expect(
-            JSON.stringify(searchableContentTypes).includes("Commerce category")
-          ).toBe(hasCommerce);
           const wrapper = yield* fs.readFileString(path.join(cms, "search.ts"));
           const installer = yield* fs.readFileString(
             path.join(cms, "cli/content-search-app/index.ts")
           );
-          expect(wrapper).toContain(
-            "createContentstackSearch(searchableContentTypes)"
-          );
-          expect(installer).toMatch(
-            /createContentSearchAppInstaller\(\s*searchableContentTypes\s*\)/u
-          );
+          expect({
+            contentTypes: searchableContentTypes.map(({ uid }) => uid),
+            commerceInstructions: JSON.stringify(
+              searchableContentTypes
+            ).includes("Commerce category"),
+            searchUsesAggregate: wrapper.includes(
+              "createContentstackSearch(searchableContentTypes)"
+            ),
+            installerUsesAggregate:
+              /createContentSearchAppInstaller\(\s*searchableContentTypes\s*\)/u.test(
+                installer
+              ),
+          }).toEqual({
+            contentTypes: ["landing_page"],
+            commerceInstructions: hasCommerce,
+            searchUsesAggregate: true,
+            installerUsesAggregate: true,
+          });
         }
       })
     ).pipe(Effect.provide(liveWorkspace), Effect.provide(NodeServices.layer)),

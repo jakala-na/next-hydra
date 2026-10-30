@@ -10,10 +10,10 @@ export const progress = (
   style: Style
 ) =>
   ora({
-    text: text.slice(0, Math.max(20, style.width - 14)),
+    color: style.color ? "cyan" : false,
+    discardStdin: false,
     prefixText: `  ${index + 1}/${total}`,
     spinner: "dots",
-    color: style.color ? "cyan" : false,
     stream: process.stdout,
-    discardStdin: false,
+    text: text.slice(0, Math.max(20, style.width - 14)),
   });

@@ -9,8 +9,7 @@ import { Console, Effect, Layer } from "effect";
 import { CliError, Command, Flag } from "effect/unstable/cli";
 
 import { authProvisioningReport } from "./output";
-import { provisionAuth } from "./provisioning";
-import { AuthWebhookProvisioner } from "./provisioning";
+import { provisionAuth, AuthWebhookProvisioner } from "./provisioning";
 
 const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
   effect.pipe(Effect.mapError((cause) => new CliError.UserError({ cause })));

@@ -18,7 +18,9 @@ const simulatePhase = Effect.fn("OutputPrototype.phase")(function* (
   total: number
 ) {
   if (!animated) {
-    if (!instant) yield* Effect.sleep("650 millis");
+    if (!instant) {
+      yield* Effect.sleep("650 millis");
+    }
     return;
   }
   yield* Effect.scoped(
@@ -38,12 +40,6 @@ const simulatePhase = Effect.fn("OutputPrototype.phase")(function* (
 const command = Command.make(
   "output-prototype",
   {
-    variant: Flag.Literals("variant", variantNames).pipe(
-      Flag.withDefault("journal")
-    ),
-    scenario: Flag.Literals("scenario", scenarioNames).pipe(
-      Flag.withDefault("search")
-    ),
     color: Flag.Literals("color", ["auto", "always", "never"]).pipe(
       Flag.withDefault("auto")
     ),
@@ -56,6 +52,12 @@ const command = Command.make(
       Flag.withDescription(
         "Show an Effect destination prompt between simulated search steps"
       )
+    ),
+    scenario: Flag.Literals("scenario", scenarioNames).pipe(
+      Flag.withDefault("search")
+    ),
+    variant: Flag.Literals("variant", variantNames).pipe(
+      Flag.withDefault("journal")
     ),
     width: Flag.Int("width").pipe(
       Flag.withDefault(0),
@@ -82,17 +84,22 @@ const command = Command.make(
         scenarios[onboarding && name === "search" ? "search-installed" : name];
       yield* terminal.display(intro(scenario, variant, style));
       yield* Effect.gen(function* () {
-        for (let index = 0; index < scenario.phases.length; index++) {
+        for (let index = 0; index < scenario.phases.length; index += 1) {
+          const currentPhase = scenario.phases[index];
+          if (currentPhase === undefined) {
+            continue;
+          }
           const choosingDestination =
             onboarding && name.startsWith("search") && index === 0;
           const text = choosingDestination
             ? "Check the workspace and required configuration"
-            : scenario.phases[index]!;
+            : currentPhase;
           // No rewrites in pipes, monochrome mode, or the dry-run fixture.
-          if (!tty && !instant)
+          if (!tty && !instant) {
             yield* terminal.display(
-              wrap(`Working: ${text}`, "  ", style) + "\n"
+              `${wrap(`Working: ${text}`, "  ", style)}\n`
             );
+          }
           yield* simulatePhase(
             text,
             tty && style.color && !process.env.CI && !instant,
@@ -119,7 +126,6 @@ const command = Command.make(
               name === "search-vercel" ? "search-vercel" : "search-installed";
             if (tty && inputTty && !instant) {
               destination = yield* Prompt.Select({
-                message: "Where should search credentials go?",
                 choices: [
                   {
                     title: "Private local file",
@@ -132,15 +138,16 @@ const command = Command.make(
                     description: "Linked web project",
                   },
                 ],
+                message: "Where should search credentials go?",
               });
             }
             scenario = scenarios[destination];
             yield* terminal.display(
-              wrap(
+              `${wrap(
                 `Destination: ${destination === "search-vercel" ? "Vercel Preview" : "Private local file"}`,
                 "  ",
                 style
-              ) + "\n\n"
+              )}\n\n`
             );
           }
         }

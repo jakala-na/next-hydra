@@ -1,27 +1,100 @@
 import { NodeServices } from "@effect/platform-node";
-import { Effect, Exit, Stdio } from "effect";
+import { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
+import { Effect, Exit, Layer, Redacted, Stdio } from "effect";
 import { TestConsole } from "effect/testing";
 import { Command } from "effect/unstable/cli";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createCmsCommand } from "./index";
+import { ContentstackMigrationLedger } from "./migrations/ledger";
+import { ContentstackCli } from "./provisioning/contentstack-cli";
+import { CONTENTSTACK_CLI_VERSION } from "./provisioning/contentstack-cli-live";
 import {
   ContentstackApiKey,
-  ContentstackCliVersionError,
-  ContentstackProvisioningReceipt,
+  ContentstackRecipeReceipt,
+  ContentstackRuntimeCredentials,
+  ContentstackRuntimeEndpoints,
+  ContentstackStack,
 } from "./provisioning/model";
-import { provisionContentstack } from "./provisioning/provision";
+import { ContentstackRecipe } from "./provisioning/recipe";
+import { ContentstackRuntimeCredentialInput } from "./provisioning/runtime-credentials";
 
-vi.mock("./layer", async () => {
-  const { Layer } = await import("effect");
-  return { createContentstackProvisioningLayer: () => Layer.empty };
-});
-vi.mock("./provisioning/provision", () => ({ provisionContentstack: vi.fn() }));
-
-async function run() {
-  return Effect.gen(function* () {
+async function run(version = CONTENTSTACK_CLI_VERSION) {
+  const requested: string[] = [];
+  const endpoints = new ContentstackRuntimeEndpoints({
+    graphqlHost: "eu-graphql.contentstack.com",
+    graphqlPreviewHost: "eu-graphql-preview.contentstack.com",
+    region: "EU",
+  });
+  const apiKey = ContentstackApiKey.make("stack-id");
+  const layer = Layer.mergeAll(
+    ContentstackCli.layerFrom({
+      version: () =>
+        Effect.succeed(`@contentstack/cli/${version} test-platform node-test`),
+      resolveStack: (managementTokenAlias) =>
+        Effect.sync(() => {
+          requested.push(managementTokenAlias);
+          return new ContentstackStack({
+            apiKey,
+            managementTokenAlias,
+            managementToken: Redacted.make("private-token"),
+          });
+        }),
+      runtimeEndpoints: () => Effect.succeed(endpoints),
+      importRecipe: () => Effect.void,
+      runMigration: () => Effect.void,
+    }),
+    ContentstackRecipe.layerFrom({
+      materialize: ({ productionUrl }) =>
+        Effect.sync(() => {
+          requested.push(productionUrl);
+          return new ContentstackRecipeReceipt({
+            directory: "/private/recipe",
+            environments: ["development"],
+            version: "4",
+          });
+        }),
+    }),
+    ContentstackMigrationLedger.layerFrom({
+      open: () =>
+        Effect.succeed({
+          applied: () => Effect.succeed([]),
+          record: () => Effect.void,
+        }),
+    }),
+    ContentstackRuntimeCredentialInput.layerFrom({
+      acquire: (_key, environment) =>
+        Effect.succeed(
+          new ContentstackRuntimeCredentials({
+            apiKey,
+            environment,
+            graphqlHost: endpoints.graphqlHost,
+            graphqlPreviewHost: endpoints.graphqlPreviewHost,
+            region: endpoints.region,
+            deliveryToken: Redacted.make("private-delivery"),
+            previewToken: Redacted.make("private-preview"),
+            webhookSecret: Redacted.make("private-webhook"),
+          })
+        ),
+    }),
+    RuntimeEnvironmentPublisher.layerFrom({
+      prepare: ({ manifest }) =>
+        Effect.succeed({
+          destination: "local",
+          path: "/private/cms.env",
+          manifest,
+        }),
+      publish: () =>
+        Effect.succeed({
+          destination: "local",
+          mode: 0o600,
+          path: "/private/cms.env",
+        }),
+    })
+  );
+  return await Effect.gen(function* () {
     const exit = yield* Command.runWith(
-      createCmsCommand(Effect.die("No configuration reads expected")),
+      createCmsCommand(Effect.die("No configuration reads expected"), layer),
       { version: "0.0.0" }
     )([
       "provision",
@@ -33,14 +106,17 @@ async function run() {
     ]).pipe(Effect.exit);
     return {
       exit,
+      requested,
       stdout: (yield* TestConsole.logLines).join("\n"),
       stderr: (yield* TestConsole.errorLines).join("\n"),
     };
   }).pipe(
-    Effect.provide(NodeServices.layer),
-    Effect.provide(TestConsole.layer),
     Effect.provide(
-      Stdio.layerTest({ stdoutIsTerminal: Effect.succeed(false) })
+      Layer.mergeAll(
+        NodeServices.layer,
+        TestConsole.layer,
+        Stdio.layerTest({ stdoutIsTerminal: Effect.succeed(false) })
+      )
     ),
     Effect.runPromise
   );
@@ -48,49 +124,25 @@ async function run() {
 
 describe("Contentstack provision command output", () => {
   it("prints one framed result using explicit command inputs and the provisioning receipt", async () => {
-    vi.mocked(provisionContentstack).mockReturnValue(
-      Effect.succeed(
-        new ContentstackProvisioningReceipt({
-          apiKey: ContentstackApiKey.make("stack-id"),
-          credentials: {
-            destination: "local",
-            mode: 0o600,
-            path: "/private/cms.env",
-          },
-          environments: ["development"],
-          imported: true,
-          livePreviewConfigurationRequired: true,
-          migrationsApplied: 2,
-          recipeVersion: "4",
-          region: "EU",
-        })
-      )
-    );
     const output = await run();
-    expect(Exit.isSuccess(output.exit)).toBe(true);
+    expect(Exit.isSuccess(output.exit)).toBeTruthy();
     expect(output.stdout.match(/┌─ CMS · Contentstack/gu)).toHaveLength(1);
-    expect(output.stdout).toContain("https://shop.example.test");
-    expect(output.stdout).toContain("Migrations applied: 2");
-    expect(output.stdout).not.toContain("\u001b[");
-    expect(vi.mocked(provisionContentstack).mock.lastCall?.[0]).toMatchObject({
-      managementTokenAlias: "stack-alias",
-      productionUrl: "https://shop.example.test",
-    });
+    for (const fragment of [
+      "https://shop.example.test",
+      "Migrations applied: 1",
+    ]) {
+      expect(output.stdout).toContain(fragment);
+    }
+    expect(output.stdout).not.toContain("\u001B[");
+    expect(output.requested).toEqual([
+      "stack-alias",
+      "https://shop.example.test",
+    ]);
   });
 
   it("does not print a success receipt when provisioning stops", async () => {
-    vi.mocked(provisionContentstack).mockReturnValue(
-      Effect.fail(
-        new ContentstackCliVersionError({
-          message: "Unsupported CLI",
-          actual: "old",
-          expected: "required",
-          cause: new Error("Unsupported CLI"),
-        })
-      )
-    );
-    const output = await run();
-    expect(Exit.isFailure(output.exit)).toBe(true);
+    const output = await run("1.99.0");
+    expect(Exit.isFailure(output.exit)).toBeTruthy();
     expect(output.stdout).not.toContain("┌─ CMS");
     expect(output.stderr).toContain("STOPPED");
   });

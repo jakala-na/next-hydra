@@ -30,8 +30,9 @@ export const registryInstructions = (items: readonly RegistryItem[]) =>
           )
         );
         instructions.push({ item: item.name, setup });
-      } else if (item.docs?.trim())
+      } else if (item.docs?.trim()) {
         instructions.push({ item: item.name, text: item.docs });
+      }
     }
     return instructions;
   });

@@ -31,7 +31,7 @@ export function commerceProvisioningReport(
       commerceRuntimeEnvironmentManifest
     ),
   ];
-  if (!receipt.bootstrapClientRevoked)
+  if (!receipt.bootstrapClientRevoked) {
     tasks.push({
       id: "commerce.revoke-bootstrap",
       title: "Revoke the bootstrap API Client",
@@ -41,6 +41,7 @@ export function commerceProvisioningReport(
       verify:
         "The bootstrap client is revoked and the runtime client remains active.",
     });
+  }
   tasks.push({
     id: "commerce.verify",
     title: "Verify Commerce access",

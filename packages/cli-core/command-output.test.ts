@@ -93,13 +93,15 @@ describe("command progress lifecycle", () => {
           ),
           Effect.runPromise
         );
-        expect(output.stdout.includes("\u001b[")).toBe(stdoutTty);
-        expect(output.stderr.includes("\u001b[")).toBe(stderrTty);
+        expect(output.stdout.includes("\u001B[")).toBe(stdoutTty);
+        expect(output.stderr.includes("\u001B[")).toBe(stderrTty);
         expect(output.stderr).toContain("Configure the content index");
       } finally {
-        if (descriptor)
+        if (descriptor) {
           Object.defineProperty(process.stderr, "isTTY", descriptor);
-        else Reflect.deleteProperty(process.stderr, "isTTY");
+        } else {
+          Reflect.deleteProperty(process.stderr, "isTTY");
+        }
         vi.unstubAllEnvs();
       }
     }
@@ -126,17 +128,27 @@ describe("command progress lifecycle", () => {
       const { events, output } = capture();
       const error = new Error("provider unavailable");
       let operation: Effect.Effect<never, Error> = Effect.fail(error);
-      if (kind === "defect") operation = Effect.die(error);
-      if (kind === "interruption") operation = Effect.interrupt;
+      if (kind === "defect") {
+        operation = Effect.die(error);
+      }
+      if (kind === "interruption") {
+        operation = Effect.interrupt;
+      }
       const exit = await output
         .phase(step, operation)
         .pipe(Effect.runPromiseExit);
-      expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit)) {
-        expect(Cause.hasInterrupts(exit.cause)).toBe(kind === "interruption");
-        expect(Cause.hasDies(exit.cause)).toBe(kind === "defect");
-        if (kind === "failure") expect(Cause.squash(exit.cause)).toBe(error);
+      if (Exit.isSuccess(exit)) {
+        throw new Error("Expected the operation to fail");
       }
+      expect({
+        interrupted: Cause.hasInterrupts(exit.cause),
+        defect: Cause.hasDies(exit.cause),
+        failure: kind === "failure" ? Cause.squash(exit.cause) : undefined,
+      }).toEqual({
+        interrupted: kind === "interruption",
+        defect: kind === "defect",
+        failure: kind === "failure" ? error : undefined,
+      });
       expect(events.slice(0, 2)).toEqual(["start", "stop"]);
       expect(events[2]).toContain(
         kind === "interruption" ? "CANCELLED" : "FAIL"
@@ -177,8 +189,9 @@ describe("command progress lifecycle", () => {
       },
       { width: 36, color: false }
     );
-    expect(text).toContain(`\n     $ ${command}\n`);
-    expect(text).toContain("Your next steps");
-    expect(text).not.toContain("\u001b");
+    for (const fragment of [`\n     $ ${command}\n`, "Your next steps"]) {
+      expect(text).toContain(fragment);
+    }
+    expect(text).not.toContain("\u001B");
   });
 });

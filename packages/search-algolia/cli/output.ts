@@ -49,7 +49,7 @@ export function searchProvisioningReport(options: {
       ],
     },
   ];
-  if (options.hasCommerce)
+  if (options.hasCommerce) {
     sections.push({
       title: "Commerce",
       facts: [
@@ -64,7 +64,8 @@ export function searchProvisioningReport(options: {
         },
       ],
     });
-  if (contentSearchApp)
+  }
+  if (contentSearchApp) {
     sections.push({
       title: "CMS",
       facts: [
@@ -89,11 +90,12 @@ export function searchProvisioningReport(options: {
             ]),
       ],
     });
+  }
   const tasks = [
     ...runtimeEnvironmentNextTasks(publication, options.runtimeEnvironment),
     ...options.contentHandoff.tasks,
   ];
-  if (options.hasCommerce)
+  if (options.hasCommerce) {
     tasks.push({
       id: "search.verify-products-and-content",
       title: "Verify product and content search together",
@@ -103,6 +105,7 @@ export function searchProvisioningReport(options: {
       verify:
         "Both sources return the expected results in the same search experience.",
     });
+  }
   return {
     outcome: tasks.length ? "action-required" : "ready",
     summary: tasks.length

@@ -1,10 +1,11 @@
 import { renderReport, withCommandOutput } from "@repo/cli-core/command-output";
+import type { RuntimeEnvironmentPublisher } from "@repo/cli-core/runtime-environment";
 import {
   runtimeEnvironmentDestinationFlags,
   runtimeEnvironmentDestinationFromFlags,
 } from "@repo/cli-core/runtime-environment-cli";
 import chalk from "chalk";
-import type { ConfigProvider, Effect as EffectType } from "effect";
+import type { ConfigProvider, Layer, Effect as EffectType } from "effect";
 import { Console, Effect, Option, Schema } from "effect";
 import { CliError, Command, Flag } from "effect/unstable/cli";
 
@@ -12,6 +13,8 @@ import {
   createCommerceCliLayer,
   createProjectProvisioningCliLayer,
 } from "../layer";
+import type { CommercetoolsProjectAdministration } from "../project-provisioning/administration";
+import type { BootstrapCommercetoolsConfig } from "../project-provisioning/bootstrap-config";
 import {
   decodeErrorDetails,
   decodedErrorMessage,
@@ -20,6 +23,7 @@ import {
 import { RuntimeClientCreationOutcomeUnknown } from "../project-provisioning/model";
 import { commerceProvisioningReport } from "../project-provisioning/output";
 import { provisionCommerceProject } from "../project-provisioning/provision";
+import type { RuntimeProjectSetup } from "../project-provisioning/runtime-project-setup";
 import { seedCommerceProject } from "../project-provisioning/seed";
 
 export const projectUserMessage = (cause: unknown): string | undefined => {
@@ -54,10 +58,22 @@ const asUserError = <A, E, R>(effect: EffectType.Effect<A, E, R>) =>
     )
   );
 
+type ProvisioningLayer<E, R> = Layer.Layer<
+  | BootstrapCommercetoolsConfig
+  | CommercetoolsProjectAdministration
+  | RuntimeProjectSetup
+  | RuntimeEnvironmentPublisher,
+  Layer.Error<ReturnType<typeof createProjectProvisioningCliLayer<E, R>>>,
+  Layer.Services<ReturnType<typeof createProjectProvisioningCliLayer<E, R>>>
+>;
+
 export const createProjectCommand = <E, R>(
-  configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>
+  configProvider: EffectType.Effect<ConfigProvider.ConfigProvider, E, R>,
+  provisioningLayer: ProvisioningLayer<
+    E,
+    R
+  > = createProjectProvisioningCliLayer(configProvider)
 ) => {
-  const provisioningLayer = createProjectProvisioningCliLayer(configProvider);
   const runtimeLayer = createCommerceCliLayer(configProvider);
   const provision = Command.make(
     "provision",

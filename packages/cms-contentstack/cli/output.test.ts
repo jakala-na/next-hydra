@@ -7,7 +7,7 @@ import {
   ContentstackProvisioningReceipt,
 } from "./provisioning/model";
 
-const receipt = new ContentstackProvisioningReceipt({
+const receiptData = {
   apiKey: ContentstackApiKey.make("stack-123"),
   credentials: { destination: "local", mode: 0o600, path: "/private/cms.env" },
   environments: ["development", "production"],
@@ -16,7 +16,8 @@ const receipt = new ContentstackProvisioningReceipt({
   recipeVersion: "4",
   migrationsApplied: 3,
   livePreviewConfigurationRequired: true,
-});
+} as const;
+const receipt = new ContentstackProvisioningReceipt(receiptData);
 const options = {
   localUrl: "https://web.application.localhost",
   productionUrl: "https://shop.example.test",
@@ -28,12 +29,16 @@ describe(cmsProvisioningReport, () => {
   it("renders actual import/migration facts and exact preview URLs", () => {
     const report = cmsProvisioningReport(receipt, options);
     const text = renderReport(report, { color: false, width: 88 });
-    expect(text).toContain("┌─ CMS · Contentstack");
-    expect(text).toContain("Migrations applied: 3");
-    expect(text).toContain("Recipe version: 4");
-    expect(text).toContain(options.localUrl);
-    expect(text).toContain(options.productionUrl);
-    expect(text).toContain("/private/cms.env");
+    for (const fragment of [
+      "┌─ CMS · Contentstack",
+      "Migrations applied: 3",
+      "Recipe version: 4",
+      options.localUrl,
+      options.productionUrl,
+      "/private/cms.env",
+    ]) {
+      expect(text).toContain(fragment);
+    }
     expect(
       report.tasks.find((task) => task.id === "runtime.apply-local")?.where
     ).toBe("apps/web");
@@ -44,7 +49,7 @@ describe(cmsProvisioningReport, () => {
   it("omits completed preview setup and targets actual published Vercel projects", () => {
     const report = cmsProvisioningReport(
       new ContentstackProvisioningReceipt({
-        ...receipt,
+        ...receiptData,
         livePreviewConfigurationRequired: false,
         credentials: {
           destination: "vercel",

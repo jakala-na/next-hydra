@@ -25,9 +25,13 @@ function wrap(text: string, prefix: string, style: OutputStyle): string {
     if (line && line.length + word.length + 1 > width) {
       lines.push(line);
       line = word;
-    } else line += (line ? " " : "") + word;
+    } else {
+      line += (line ? " " : "") + word;
+    }
   }
-  if (line) lines.push(line);
+  if (line) {
+    lines.push(line);
+  }
   return lines
     .map(
       (value, index) =>
@@ -75,10 +79,11 @@ export function renderPhase(
 
 export function renderReport(
   report: CommandReport,
-  style: OutputStyle
+  outerStyle: OutputStyle
 ): string {
-  const outerStyle = style;
-  if (report.title) style = { ...style, width: style.width - 4 };
+  const style = report.title
+    ? { ...outerStyle, width: outerStyle.width - 4 }
+    : outerStyle;
   const labels = {
     ready: "READY",
     "action-required": "ACTION REQUIRED",
@@ -96,12 +101,13 @@ export function renderReport(
   ];
   for (const section of report.sections) {
     lines.push("", paint("bold", section.title, style));
-    for (const fact of section.facts)
+    for (const fact of section.facts) {
       lines.push(wrap(`${fact.label}: ${fact.value}`, "  ", style));
+    }
   }
   if (report.tasks.length) {
     lines.push("", paint("bold", "Your next steps", style));
-    report.tasks.forEach((task, index) => {
+    for (const [index, task] of report.tasks.entries()) {
       lines.push(
         "",
         paint("bold", wrap(task.title, `  ${index + 1}. `, style), style),
@@ -109,18 +115,23 @@ export function renderReport(
         wrap(task.detail, "     ", style)
       );
       // Keep authored shell commands intact, independently from prose wrapping.
-      for (const command of task.commands ?? [])
+      for (const command of task.commands ?? []) {
         lines.push(
           "",
           `     ${paint(["cyan", "bold"], `$ ${command}`, style)}`
         );
-      if (task.verify)
+      }
+      if (task.verify) {
         lines.push(wrap(`Verify: ${task.verify}`, "     ", style));
-    });
+      }
+    }
   }
-  for (const note of report.notes ?? [])
+  for (const note of report.notes ?? []) {
     lines.push("", paint("dim", wrap(note, "  ", style), style));
-  if (!report.title) return lines.join("\n") + "\n";
+  }
+  if (!report.title) {
+    return `${lines.join("\n")}\n`;
+  }
   const framedLines = lines.flatMap((line) => line.split("\n"));
   const width = Math.max(
     outerStyle.width,

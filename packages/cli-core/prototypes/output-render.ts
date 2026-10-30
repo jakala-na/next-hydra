@@ -1,5 +1,5 @@
 // THROWAWAY: three terminal layouts; no public API or production integration.
-import { styleText } from "node:util";
+import { stripVTControlCharacters, styleText } from "node:util";
 
 import type { Scenario } from "./output-fixtures.ts";
 
@@ -13,15 +13,15 @@ export const createTheme = (style: Style) => {
   const paint = (format: Parameters<typeof styleText>[0]) => (text: string) =>
     style.color ? styleText(format, text, { validateStream: false }) : text;
   return {
-    heading: paint("bold"),
-    context: paint("dim"),
-    success: paint("green"),
-    ready: paint(["green", "bold"]),
-    info: paint(["cyan", "bold"]),
-    warning: paint(["yellow", "bold"]),
-    error: paint(["red", "bold"]),
     command: paint(["cyan", "bold"]),
+    context: paint("dim"),
+    error: paint(["red", "bold"]),
+    heading: paint("bold"),
+    info: paint(["cyan", "bold"]),
     location: paint("cyan"),
+    ready: paint(["green", "bold"]),
+    success: paint("green"),
+    warning: paint(["yellow", "bold"]),
   };
 };
 const bold = (text: string, style: Style) => createTheme(style).heading(text);
@@ -30,17 +30,21 @@ const cyan = (text: string, style: Style) => createTheme(style).location(text);
 
 // Wrap prose only. Commands stay intact so they remain safe to copy.
 export const wrap = (text: string, prefix: string, style: Style) => {
-  const prefixWidth = prefix.replace(/\u001b\[[0-9;]*m/g, "").length;
+  const prefixWidth = stripVTControlCharacters(prefix).length;
   const width = Math.max(20, style.width - prefixWidth);
   const lines: string[] = [];
   let line = "";
-  for (const word of text.split(/\s+/)) {
+  for (const word of text.split(/\s+/u)) {
     if (line && line.length + word.length + 1 > width) {
       lines.push(line);
       line = word;
-    } else line += (line ? " " : "") + word;
+    } else {
+      line += (line ? " " : "") + word;
+    }
   }
-  if (line) lines.push(line);
+  if (line) {
+    lines.push(line);
+  }
   return lines
     .map(
       (value, index) => (index === 0 ? prefix : " ".repeat(prefixWidth)) + value
@@ -49,8 +53,7 @@ export const wrap = (text: string, prefix: string, style: Style) => {
 };
 
 export const intro = (scenario: Scenario, variant: Variant, style: Style) => {
-  const label =
-    variant === "journal" ? "RUN" : variant === "receipt" ? "TASK" : "SETUP";
+  const label = { journal: "RUN", receipt: "TASK", guided: "SETUP" }[variant];
   return `\n${bold(`${label}  ${scenario.title}`, style)}\n${dim(wrap(scenario.context, "     ", style), style)}\n${dim("     Simulated output · no external changes", style)}\n\n`;
 };
 
@@ -64,31 +67,28 @@ export const phase = (
 ) => {
   const theme = createTheme(style);
   const status = failed ? theme.error("FAIL") : theme.success("OK");
-  const prefix =
-    variant === "journal"
-      ? `  ${index + 1}/${total} ${status}  `
-      : variant === "guided"
-        ? `  [${failed ? "!" : "x"}] `
-        : `  ${status}  `;
-  return wrap(text, prefix, style) + "\n";
+  const prefix = {
+    journal: `  ${index + 1}/${total} ${status}  `,
+    guided: `  [${failed ? "!" : "x"}] `,
+    receipt: `  ${status}  `,
+  }[variant];
+  return `${wrap(text, prefix, style)}\n`;
 };
 
 export const result = (scenario: Scenario, variant: Variant, style: Style) => {
   const state = {
-    ready: "READY",
     action: "ACTION REQUIRED",
     failed: "STOPPED",
     plan: "DRY RUN",
+    ready: "READY",
   }[scenario.outcome];
   const theme = createTheme(style);
-  const heading =
-    scenario.outcome === "failed"
-      ? theme.error(state)
-      : scenario.outcome === "ready"
-        ? theme.ready(state)
-        : scenario.outcome === "plan"
-          ? theme.info(state)
-          : theme.warning(state);
+  const heading = {
+    failed: theme.error,
+    ready: theme.ready,
+    plan: theme.info,
+    action: theme.warning,
+  }[scenario.outcome](state);
   const facts = scenario.facts.map(
     ([label, value]) => `${bold(label, style)}: ${value}`
   );

@@ -27,7 +27,7 @@ export const createAlgoliaProvisioningPlan = (
           })),
         },
       ];
-      if (graph.productPrimaries.length)
+      if (graph.productPrimaries.length) {
         sections.push({
           title: "Commerce product indices and connectors",
           facts: graph.productPrimaries.flatMap((primary) => [
@@ -41,6 +41,7 @@ export const createAlgoliaProvisioningPlan = (
             })),
           ]),
         });
+      }
       sections.push(
         {
           title: "Query Suggestions",

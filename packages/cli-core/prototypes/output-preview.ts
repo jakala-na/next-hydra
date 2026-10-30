@@ -1,6 +1,6 @@
 // THROWAWAY: browser comparison uses exactly the terminal renderer's fixtures.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import path from "node:path";
 
 import { scenarios } from "./output-fixtures.ts";
 import type { Scenario } from "./output-fixtures.ts";
@@ -13,7 +13,7 @@ import {
 } from "./output-render.ts";
 import type { Style, Variant } from "./output-render.ts";
 
-const spinnerFrames = progress("", 0, 1, { width: 80, color: true }).spinner
+const spinnerFrames = progress("", 0, 1, { color: true, width: 80 }).spinner
   .frames;
 
 function progressSample(
@@ -22,27 +22,35 @@ function progressSample(
   style: Style
 ): string {
   const active = Math.min(2, scenario.phases.length - 1);
-  if (active < 0) return "Dry run · no operations execute\n";
+  const activePhase = scenario.phases[active];
+  if (activePhase === undefined) {
+    return "Dry run · no operations execute\n";
+  }
   const completed = scenario.phases
     .slice(0, active)
     .map((text, i) =>
       phase(text, i, scenario.phases.length, false, variant, style)
     )
     .join("");
-  let current = `  ${active + 1}/${scenario.phases.length} Working: ${scenario.phases[active]}`;
+  let current = `  ${active + 1}/${scenario.phases.length} Working: ${activePhase}`;
   if (style.color) {
     // Ora's actual frame formatter, without starting a timer in Node.
     const spinner = progress(
-      scenario.phases[active]!,
+      activePhase,
       active,
       scenario.phases.length,
       style
     );
-    current = spinner
-      .frame()
-      .replace(spinnerFrames[0]!, createTheme(style).location("__ORA_FRAME__"));
+    const [firstFrame] = spinnerFrames;
+    current = spinner.frame();
+    if (firstFrame !== undefined) {
+      current = current.replace(
+        firstFrame,
+        createTheme(style).location("__ORA_FRAME__")
+      );
+    }
   }
-  return completed + current + "\n";
+  return `${completed + current}\n`;
 }
 
 const snapshots = Object.fromEntries(
@@ -56,7 +64,6 @@ const snapshots = Object.fromEntries(
             width,
             {
               color: transcript(scenario, variant, { width, color: true }),
-              plain: transcript(scenario, variant, { width, color: false }),
               live: {
                 color: progressSample(scenario, variant, {
                   width,
@@ -67,6 +74,7 @@ const snapshots = Object.fromEntries(
                   color: false,
                 }),
               },
+              plain: transcript(scenario, variant, { width, color: false }),
             },
           ])
         ),
@@ -74,8 +82,8 @@ const snapshots = Object.fromEntries(
     ),
   ])
 );
-const destination = resolve(".scratch/research/cli-output-preview.html");
-mkdirSync(resolve(".scratch/research"), { recursive: true });
+const destination = path.resolve(".scratch/research/cli-output-preview.html");
+mkdirSync(path.resolve(".scratch/research"), { recursive: true });
 writeFileSync(
   destination,
   `<!doctype html>

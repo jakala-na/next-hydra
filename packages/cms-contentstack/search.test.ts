@@ -35,13 +35,15 @@ describe(createContentstackSearchProjection, () => {
     const instructions = handoff.tasks.map(({ detail }) => detail).join("\n");
 
     expect(handoff.title).toBe("Complete Content indexing in Contentstack");
-    expect(instructions).toContain(
-      'destination index to "acceptance--content"'
-    );
-    expect(instructions).toContain("initial content sync");
-    expect(instructions).toContain("Searchable attributes");
-    expect(instructions).toContain("Landing Page (landing_page)");
-    expect(instructions).toContain("publish_details.locale");
+    for (const fragment of [
+      'destination index to "acceptance--content"',
+      "initial content sync",
+      "Searchable attributes",
+      "Landing Page (landing_page)",
+      "publish_details.locale",
+    ]) {
+      expect(instructions).toContain(fragment);
+    }
   });
 
   it("describes the connector's shared localized Content index", () => {

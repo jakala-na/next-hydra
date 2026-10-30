@@ -22,18 +22,24 @@ export function resolveSearchContentTypes(
 ): readonly SearchContentType[] {
   const types = new Map<string, SearchContentType>();
   for (const contribution of contributions) {
-    if ("extend" in contribution) continue;
-    if (types.has(contribution.uid))
+    if ("extend" in contribution) {
+      continue;
+    }
+    if (types.has(contribution.uid)) {
       throw new Error(`Duplicate searchable content type: ${contribution.uid}`);
+    }
     types.set(contribution.uid, contribution);
   }
   for (const contribution of contributions) {
-    if (!("extend" in contribution)) continue;
+    if (!("extend" in contribution)) {
+      continue;
+    }
     const target = types.get(contribution.extend);
-    if (!target)
+    if (!target) {
       throw new Error(
         `Search instructions extend a missing content type: ${contribution.extend}`
       );
+    }
     types.set(target.uid, {
       ...target,
       instructions: [...target.instructions, ...contribution.instructions],

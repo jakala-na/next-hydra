@@ -281,15 +281,13 @@ describe(provisionAlgolia, () => {
       },
     });
     const progressText = progressLines.join("\n");
-    expect(progressText).toContain(
-      "OK  Commerce · Configure product indices, connectors and initial reindexes"
-    );
-    expect(progressText).toContain(
-      'OK  CMS · Configure content index "acceptance--content"'
-    );
-    expect(progressText).toContain(
-      "OK  Search · Publish search and content credentials"
-    );
+    for (const fragment of [
+      "OK  Commerce · Configure product indices, connectors and initial reindexes",
+      'OK  CMS · Configure content index "acceptance--content"',
+      "OK  Search · Publish search and content credentials",
+    ]) {
+      expect(progressText).toContain(fragment);
+    }
     expect(progressText).not.toContain("connector-client-secret");
     const publishedSearchKey = publishedValues?.ALGOLIA_SEARCH_API_KEY;
     if (!Redacted.isRedacted(publishedSearchKey)) {

@@ -54,12 +54,18 @@ describe(searchProvisioningReport, () => {
       "cms.initial-sync",
       "search.verify-products-and-content",
     ]);
-    expect(report.tasks[0]?.where).toBe("apps/web");
-    expect(report.tasks[0]?.detail).toContain("from /tmp/search.env");
-    expect(report.tasks[0]?.detail).toContain("restart or redeploy");
-    expect(text).toContain("Initial reindexes completed: 2");
-    expect(text).toContain("/tmp/search.env");
-    expect(text.replace(/\s+/gu, " ")).toContain(
+    expect({
+      where: report.tasks[0]?.where,
+      source: report.tasks[0]?.detail?.includes("from /tmp/search.env"),
+      restart: report.tasks[0]?.detail?.includes("restart or redeploy"),
+    }).toEqual({ where: "apps/web", source: true, restart: true });
+    for (const fragment of [
+      "Initial reindexes completed: 2",
+      "/tmp/search.env",
+    ]) {
+      expect(text).toContain(fragment);
+    }
+    expect(text.replaceAll(/\s+/gu, " ")).toContain(
       "CMS content sync was not started by this command"
     );
     expect(text.match(/Your next steps/gu)).toHaveLength(1);

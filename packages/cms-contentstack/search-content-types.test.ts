@@ -55,21 +55,25 @@ describe("recipe-owned searchable content", () => {
       branches: ["catalog"],
       environments: ["preview"],
     });
-    const tasks = search.createContentIndexingHandoff("preview--content").tasks;
-    expect(
-      tasks.find(
-        ({ id }) => id === "cms.contentstack.mapping.product_editorial"
-      )
-    ).toMatchObject({
+    const { tasks } = search.createContentIndexingHandoff("preview--content");
+    const mapping = tasks.find(
+      ({ id }) => id === "cms.contentstack.mapping.product_editorial"
+    );
+    expect({
+      title: mapping?.title,
+      detailNamesRoot: mapping?.detail?.includes("product_editorials"),
+      initialSyncCount: tasks.filter(
+        ({ id }) => id === "cms.contentstack.initial-sync"
+      ).length,
+      verificationNamesType: tasks
+        .find(({ id }) => id === "cms.contentstack.verify-records")
+        ?.detail?.includes("Product editorial (product_editorial)"),
+    }).toEqual({
       title: "Configure content mappings: Product editorial",
-      detail: expect.stringContaining("product_editorials"),
+      detailNamesRoot: true,
+      initialSyncCount: 1,
+      verificationNamesType: true,
     });
-    expect(
-      tasks.filter(({ id }) => id === "cms.contentstack.initial-sync")
-    ).toHaveLength(1);
-    expect(
-      tasks.find(({ id }) => id === "cms.contentstack.verify-records")?.detail
-    ).toContain("Product editorial (product_editorial)");
   });
 
   it("retains an unapplied type's mapping task when the app receipt covers only another type", async () => {
@@ -106,12 +110,12 @@ describe("recipe-owned searchable content", () => {
         }),
       },
     }).pipe(Effect.runPromise);
-    const tasks = createContentstackSearch(
+    const { tasks } = createContentstackSearch(
       contentTypes
     ).createContentIndexingHandoff("content", {
       appInstalled: true,
       configuredMappings: receipt.configuredMappings,
-    }).tasks;
+    });
     const ids = tasks.map(({ id }) => id);
     expect(ids).not.toContain("cms.contentstack.mapping.landing_page");
     expect(ids).toContain("cms.contentstack.mapping.product_editorial");
@@ -122,12 +126,12 @@ describe("recipe-owned searchable content", () => {
   });
 
   it("does not accept partial field coverage as a completed mapping", () => {
-    const tasks = createContentstackSearch([
+    const { tasks } = createContentstackSearch([
       product,
     ]).createContentIndexingHandoff("content", {
       appInstalled: true,
       configuredMappings: [{ contentTypeUid: product.uid, fields: ["name"] }],
-    }).tasks;
+    });
     expect(tasks.map(({ id }) => id)).toContain(
       "cms.contentstack.mapping.product_editorial"
     );
@@ -135,12 +139,12 @@ describe("recipe-owned searchable content", () => {
 
   it("rejects duplicate type definitions and orphaned recipe extensions", () => {
     expect(() => resolveSearchContentTypes([product, product])).toThrow(
-      /Duplicate/
+      /Duplicate/u
     );
     expect(() =>
       resolveSearchContentTypes([
         { extend: "missing", instructions: ["Publish"] },
       ])
-    ).toThrow(/missing content type/);
+    ).toThrow(/missing content type/u);
   });
 });

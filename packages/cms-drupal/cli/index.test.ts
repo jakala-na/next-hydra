@@ -13,8 +13,9 @@ describe("Drupal provision command output", () => {
     async (exitCode) => {
       const commands: string[] = [];
       const processes = ChildProcessSpawner.make((command) => {
-        if (command._tag !== "StandardCommand")
+        if (command._tag !== "StandardCommand") {
           return Effect.die("Expected one installer command");
+        }
         commands.push(`${command.command} ${command.args.join(" ")}`);
         return Effect.succeed(
           ChildProcessSpawner.makeHandle({
@@ -58,15 +59,19 @@ describe("Drupal provision command output", () => {
       );
       expect(commands).toEqual(["ddev install"]);
       expect(Exit.isSuccess(output.exit)).toBe(exitCode === 0);
-      if (exitCode === 0) {
-        expect(output.stdout).toContain("┌─ CMS · Drupal");
-        expect(output.stdout).toContain("/application/drupal");
-        expect(output.stderr).toContain("OK  CMS");
-      } else {
-        expect(output.stdout).not.toContain("┌─ CMS");
-        expect(output.stderr).toContain("FAIL  CMS");
-        expect(output.stderr).toContain("STOPPED");
-      }
+      expect({
+        receipt: output.stdout.includes("┌─ CMS · Drupal"),
+        directory: output.stdout.includes("/application/drupal"),
+        completed: output.stderr.includes("OK  CMS"),
+        failed: output.stderr.includes("FAIL  CMS"),
+        stopped: output.stderr.includes("STOPPED"),
+      }).toEqual({
+        receipt: exitCode === 0,
+        directory: exitCode === 0,
+        completed: exitCode === 0,
+        failed: exitCode !== 0,
+        stopped: exitCode !== 0,
+      });
     }
   );
 });

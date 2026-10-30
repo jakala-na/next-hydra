@@ -9,7 +9,7 @@ export function runtimeEnvironmentNextTasks(
   receipt: RuntimeEnvironmentPublicationReceipt,
   manifest: readonly RuntimeEnvironmentVariable[]
 ): readonly NextTask[] {
-  if (receipt.destination === "vercel")
+  if (receipt.destination === "vercel") {
     return [
       {
         id: "runtime.redeploy",
@@ -21,6 +21,7 @@ export function runtimeEnvironmentNextTasks(
           "The new deployments use the provider configuration just published.",
       },
     ];
+  }
   const applications = [
     ...new Set(manifest.flatMap((variable) => variable.applications)),
   ];
